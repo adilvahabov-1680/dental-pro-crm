@@ -5,10 +5,14 @@ import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getPatientForUser } from "@/lib/patients";
-import { listPatientPdfRecords } from "@/lib/documents";
+import { listPatientDocuments } from "@/lib/documents";
+import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
+import { DOCUMENT_TYPE_META } from "@/lib/constants";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { DocumentsList } from "@/components/documents/DocumentsList";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
+import { UploadDocumentForm } from "@/components/documents/UploadDocumentForm";
 
 export default async function PatientDocumentsPage({
   params,
@@ -25,7 +29,7 @@ export default async function PatientDocumentsPage({
   if (!patient) notFound();
 
   const canManage = hasPermission(user, "documents.manage");
-  const records = await listPatientPdfRecords(user, patient.id);
+  const records = await listPatientDocuments(user, patient.id);
 
   return (
     <>
@@ -52,12 +56,27 @@ export default async function PatientDocumentsPage({
           </div>
         }
       />
+      {canManage && (
+        <Card className="mb-4 border-accent/20 bg-accent/5 p-5">
+          <h2 className="mb-3 text-sm font-semibold text-accent">{td.upload.title}</h2>
+          <UploadDocumentForm
+            patientId={patient.id}
+            typeOptions={UPLOAD_DOCUMENT_TYPES.map((v) => ({
+              value: v,
+              label: DOCUMENT_TYPE_META[v].az,
+            }))}
+            labels={{ ...td.upload }}
+            errors={td.errors}
+          />
+        </Card>
+      )}
       <DocumentsList
         records={records}
         labels={{
           empty: td.list.empty,
           emptyDesc: td.list.emptyDesc,
           open: td.list.open,
+          download: td.list.download,
           total: td.list.total,
         }}
       />

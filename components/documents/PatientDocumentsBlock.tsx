@@ -4,25 +4,29 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DocumentTypeBadge } from "@/components/documents/DocumentTypeBadge";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
+import { UploadDocumentForm } from "@/components/documents/UploadDocumentForm";
 import { formatDate } from "@/lib/utils";
 import type { PatientDocumentRow } from "@/lib/documents";
 
 /**
- * Блок «Sənədlər» на карточке пациента (v1, живой):
- * генерация «Müalicə çıxarışı», ссылка на финансы для hesab-PDF,
- * последние записи documents/pdf_records со ссылками на детальную страницу.
+ * Блок «Sənədlər» на карточке пациента:
+ * генерация «Müalicə çıxarışı», загрузка файла (сессия 14), ссылка на финансы
+ * для hesab-PDF, последние записи documents/pdf_records.
  */
 export function PatientDocumentsBlock({
   patientId,
   records,
   canManage,
+  typeOptions,
   labels,
   generateLabels,
+  uploadLabels,
   errors,
 }: {
   patientId: string;
   records: PatientDocumentRow[];
   canManage: boolean;
+  typeOptions: Array<{ value: string; label: string }>;
   labels: {
     title: string;
     soon: string;
@@ -35,6 +39,17 @@ export function PatientDocumentsBlock({
     all: string;
   };
   generateLabels: { summary: string; saving: string };
+  uploadLabels: {
+    title: string;
+    file: string;
+    typeLabel: string;
+    titleLabel: string;
+    titleHint: string;
+    submit: string;
+    uploading: string;
+    success: string;
+    hint: string;
+  };
   errors: Record<string, string>;
 }) {
   return (
@@ -77,6 +92,18 @@ export function PatientDocumentsBlock({
             </span>
             <Badge tone="neutral">{labels.soon}</Badge>
           </div>
+          {canManage && (
+            <div className="mt-3 rounded-[10px] border border-border-subtle bg-bg-base/40 p-3">
+              <p className="mb-2 text-xs font-medium text-text-primary">{uploadLabels.title}</p>
+              <UploadDocumentForm
+                patientId={patientId}
+                typeOptions={typeOptions}
+                labels={uploadLabels}
+                errors={errors}
+                compact
+              />
+            </div>
+          )}
           <p className="pt-1 text-[11px] leading-relaxed text-text-secondary/80">{labels.note}</p>
         </div>
         <div>
@@ -101,16 +128,21 @@ export function PatientDocumentsBlock({
                     </Link>
                   </li>
                 ) : (
-                  <li
-                    key={r.id}
-                    className="flex items-center justify-between gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2"
-                  >
-                    <span className="min-w-0 flex-1 truncate text-xs text-text-primary">
-                      {r.title}
-                    </span>
-                    <span className="text-[11px] tabular-nums text-text-secondary">
-                      {formatDate(r.createdAt)}
-                    </span>
+                  <li key={r.id}>
+                    <a
+                      href={`/api/documents/${r.id}/download`}
+                      target="_blank"
+                      rel="noopener"
+                      className="flex items-center justify-between gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2 transition-colors hover:bg-bg-elevated"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <DocumentTypeBadge type={r.type} />
+                        <span className="min-w-0 truncate text-xs text-text-primary">{r.title}</span>
+                      </span>
+                      <span className="text-[11px] tabular-nums text-text-secondary">
+                        {formatDate(r.createdAt)}
+                      </span>
+                    </a>
                   </li>
                 ),
               )}

@@ -16,6 +16,8 @@ import { listPatientAppointments } from "@/lib/appointments";
 import { listPatientTreatments } from "@/lib/treatments";
 import { listPatientFinance } from "@/lib/finance";
 import { listPatientDocumentRecords } from "@/lib/documents";
+import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
+import { DOCUMENT_TYPE_META } from "@/lib/constants";
 import { PatientDocumentsBlock } from "@/components/documents/PatientDocumentsBlock";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { PatientTreatmentBlock } from "@/components/treatments/PatientTreatmentBlock";
@@ -361,11 +363,16 @@ export default async function PatientDetailPage({
             patientId={patient.id}
             records={documentRecords}
             canManage={hasPermission(user, "documents.manage")}
+            typeOptions={UPLOAD_DOCUMENT_TYPES.map((v) => ({
+              value: v,
+              label: DOCUMENT_TYPE_META[v].az,
+            }))}
             labels={{ ...t.documents.patientBlock }}
             generateLabels={{
               summary: t.documents.generate.summary,
               saving: t.documents.generate.saving,
             }}
+            uploadLabels={{ ...t.documents.upload }}
             errors={t.documents.errors}
           />
         </div>

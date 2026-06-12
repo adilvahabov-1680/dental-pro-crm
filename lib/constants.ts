@@ -87,6 +87,15 @@ export const PDF_TYPE_META: Record<string, { az: string; color: string }> = {
   recommendations: { az: "Tövsiyələr", color: "secondary" },
 };
 
+/** AZ-метки типов загружаемых файлов пациента (enum DocumentType). */
+export const DOCUMENT_TYPE_META: Record<string, { az: string; color: string }> = {
+  xray: { az: "Rentgen şəkli", color: "info" },
+  consent: { az: "Razılıq sənədi", color: "secondary" },
+  photo: { az: "Foto / şəkil", color: "accent" },
+  contract: { az: "Müqavilə", color: "warning" },
+  other: { az: "Digər sənəd", color: "text-secondary" },
+};
+
 /**
  * Отображаемый номер PDF-документа. Косметический (в pdf_records не хранится):
  * считается как count+1 на момент генерации, без lock — для демонстрационного

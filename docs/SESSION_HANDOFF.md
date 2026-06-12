@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-12 (после сессии 13.5: git init + default duration)
+**by AV Systems** · обновлено: 2026-06-12 (после сессии 14: Patient File Uploads v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -51,6 +51,7 @@ Demo-логины (пароль у всех `Demo1234!`):
 | Dashboard (live) | готов | `e2e-dashboard-check` 20/20 |
 | Bildirişlər (in-app v1) | готов | `e2e-notifications-check` 17/17 |
 | Sənədlər / PDF v1 | готов | `e2e-documents-check` 36/36 |
+| Fayl yükləmə (Uploads v1) | готов | `e2e-file-uploads-check` 27/27 |
 | Ayarlar (Settings v1) | готов | `e2e-settings-check` 43/43 |
 | Admin (платформа) | **placeholder** | — |
 
@@ -83,13 +84,18 @@ Anbar/materiallar → Dashboard/Bildirişlər → PDF sənədlər → Ayarlar.
   если на странице НЕСКОЛЬКО форм — постить фрагмент конкретной формы
   (`formFragment(html, marker)`), иначе $ACTION-поля смешаются.
 
-## 5. PDF / storage (сессия 12)
+## 5. PDF / storage (сессии 12, 14)
 
 - pdfkit + DejaVu Sans (`dejavu-fonts-ttf`) — стандартные шрифты не знают ə/ş/ğ;
   `serverExternalPackages: ["pdfkit"]` в next.config.ts обязателен.
 - Деньги в PDF — «AZN» (не ₼). Текст PDF в e2e проверяется через `pdf-parse` v2.
 - Файлы: `uploads/documents/{clinicId}/{patientId}/…` (в .gitignore); в БД —
   relative path; `resolveUploadPath` режет traversal/absolute.
+- **Загрузка файлов пациента (сессия 14)**: таблица `documents`, ≤10 MB,
+  mime PDF/JPEG/PNG/WebP по магическим байтам (клиенту не доверяем), серверные
+  имена в `…/{patientId}/uploaded/`; `serverActions.bodySizeLimit: "12mb"`
+  в next.config.ts (дефолт 1 MB режет upload). Download route один на оба вида
+  (pdf_records → documents). Детали — DOCUMENTS.md.
 - **Production-долг**: serverless-деплой потеряет uploads/ — lib/storage.ts
   спроектирован как единственная точка замены на S3.
 
@@ -114,21 +120,18 @@ Anbar/materiallar → Dashboard/Bildirişlər → PDF sənədlər → Ayarlar.
 ## 7. Оставшиеся placeholder'ы
 
 `/admin`, глобальный поиск в topbar (disabled), кнопка
-«Pasiyent məlumat forması» (Tezliklə), загрузка файлов в таблицу `documents`
-(снимки/согласия), email/WhatsApp/SMS-отправка, загрузка логотипа клиники
-(logoUrl в схеме, рендер в PDF не делался).
+«Pasiyent məlumat forması» (Tezliklə), email/WhatsApp/SMS-отправка,
+загрузка логотипа клиники (logoUrl в схеме, рендер в PDF не делался),
+удаление/привязка к зубу для загруженных файлов (toothRecordId в схеме есть).
 
 ## 8. Следующая сессия (рекомендация)
 
-Settings закрыт — крупных placeholder'ов MVP не осталось (кроме `/admin`).
-Варианты по приоритету заказчика:
-1. **Загрузка файлов в `documents`** (снимки/согласия) — блок на карточке
-   пациента уже показывает записи; нужна upload-инфраструктура (lib/storage.ts
-   готов как точка записи).
-2. **Отправка PDF/напоминаний пациенту** (WhatsApp/SMS) — каналы в схеме есть.
-
-(Сессия 13.5 закрыла мелочь: git init + baseline-коммит,
-`default_appointment_minutes` в форме приёма.)
+Uploads v1 закрыт. Варианты по приоритету заказчика:
+1. **Отправка PDF/напоминаний пациенту** (WhatsApp/SMS) — каналы и
+   `reminder_hours_before` в схеме/настройках есть.
+2. Доработка documents: удаление загруженного файла (soft delete уже в схеме),
+   привязка к зубу/процедуре, preview изображений.
+3. `/admin` (платформенный модуль) или git remote + push.
 
 ## 9. Чек-лист конца сессии
 

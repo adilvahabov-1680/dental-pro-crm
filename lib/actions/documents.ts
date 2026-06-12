@@ -30,6 +30,11 @@ import { calcAge } from "@/lib/utils";
 import {
   treatmentSummarySchema,
   invoicePdfSchema,
+  uploadDocumentSchema,
+  sniffUploadMime,
+  sanitizeOriginalName,
+  UPLOAD_MAX_BYTES,
+  UPLOAD_MIME_EXT,
   type DocumentFormState,
 } from "@/lib/validation/documents";
 
@@ -37,10 +42,10 @@ const DEFAULT_RECOMMENDATIONS =
   "Tövsiyələr həkim tərəfindən pasiyentə izah edilmişdir. " +
   "Növbəti kontrol müayinəsi üçün klinika ilə əlaqə saxlayın.";
 
-function newFileName(prefix: string): string {
+function newFileName(prefix: string, ext = "pdf"): string {
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  return `${prefix}-${stamp}-${randomBytes(4).toString("hex")}.pdf`;
+  return `${prefix}-${stamp}-${randomBytes(4).toString("hex")}.${ext}`;
 }
 
 async function clinicInfo(clinicId: string) {
@@ -252,4 +257,82 @@ export async function generateInvoicePdf(
   revalidatePath(`/patients/${invoice.patient.id}/documents`);
   revalidatePath("/documents");
   redirect(`/documents/${recordId}`);
+}
+
+/**
+ * Загрузка файла пациента (сессия 14). Файл валидируется по магическим
+ * байтам (клиентскому mime/имени не доверяем), имя на диске генерируется
+ * сервером, оригинальное имя — только как заголовок (sanitized).
+ */
+export async function uploadPatientDocument(
+  _prev: DocumentFormState | undefined,
+  formData: FormData,
+): Promise<DocumentFormState> {
+  const user = await requirePermission("documents.manage");
+  if (!user.clinicId) redirect("/dashboard");
+  const clinicId = user.clinicId;
+
+  const parsed = uploadDocumentSchema.safeParse({
+    patientId: formData.get("patientId"),
+    type: formData.get("type"),
+    title: formData.get("title"),
+  });
+  if (!parsed.success) return { error: "patientNotFound" };
+  const input = parsed.data;
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "fileRequired" };
+  if (file.size > UPLOAD_MAX_BYTES) return { error: "fileTooLarge" };
+
+  // пациент — только из scope (tenant + роль)
+  const patient = await getPatientForUser(user, input.patientId);
+  if (!patient) return { error: "patientNotFound" };
+
+  let documentId: string;
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > UPLOAD_MAX_BYTES) return { error: "fileTooLarge" };
+
+    // mime — по содержимому, не по заголовку клиента
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !UPLOAD_MIME_EXT[mime]) return { error: "unsupportedType" };
+
+    const fileName = newFileName(input.type, UPLOAD_MIME_EXT[mime]);
+    const fileUrl = `documents/${clinicId}/${patient.id}/uploaded/${fileName}`;
+    const title = input.title ?? sanitizeOriginalName(file.name ?? "", fileName);
+
+    await saveUploadFile(fileUrl, bytes);
+
+    const db = tenantClient(clinicId);
+    const record = await db.document.create({
+      data: {
+        patientId: patient.id,
+        type: input.type,
+        title,
+        fileUrl,
+        mimeType: mime,
+        fileSize: bytes.length,
+        uploadedById: user.id,
+      },
+    } as never);
+    documentId = (record as { id: string }).id;
+
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "create",
+        entityType: "document",
+        entityId: documentId,
+        after: { type: input.type, patientId: patient.id, fileUrl, mimeType: mime, fileSize: bytes.length },
+      },
+    } as never);
+  } catch (e) {
+    console.error("uploadPatientDocument failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/patients/${patient.id}`);
+  revalidatePath(`/patients/${patient.id}/documents`);
+  revalidatePath("/documents");
+  return { uploadedId: documentId };
 }
