@@ -23,8 +23,9 @@
   не создаются (без шума).
 - `working_hours`: `{ mon..sun: { from: "09:00", to: "18:00" } | null }`,
   null = день закрыт. Валидация: HH:MM, from < to (по каждому дню отдельно).
-- `default_appointment_minutes` / `reminder_hours_before` пока **не читаются**
-  другими модулями (зарезервированы: форма приёма, scheduler напоминаний).
+- `default_appointment_minutes` — с сессии 13.5 prefill длительности в
+  `/appointments/new` (вне 5–480 → 30; нестандартное значение добавляется
+  в список select'а). `reminder_hours_before` пока не читается (scheduler).
   `doctor_sees_all_patients` читается `patientScopeWhere` (lib/patients.ts).
 
 ## Прайс (append-only)
@@ -62,7 +63,8 @@ ServiceCreateForm, ServicesTable c inline-формами цены/toggle) ·
 
 ## E2E
 
-`npx tsx scripts/e2e-settings-check.ts` — 42 проверки: реквизиты + валидация,
+`npx tsx scripts/e2e-settings-check.ts` — 43 проверки (с 13.5: default
+duration в форме приёма): реквизиты + валидация,
 попадание реквизитов в PDF-шапку (pdf-parse), параметры приёма, переключатель
 doctor_sees_all_patients с проверкой реального scope врача, часы работы
 (+ обратный диапазон), создание услуги, append-only смена цены, дубликаты,
