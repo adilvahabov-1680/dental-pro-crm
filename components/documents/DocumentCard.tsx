@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileText, Paperclip, User } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { DocumentTypeBadge } from "@/components/documents/DocumentTypeBadge";
+import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { formatDate } from "@/lib/utils";
 import type { DocumentListRow } from "@/lib/documents";
 
@@ -13,9 +14,14 @@ import type { DocumentListRow } from "@/lib/documents";
 export function DocumentCard({
   record,
   labels,
+  canDelete = false,
+  deleteLabels,
 }: {
   record: DocumentListRow;
   labels: { open: string; download: string };
+  /** documents.manage; «Sil» — только для загруженных файлов (kind=upload) */
+  canDelete?: boolean;
+  deleteLabels?: { button: string; confirm: string; failed: string };
 }) {
   const fmtDateTime = (dt: Date) =>
     `${formatDate(dt)} ${new Date(dt).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}`;
@@ -77,6 +83,9 @@ export function DocumentCard({
         </Link>
       )}
       {Action}
+      {!isPdf && canDelete && deleteLabels && (
+        <DeleteDocumentButton documentId={record.id} labels={deleteLabels} />
+      )}
     </Card>
   );
 }

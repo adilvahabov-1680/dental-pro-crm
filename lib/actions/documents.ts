@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
 import { tenantClient } from "@/lib/tenant";
-import { getPatientForUser } from "@/lib/patients";
+import { getPatientForUser, patientScopeWhere } from "@/lib/patients";
 import { getInvoiceForUser, paymentReceiverNames } from "@/lib/finance";
 import { renderTreatmentSummaryPdf, renderInvoicePdf } from "@/lib/pdf";
 import { saveUploadFile } from "@/lib/storage";
@@ -31,6 +31,7 @@ import {
   treatmentSummarySchema,
   invoicePdfSchema,
   uploadDocumentSchema,
+  deleteDocumentSchema,
   sniffUploadMime,
   sanitizeOriginalName,
   UPLOAD_MAX_BYTES,
@@ -335,4 +336,64 @@ export async function uploadPatientDocument(
   revalidatePath(`/patients/${patient.id}/documents`);
   revalidatePath("/documents");
   return { uploadedId: documentId };
+}
+
+/**
+ * Soft-delete загруженного документа (сессия 14.5): только deletedAt,
+ * физический файл в v1 остаётся на диске. pdf_records этим action
+ * не удаляются (append-only). Повторное удаление — идемпотентно.
+ */
+export async function deleteUploadedDocument(
+  _prev: DocumentFormState | undefined,
+  formData: FormData,
+): Promise<DocumentFormState> {
+  const user = await requirePermission("documents.manage");
+  if (!user.clinicId) redirect("/dashboard");
+  const clinicId = user.clinicId;
+
+  const parsed = deleteDocumentSchema.safeParse({ documentId: formData.get("documentId") });
+  if (!parsed.success) return { error: "notFound" };
+
+  try {
+    const db = tenantClient(clinicId);
+    // tenant + ролевой scope по пациенту; БЕЗ фильтра deletedAt —
+    // повторное удаление должно быть идемпотентным, а не «не найдено»
+    const scope = await patientScopeWhere(user);
+    const doc = await db.document.findFirst({
+      where: {
+        AND: [
+          { id: parsed.data.documentId },
+          Object.keys(scope).length ? { patient: scope } : {},
+        ],
+      },
+      select: { id: true, patientId: true, deletedAt: true, title: true, fileUrl: true },
+    });
+    if (!doc) return { error: "notFound" }; // чужой/несуществующий — без утечки
+    if (doc.deletedAt) return { deleted: true }; // уже удалён — безопасный результат
+
+    await prisma.document.update({
+      where: { id: doc.id },
+      data: { deletedAt: new Date() },
+    });
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "delete",
+        entityType: "document",
+        entityId: doc.id,
+        before: { title: doc.title, fileUrl: doc.fileUrl, patientId: doc.patientId },
+      },
+    } as never);
+
+    if (doc.patientId) {
+      revalidatePath(`/patients/${doc.patientId}`);
+      revalidatePath(`/patients/${doc.patientId}/documents`);
+    }
+    revalidatePath("/documents");
+  } catch (e) {
+    console.error("deleteUploadedDocument failed:", e);
+    return { error: "deleteFailed" };
+  }
+
+  return { deleted: true };
 }

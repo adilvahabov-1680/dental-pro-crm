@@ -373,6 +373,11 @@ export default async function PatientDetailPage({
               saving: t.documents.generate.saving,
             }}
             uploadLabels={{ ...t.documents.upload }}
+            deleteLabels={{
+              button: t.documents.delete.button,
+              confirm: t.documents.delete.confirm,
+              failed: t.documents.delete.failed,
+            }}
             errors={t.documents.errors}
           />
         </div>

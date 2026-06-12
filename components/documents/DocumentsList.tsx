@@ -7,9 +7,13 @@ import type { DocumentListRow } from "@/lib/documents";
 export function DocumentsList({
   records,
   labels,
+  canDelete = false,
+  deleteLabels,
 }: {
   records: DocumentListRow[];
   labels: { empty: string; emptyDesc: string; open: string; download: string; total: string };
+  canDelete?: boolean;
+  deleteLabels?: { button: string; confirm: string; failed: string };
 }) {
   if (records.length === 0) {
     return (
@@ -26,6 +30,8 @@ export function DocumentsList({
             key={`${r.kind}-${r.id}`}
             record={r}
             labels={{ open: labels.open, download: labels.download }}
+            canDelete={canDelete}
+            deleteLabels={deleteLabels}
           />
         ))}
       </div>

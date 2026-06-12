@@ -15,7 +15,13 @@ export interface DocumentFormState {
   error?: string;
   /** успешная загрузка файла (форма остаётся на странице) */
   uploadedId?: string;
+  /** успешное (или идемпотентно-повторное) удаление */
+  deleted?: boolean;
 }
+
+export const deleteDocumentSchema = z.object({
+  documentId: z.string().uuid("notFound"),
+});
 
 // ───────────────── Загрузка файлов пациента (сессия 14) ─────────────────
 

@@ -79,6 +79,12 @@ export default async function PatientDocumentsPage({
           download: td.list.download,
           total: td.list.total,
         }}
+        canDelete={canManage}
+        deleteLabels={{
+          button: td.delete.button,
+          confirm: td.delete.confirm,
+          failed: td.delete.failed,
+        }}
       />
     </>
   );

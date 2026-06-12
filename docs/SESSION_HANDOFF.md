@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-12 (после сессии 14: Patient File Uploads v1)
+**by AV Systems** · обновлено: 2026-06-12 (после сессии 14.5: soft-delete документов)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -51,7 +51,7 @@ Demo-логины (пароль у всех `Demo1234!`):
 | Dashboard (live) | готов | `e2e-dashboard-check` 20/20 |
 | Bildirişlər (in-app v1) | готов | `e2e-notifications-check` 17/17 |
 | Sənədlər / PDF v1 | готов | `e2e-documents-check` 36/36 |
-| Fayl yükləmə (Uploads v1) | готов | `e2e-file-uploads-check` 27/27 |
+| Fayl yükləmə (Uploads v1 + soft-delete) | готов | `e2e-file-uploads-check` 39/39 |
 | Ayarlar (Settings v1) | готов | `e2e-settings-check` 43/43 |
 | Admin (платформа) | **placeholder** | — |
 
@@ -96,6 +96,10 @@ Anbar/materiallar → Dashboard/Bildirişlər → PDF sənədlər → Ayarlar.
   имена в `…/{patientId}/uploaded/`; `serverActions.bodySizeLimit: "12mb"`
   в next.config.ts (дефолт 1 MB режет upload). Download route один на оба вида
   (pdf_records → documents). Детали — DOCUMENTS.md.
+- **Soft-delete загруженных документов (сессия 14.5)**: кнопка «Sil»
+  (documents.manage, только uploads) → deletedAt; **физический файл остаётся
+  на диске** (future: cleanup-job); удалённые скрыты везде и не скачиваются
+  (404); pdf_records не удаляются. Restore — только через БД.
 - **Production-долг**: serverless-деплой потеряет uploads/ — lib/storage.ts
   спроектирован как единственная точка замены на S3.
 
@@ -126,12 +130,13 @@ Anbar/materiallar → Dashboard/Bildirişlər → PDF sənədlər → Ayarlar.
 
 ## 8. Следующая сессия (рекомендация)
 
-Uploads v1 закрыт. Варианты по приоритету заказчика:
+Uploads v1 + soft-delete закрыты. Варианты по приоритету заказчика:
 1. **Отправка PDF/напоминаний пациенту** (WhatsApp/SMS) — каналы и
    `reminder_hours_before` в схеме/настройках есть.
-2. Доработка documents: удаление загруженного файла (soft delete уже в схеме),
-   привязка к зубу/процедуре, preview изображений.
-3. `/admin` (платформенный модуль) или git remote + push.
+2. Доработка documents: привязка к зубу/процедуре, preview изображений,
+   cleanup-job для deleted/orphan файлов.
+3. `/admin` (платформенный модуль).
+4. Git remote не настроен — `git remote add origin <URL>` + `git push -u origin main`.
 
 ## 9. Чек-лист конца сессии
 

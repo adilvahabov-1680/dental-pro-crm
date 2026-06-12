@@ -1,4 +1,5 @@
 import { requirePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { listDocuments, type DocumentFilters } from "@/lib/documents";
 import { PDF_TYPE_META, DOCUMENT_TYPE_META } from "@/lib/constants";
@@ -45,6 +46,12 @@ export default async function DocumentsPage({
           open: td.open,
           download: td.download,
           total: td.total,
+        }}
+        canDelete={hasPermission(user, "documents.manage")}
+        deleteLabels={{
+          button: t.documents.delete.button,
+          confirm: t.documents.delete.confirm,
+          failed: t.documents.delete.failed,
         }}
       />
     </>

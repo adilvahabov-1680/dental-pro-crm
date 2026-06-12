@@ -294,6 +294,59 @@ async function main() {
     const asstDl = pdfDoc ? await asst.getRaw(`/api/documents/${pdfDoc.id}/download`) : null;
     check("assistant: download → 403 (нет documents.view)", !!asstDl && asstDl.status === 403);
 
+    // ── 8b. soft-delete (сессия 14.5) ──
+    // удаляем PNG-документ; PDF-документ остаётся для cross-tenant проверок
+    const pDocsPage3 = await owner.get(`/patients/${resad.id}/documents`);
+    check("кнопка Sil видна (owner, uploaded)", pDocsPage3.html.includes("data-del"));
+    const delFrag = formFragment(pDocsPage3.html, `data-del="${pngDoc!.id}"`);
+
+    // assistant: удаление отклонено (нет documents.manage)
+    await asst.postForm(`/patients/${resad.id}/documents`, delFrag, {
+      documentId: pngDoc!.id,
+    });
+    const afterAsstDel = await prisma.document.findUniqueOrThrow({ where: { id: pngDoc!.id } });
+    check("assistant: удаление отклонено", afterAsstDel.deletedAt === null);
+
+    // owner: удаление проходит
+    await owner.postForm(`/patients/${resad.id}/documents`, delFrag, {
+      documentId: pngDoc!.id,
+    });
+    const deleted = await prisma.document.findUniqueOrThrow({ where: { id: pngDoc!.id } });
+    check("soft-delete: deletedAt установлен", deleted.deletedAt !== null);
+    check("audit: document delete",
+      !!(await prisma.auditLog.findFirst({
+        where: { entityType: "document", entityId: pngDoc!.id, action: "delete" },
+      })));
+    const fileStays = await fs
+      .access(path.join(UPLOADS, pngDoc!.fileUrl))
+      .then(() => true)
+      .catch(() => false);
+    check("v1: физический файл остаётся на диске", fileStays);
+
+    // скрыт во всех списках
+    const patientPageAfter = await owner.get(`/patients/${resad.id}`);
+    check("блок пациента: удалённый скрыт", !patientPageAfter.html.includes("E2E-UPL-foto.png"));
+    const docsAfter = await owner.get("/documents");
+    check("/documents: удалённый скрыт", !docsAfter.html.includes("E2E-UPL-foto.png"));
+    const pDocsAfter = await owner.get(`/patients/${resad.id}/documents`);
+    check("история пациента: удалённый скрыт", !pDocsAfter.html.includes("E2E-UPL-foto.png"));
+
+    // download удалённого → 404
+    const dlDeleted = await owner.getRaw(`/api/documents/${pngDoc!.id}/download`);
+    check("download удалённого → 404", dlDeleted.status === 404);
+
+    // повторное удаление — идемпотентно (deletedAt не меняется)
+    const firstDeletedAt = deleted.deletedAt!.getTime();
+    await owner.postForm(`/patients/${resad.id}/documents`, delFrag, {
+      documentId: pngDoc!.id,
+    });
+    const redeleted = await prisma.document.findUniqueOrThrow({ where: { id: pngDoc!.id } });
+    check("повторное удаление идемпотентно", redeleted.deletedAt!.getTime() === firstDeletedAt);
+
+    // upload после внедрения delete по-прежнему работает + PDF-док жив
+    const dlStill = await owner.getRaw(`/api/documents/${pdfDoc!.id}/download`);
+    check("неудалённый uploaded-документ по-прежнему скачивается", dlStill.status === 200);
+
     // ── 9. tenant-изоляция ──
     const clinicB = await prisma.clinic.create({
       data: { name: "E2E Upl B", slug: "e2e-upl-clinic-b", status: "active" },
@@ -324,6 +377,17 @@ async function main() {
     });
     const crossDl = await owner.getRaw(`/api/documents/${docB.id}/download`);
     check("cross-tenant: download чужого документа → 404", crossDl.status === 404);
+
+    // cross-tenant: удаление чужого документа отклонено
+    const delFragB = formFragment(
+      (await owner.get(`/patients/${resad.id}/documents`)).html,
+      `data-del="${pdfDoc!.id}"`,
+    );
+    await owner.postForm(`/patients/${resad.id}/documents`, delFragB, {
+      documentId: docB.id,
+    });
+    const docBAfter = await prisma.document.findUniqueOrThrow({ where: { id: docB.id } });
+    check("cross-tenant: удаление чужого документа отклонено", docBAfter.deletedAt === null);
 
     // cleanup tenant B
     await prisma.document.delete({ where: { id: docB.id } });

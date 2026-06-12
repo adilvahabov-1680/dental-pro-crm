@@ -533,6 +533,12 @@ export const az = {
       invoice: "Hesab PDF yarat",
       saving: "PDF yaradılır…",
     },
+    delete: {
+      button: "Sil",
+      confirm: "Sənədi silmək istədiyinizə əminsiniz?",
+      success: "Sənəd silindi",
+      failed: "Sənədi silmək mümkün olmadı",
+    },
     upload: {
       title: "Sənəd yüklə",
       file: "Fayl seç",

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DocumentTypeBadge } from "@/components/documents/DocumentTypeBadge";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { UploadDocumentForm } from "@/components/documents/UploadDocumentForm";
+import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { formatDate } from "@/lib/utils";
 import type { PatientDocumentRow } from "@/lib/documents";
 
@@ -21,6 +22,7 @@ export function PatientDocumentsBlock({
   labels,
   generateLabels,
   uploadLabels,
+  deleteLabels,
   errors,
 }: {
   patientId: string;
@@ -50,6 +52,7 @@ export function PatientDocumentsBlock({
     success: string;
     hint: string;
   };
+  deleteLabels: { button: string; confirm: string; failed: string };
   errors: Record<string, string>;
 }) {
   return (
@@ -128,12 +131,15 @@ export function PatientDocumentsBlock({
                     </Link>
                   </li>
                 ) : (
-                  <li key={r.id}>
+                  <li
+                    key={r.id}
+                    className="flex items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2"
+                  >
                     <a
                       href={`/api/documents/${r.id}/download`}
                       target="_blank"
                       rel="noopener"
-                      className="flex items-center justify-between gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2 transition-colors hover:bg-bg-elevated"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-2 transition-colors hover:text-accent"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <DocumentTypeBadge type={r.type} />
@@ -143,6 +149,9 @@ export function PatientDocumentsBlock({
                         {formatDate(r.createdAt)}
                       </span>
                     </a>
+                    {canManage && (
+                      <DeleteDocumentButton documentId={r.id} labels={deleteLabels} small />
+                    )}
                   </li>
                 ),
               )}

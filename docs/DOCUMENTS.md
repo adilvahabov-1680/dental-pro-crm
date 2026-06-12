@@ -1,5 +1,5 @@
 # Dental Pro CRM — Модуль Sənədlər / PDF Documents
-**by AV Systems** · v1.1 · Сессии 11 (блок), 12 (PDF-генерация), 14 (загрузка файлов)
+**by AV Systems** · v1.2 · Сессии 11 (блок), 12 (PDF), 14 (загрузка), 14.5 (soft-delete)
 Связанные документы: [DATABASE.md](DATABASE.md) §H · [FINANCE.md](FINANCE.md) · [DEVELOPMENT_RULES.md](DEVELOPMENT_RULES.md)
 
 ## Типы документов v1
@@ -37,6 +37,23 @@ title, fileUrl (relative), mimeType, fileSize, uploadedById, deletedAt.
   `/patients/[id]/documents`; списки `/documents` и пациента показывают оба
   вида через `DocumentListRow` (kind `pdf` | `upload`; у загруженных — иконка
   Paperclip и прямое скачивание).
+
+## Soft-delete загруженных документов (сессия 14.5)
+
+- `deleteUploadedDocument` (lib/actions/documents.ts): documents.manage →
+  tenant + patient-scope (id из формы, clinicId ТОЛЬКО из сессии) →
+  `deletedAt = now` → audit_log (`delete document`) → revalidate. Повторное
+  удаление идемпотентно (`{ deleted: true }`); чужой/несуществующий —
+  notFound без утечки.
+- **Физический файл в v1 остаётся на диске** — удаляется только запись
+  (восстановление возможно через БД). Future: cleanup-job для deleted/orphan
+  файлов.
+- Удалённые скрыты во всех списках (`deletedAt: null` в listDocuments /
+  listPatientDocuments / listPatientDocumentRecords) и **не скачиваются**
+  (getUploadedDocumentForUser фильтрует deletedAt → download 404).
+- UI: кнопка «Sil» (confirm) — только для kind=upload при documents.manage;
+  `pdf_records` не удаляются (append-only), у них кнопки нет. Restore-UI и
+  bulk delete не делались.
 
 ## Routes
 
@@ -95,7 +112,9 @@ missing file, audit. Cleanup удаляет e2e-документы и файлы
 
 ## E2E загрузки файлов
 
-`npx tsx scripts/e2e-file-uploads-check.ts` — 27 проверок: загрузка PDF/PNG,
+`npx tsx scripts/e2e-file-uploads-check.ts` — 39 проверок: загрузка PDF/PNG,
+soft-delete (скрытие в 3 списках, download 404, идемпотентность, файл на диске,
+права/cross-tenant),
 sniff mime (octet-stream → image/png; скрипт-подделка отклонена), серверное имя
 файла, байты на диске и в download, лимит 10 MB, traversal-имя, блок пациента,
 `/documents` + фильтр, doctor scope, assistant (manage/view), cross-tenant
@@ -104,10 +123,11 @@ upload/download. Cleanup удаляет записи и файлы.
 ## Не входит в v1.1
 
 Отправка пациенту (email/WhatsApp/SMS), электронная подпись, редактор шаблонов,
-«Pasiyent məlumat forması» (кнопка с Tezliklə), удаление/редактирование
-загруженных документов из UI, привязка файла к зубу/процедуре (toothRecordId /
-treatmentItemId в схеме есть), preview-сетка изображений, mass upload /
-drag-and-drop, Office-форматы, брендирование PDF логотипом клиники, S3-storage
+«Pasiyent məlumat forması» (кнопка с Tezliklə), restore-UI / hard delete /
+bulk delete, редактирование загруженных документов, привязка файла к
+зубу/процедуре (toothRecordId / treatmentItemId в схеме есть), preview-сетка
+изображений, mass upload / drag-and-drop, Office-форматы, брендирование PDF
+логотипом клиники, S3-storage
 (**локальный диск не подходит для serverless** — lib/storage.ts остаётся
 единственной точкой замены на S3-совместимый слой).
 
