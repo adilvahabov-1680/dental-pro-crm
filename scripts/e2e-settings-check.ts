@@ -220,6 +220,12 @@ async function main() {
     page = await owner.get("/settings");
     check("страница отражает новые значения", page.html.includes('value="45"'));
 
+    // default_appointment_minutes применяется в форме нового приёма (сессия 13.5)
+    const apptNew = await owner.get("/appointments/new");
+    const opt45 = apptNew.html.match(/<option[^>]*value="45"[^>]*>/);
+    check("форма приёма: müddət по умолчанию = 45 (из settings)",
+      !!opt45 && opt45[0].includes("selected"), opt45?.[0] ?? "option not found");
+
     // врач видит пациента без своего primaryDoctor (Tural)
     const hekim = new Session();
     check("login doctor", await hekim.login("hekim@demo.dentalpro.az"));

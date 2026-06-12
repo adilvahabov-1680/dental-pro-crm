@@ -1,6 +1,7 @@
 import { requirePermission } from "@/lib/auth";
 import { getDict } from "@/lib/i18n";
 import { listClinicDoctors, listPatientOptions } from "@/lib/patients";
+import { getClinicParams } from "@/lib/settings";
 import { toDateStr } from "@/lib/appointments";
 import { APPOINTMENT_DURATIONS } from "@/lib/validation/appointments";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -20,10 +21,21 @@ export default async function NewAppointmentPage({
   const { patient } = await searchParams;
 
   // пациенты в scope пользователя (врач — свои); MVP: select до 200 записей
-  const [patients, doctors] = await Promise.all([
+  const [patients, doctors, clinicParams] = await Promise.all([
     listPatientOptions(user),
     listClinicDoctors(user),
+    getClinicParams(user),
   ]);
+
+  // clinic-setting default_appointment_minutes; вне допустимого диапазона → 30
+  const raw = clinicParams.defaultAppointmentMinutes;
+  const defaultDuration = Number.isInteger(raw) && raw >= 5 && raw <= 480 ? raw : 30;
+  // нестандартное значение (напр. 25) добавляется в список, иначе select молча выберет первый пункт
+  const durations = APPOINTMENT_DURATIONS.includes(
+    defaultDuration as (typeof APPOINTMENT_DURATIONS)[number],
+  )
+    ? APPOINTMENT_DURATIONS
+    : [...APPOINTMENT_DURATIONS, defaultDuration].sort((a, b) => a - b);
 
   const doctorLocked = user.role === "doctor" || user.role === "assistant";
   const lockedDoctorId =
@@ -48,8 +60,9 @@ export default async function NewAppointmentPage({
           doctorId: lockedDoctorId ?? doctors[0]?.id,
           date: toDateStr(now),
           time: `${nextHour}:00`,
+          durationMin: defaultDuration,
         }}
-        durations={APPOINTMENT_DURATIONS}
+        durations={durations}
       />
     </div>
   );

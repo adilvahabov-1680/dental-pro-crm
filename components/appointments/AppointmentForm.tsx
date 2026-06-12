@@ -28,7 +28,13 @@ export function AppointmentForm({
   doctors: Option[];
   /** doctor/assistant не выбирают врача — фиксированный */
   doctorLocked: boolean;
-  defaults: { patientId?: string; doctorId?: string; date: string; time: string };
+  defaults: {
+    patientId?: string;
+    doctorId?: string;
+    date: string;
+    time: string;
+    durationMin?: number;
+  };
   durations: readonly number[];
 }) {
   const [state, formAction, pending] = useActionState<AppointmentFormState | undefined, FormData>(
@@ -92,7 +98,12 @@ export function AppointmentForm({
           </Select>
         )}
 
-        <Select id="durationMin" name="durationMin" label={f.duration} defaultValue="30">
+        <Select
+          id="durationMin"
+          name="durationMin"
+          label={f.duration}
+          defaultValue={String(defaults.durationMin ?? 30)}
+        >
           {durations.map((d) => (
             <option key={d} value={d}>
               {d} {f.durationMin}
