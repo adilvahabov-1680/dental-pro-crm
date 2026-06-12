@@ -1,0 +1,19 @@
+# Dental Pro CRM — dev PostgreSQL (для машин с Docker).
+# На машинах без Docker используется портативная PostgreSQL: scripts/db-start.ps1 (см. docs/SETUP.md).
+# Креды dev-safe, только для локальной разработки.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: dental-pro-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dental_pro_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - dental_pro_pgdata:/var/lib/postgresql/data
+
+volumes:
+  dental_pro_pgdata:

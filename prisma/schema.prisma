@@ -1,0 +1,1149 @@
+// Dental Pro CRM — Prisma Schema (source of truth)
+// by AV Systems · v0.2 · см. docs/DATABASE.md
+//
+// Конвенции:
+//  - id: uuid; clinicId обязателен в каждой бизнес-модели (tenant-изоляция)
+//  - деньги: Int в гяпиках; время: timestamptz (UTC)
+//  - soft delete: deletedAt; append-only модели без updatedAt/deletedAt
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Locale {
+  az
+  ru
+  en
+}
+
+enum ClinicStatus {
+  trial
+  active
+  suspended
+}
+
+enum RoleKey {
+  super_admin
+  owner
+  admin
+  doctor
+  reception
+  assistant
+  accountant
+}
+
+enum Gender {
+  male
+  female
+}
+
+enum PatientStatus {
+  active
+  archived
+}
+
+/// Статусы приёма — enum, не таблица: на статусах построены workflow и напоминания,
+/// произвольное редактирование клиниками сломало бы логику. AZ-названия — через i18n-ключи.
+enum AppointmentStatus {
+  scheduled            // yaradıldı
+  notified             // bildiriş göndərildi
+  confirmed            // təsdiqləndi
+  arrived
+  in_progress
+  running_late         // gecikir
+  reschedule_requested // vaxt dəyişmə sorğusu
+  completed            // tamamlandı
+  no_show              // gəlmədi
+  cancelled            // ləğv edildi
+  late_cancelled       // təcili ləğv (после cancellation_deadline)
+}
+
+/// Статус ответа пациента по ссылке (кэш на appointment)
+enum PatientResponseStatus {
+  pending
+  confirmed
+  running_late
+  reschedule_requested
+  cancelled
+}
+
+enum Dentition {
+  permanent // постоянные 11–48
+  primary   // молочные 51–85
+}
+
+/// Тип зубной карты: взрослая сейчас, детская — будущее (см. dental_charts)
+enum ChartType {
+  adult
+  child
+}
+
+enum ToothPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+/// Единый источник правды статусов зуба (см. DENTAL_CHART.md)
+enum ToothStatus {
+  healthy            // Sağlam
+  needs_treatment    // Müalicə tələb edir
+  in_treatment       // Müalicə olunur
+  completed          // Tamamlandı
+  implant            // İmplant
+  extracted          // Çıxarılıb
+  root_canal         // Kanal müalicəsi
+  filling            // Plomba
+  crown              // Tac / Koronka
+  observation        // Müşahidə
+  temporary_filling  // Müvəqqəti plomba
+  crown_needed       // Tac lazımdır
+  extraction_planned // Çıxarılma planlaşdırılıb
+}
+
+enum ToothChangeType {
+  status_changed
+  diagnosis_changed
+  procedure_added
+  note_changed
+}
+
+enum PlanStatus {
+  draft
+  proposed
+  approved
+  in_progress
+  completed
+  cancelled
+}
+
+enum ItemStatus {
+  planned
+  in_progress
+  done
+  cancelled
+}
+
+enum InvoiceStatus {
+  draft
+  issued
+  partially_paid
+  paid
+  cancelled
+}
+
+enum PaymentMethod {
+  cash
+  card
+  transfer // bank transfer
+  installment
+  other
+}
+
+enum DebtStatus {
+  open
+  partial
+  closed
+  written_off
+}
+
+enum MovementType {
+  in_stock   @map("in")
+  out_stock  @map("out")
+  adjustment
+  write_off
+}
+
+enum SupplierOrderStatus {
+  draft
+  ordered
+  received
+  cancelled
+}
+
+enum DocumentType {
+  consent
+  xray
+  photo
+  contract
+  other
+}
+
+enum PdfType {
+  invoice_pdf
+  treatment_plan_pdf
+  tooth_chart_pdf
+  consent_form
+  extract            // выписка пациенту
+  work_act           // акт выполненных работ
+  recommendations    // рекомендации после лечения
+}
+
+enum NotificationChannel {
+  sms
+  whatsapp
+  in_app
+  email
+}
+
+enum NotificationType {
+  appointment_reminder
+  followup
+  repeat_visit_reminder
+  treatment_pdf
+  debt_reminder
+  inventory_low_stock // получатель — сотрудник (user_id), in_app
+  custom
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  delivered
+  failed
+  read
+}
+
+enum LinkPurpose {
+  confirm_appointment
+  feedback
+  document_sign
+}
+
+enum LinkStatus {
+  active
+  used
+  expired
+  revoked
+}
+
+/// Что выбрал пациент, перейдя по ссылке
+enum ResponseType {
+  confirm
+  running_late
+  reschedule_request
+  cancel
+}
+
+enum SettingScope {
+  clinic
+  doctor
+  user
+}
+
+// ─────────────────── A. Tenancy & Access ───────────────────
+
+model Clinic {
+  id            String       @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String       @unique
+  phone         String?
+  email         String?
+  address       String?
+  timezone      String       @default("Asia/Baku")
+  currency      String       @default("AZN") @db.Char(3)
+  defaultLocale Locale       @default(az) @map("default_locale")
+  logoUrl       String?      @map("logo_url")
+  status        ClinicStatus @default(trial)
+  plan          String?
+  // настройки клиники — в таблице settings (scope=clinic), не json-полем
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  users                User[]
+  roles                Role[]
+  doctors              Doctor[]
+  assistants           Assistant[]
+  patients             Patient[]
+  appointments         Appointment[]
+  dentalCharts         DentalChart[]
+  toothRecords         ToothRecord[]
+  toothHistory         ToothHistory[]
+  treatmentPlans       TreatmentPlan[]
+  treatmentItems       TreatmentItem[]
+  serviceCategories    ServiceCategory[]
+  services             Service[]
+  prices               Price[]
+  invoices             Invoice[]
+  payments             Payment[]
+  debts                Debt[]
+  inventoryCategories  InventoryCategory[]
+  inventoryItems       InventoryItem[]
+  inventoryMovements   InventoryMovement[]
+  suppliers            Supplier[]
+  supplierOrders       SupplierOrder[]
+  documents            Document[]
+  pdfRecords           PdfRecord[]
+  notifications        Notification[]
+  patientResponseLinks PatientResponseLink[]
+  settings             Setting[]
+  translations         Translation[]
+  auditLogs            AuditLog[]
+
+  @@map("clinics")
+}
+
+model User {
+  id           String  @id @default(uuid()) @db.Uuid
+  clinicId     String? @map("clinic_id") @db.Uuid // null только у super_admin
+  roleId       String  @map("role_id") @db.Uuid
+  email        String  @unique
+  phone        String?
+  passwordHash String  @map("password_hash")
+  fullName     String  @map("full_name")
+  locale       Locale  @default(az)
+  avatarUrl    String? @map("avatar_url")
+  isActive     Boolean @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz()
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic           Clinic?          @relation(fields: [clinicId], references: [id])
+  role             Role             @relation(fields: [roleId], references: [id])
+  doctorProfile    Doctor?
+  assistantProfile Assistant?
+  extraPermissions UserPermission[]
+
+  @@index([clinicId])
+  @@map("users")
+}
+
+model Role {
+  id       String  @id @default(uuid()) @db.Uuid
+  clinicId String? @map("clinic_id") @db.Uuid // null = системная роль (seed)
+  key      RoleKey
+  name     String // i18n-ключ
+  isSystem Boolean @default(true) @map("is_system")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic      Clinic?          @relation(fields: [clinicId], references: [id])
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([clinicId, key])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique // напр. patients.view, finance.manage
+  module      String
+  description String?
+
+  roles RolePermission[]
+  users UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// Индивидуальные права пользователя поверх роли.
+/// Итоговые права = role_permissions ∪ (user_permissions where allowed)
+///                   − (user_permissions where !allowed). Явный запрет сильнее роли.
+model UserPermission {
+  userId       String  @map("user_id") @db.Uuid
+  permissionId String  @map("permission_id") @db.Uuid
+  allowed      Boolean @default(true) // false = явный запрет
+  grantedById  String? @map("granted_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model Doctor {
+  id                String   @id @default(uuid()) @db.Uuid
+  clinicId          String   @map("clinic_id") @db.Uuid
+  userId            String   @unique @map("user_id") @db.Uuid
+  specialty         String? // вкл. "uşaq stomatoloqu"
+  licenseNo         String?  @map("license_no")
+  color             String   @default("#22D3EE") // цвет в календаре
+  commissionPercent Decimal? @map("commission_percent") @db.Decimal(5, 2)
+  workingHours      Json?    @map("working_hours")
+  isActive          Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic          Clinic          @relation(fields: [clinicId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
+  assistants      Assistant[]
+  primaryPatients Patient[]       @relation("PrimaryDoctor")
+  appointments    Appointment[]
+  toothRecords    ToothRecord[]
+  treatmentPlans  TreatmentPlan[]
+  treatmentItems  TreatmentItem[]
+  invoices        Invoice[]
+
+  @@index([clinicId])
+  @@map("doctors")
+}
+
+model Assistant {
+  id               String  @id @default(uuid()) @db.Uuid
+  clinicId         String  @map("clinic_id") @db.Uuid
+  userId           String  @unique @map("user_id") @db.Uuid
+  assignedDoctorId String? @map("assigned_doctor_id") @db.Uuid
+  isActive         Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic         Clinic        @relation(fields: [clinicId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+  assignedDoctor Doctor?       @relation(fields: [assignedDoctorId], references: [id])
+  appointments   Appointment[]
+
+  @@index([clinicId])
+  @@map("assistants")
+}
+
+// ─────────────── B. Patients & Appointments ───────────────
+
+model Patient {
+  id              String        @id @default(uuid()) @db.Uuid
+  clinicId        String        @map("clinic_id") @db.Uuid
+  primaryDoctorId String?       @map("primary_doctor_id") @db.Uuid
+  guardianId      String?       @map("guardian_id") @db.Uuid // self-FK: опекун ребёнка
+  firstName       String        @map("first_name")
+  lastName        String        @map("last_name")
+  fatherName      String?       @map("father_name")
+  birthDate       DateTime?     @map("birth_date") @db.Date
+  gender          Gender?
+  phone           String? // у ребёнка может отсутствовать — связь через опекуна
+  email           String?
+  address         String?
+  allergies       String? // выводится с warning-бейджем
+  chronicDiseases String?       @map("chronic_diseases")
+  anamnesis       String?
+  notes           String?
+  source          String?
+  status          PatientStatus @default(active)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic               Clinic                @relation(fields: [clinicId], references: [id])
+  primaryDoctor        Doctor?               @relation("PrimaryDoctor", fields: [primaryDoctorId], references: [id])
+  guardian             Patient?              @relation("Guardian", fields: [guardianId], references: [id])
+  children             Patient[]             @relation("Guardian")
+  appointments         Appointment[]
+  dentalCharts         DentalChart[]
+  toothRecords         ToothRecord[]
+  toothHistory         ToothHistory[]
+  treatmentPlans       TreatmentPlan[]
+  treatmentItems       TreatmentItem[]
+  invoices             Invoice[]
+  payments             Payment[]
+  debts                Debt[]
+  documents            Document[]
+  pdfRecords           PdfRecord[]
+  notifications        Notification[]
+  patientResponseLinks PatientResponseLink[]
+
+  @@index([clinicId, phone])
+  @@index([clinicId, lastName])
+  @@map("patients")
+}
+
+model Appointment {
+  id             String            @id @default(uuid()) @db.Uuid
+  clinicId       String            @map("clinic_id") @db.Uuid
+  patientId      String            @map("patient_id") @db.Uuid
+  doctorId       String            @map("doctor_id") @db.Uuid
+  assistantId    String?           @map("assistant_id") @db.Uuid
+  startsAt       DateTime          @map("starts_at") @db.Timestamptz()
+  endsAt         DateTime          @map("ends_at") @db.Timestamptz()
+  status         AppointmentStatus @default(scheduled)
+  serviceId      String?           @map("service_id") @db.Uuid // основная услуга визита
+  complaint      String?
+  chair          String?
+  notes          String?
+  // duration не хранится — вычисляется из startsAt/endsAt (нет риска рассинхрона)
+  patientResponseStatus PatientResponseStatus @default(pending) @map("patient_response_status") // кэш ответа по ссылке
+  cancellationDeadline  DateTime?             @map("cancellation_deadline") @db.Timestamptz() // позже = late_cancelled
+  rescheduleAllowed     Boolean               @default(true) @map("reschedule_allowed")
+  lateCancelFlag        Boolean               @default(false) @map("late_cancel_flag")
+  reminderSentAt DateTime?         @map("reminder_sent_at") @db.Timestamptz()
+  createdById    String            @map("created_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic         Clinic                @relation(fields: [clinicId], references: [id])
+  patient        Patient               @relation(fields: [patientId], references: [id])
+  doctor         Doctor                @relation(fields: [doctorId], references: [id])
+  assistant      Assistant?            @relation(fields: [assistantId], references: [id])
+  service        Service?              @relation(fields: [serviceId], references: [id])
+  treatmentItems TreatmentItem[]
+  invoices       Invoice[]
+  notifications  Notification[]
+  responseLinks  PatientResponseLink[]
+
+  @@index([clinicId, doctorId, startsAt])
+  @@index([clinicId, patientId])
+  @@map("appointments")
+}
+
+// ────────────────── C. Dental Chart (ядро) ──────────────────
+
+/// Зубная карта пациента — контейнер записей по зубам.
+/// У пациента максимум одна карта каждого типа (adult / child).
+/// Взрослая создаётся лениво при первом обращении к карте; детская — будущая версия.
+model DentalChart {
+  id        String    @id @default(uuid()) @db.Uuid
+  clinicId  String    @map("clinic_id") @db.Uuid
+  patientId String    @map("patient_id") @db.Uuid
+  chartType ChartType @default(adult) @map("chart_type")
+  isActive  Boolean   @default(true) @map("is_active")
+  notes     String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  toothRecords ToothRecord[]
+
+  @@unique([clinicId, patientId, chartType])
+  @@map("dental_charts")
+}
+
+model ToothRecord {
+  id            String        @id @default(uuid()) @db.Uuid
+  clinicId      String        @map("clinic_id") @db.Uuid
+  patientId     String        @map("patient_id") @db.Uuid
+  dentalChartId String        @map("dental_chart_id") @db.Uuid
+  doctorId      String?       @map("doctor_id") @db.Uuid // последний лечащий врач по зубу
+  toothNumber   Int           @map("tooth_number") @db.SmallInt // FDI: 11–48, молочные 51–85
+  dentition     Dentition     @default(permanent) // тип зуба (в т.ч. молочный в смешанном прикусе)
+  status        ToothStatus   @default(healthy)
+  priority      ToothPriority @default(normal)
+  diagnosis     String?
+  doctorNotes   String?       @map("doctor_notes") // treatment note врача
+  lastTreatedAt DateTime?     @map("last_treated_at") @db.Timestamptz()
+  updatedById   String        @map("updated_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz() // только админ; история в ToothHistory остаётся
+
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  dentalChart    DentalChart     @relation(fields: [dentalChartId], references: [id])
+  doctor         Doctor?         @relation(fields: [doctorId], references: [id])
+  history        ToothHistory[]
+  treatmentItems TreatmentItem[]
+  documents      Document[]
+
+  @@unique([dentalChartId, toothNumber]) // один рекорд на зуб в пределах карты
+  @@index([clinicId, patientId, toothNumber])
+  @@map("tooth_records")
+}
+
+/// Append-only: запрещены update и delete на уровне приложения
+model ToothHistory {
+  id            String          @id @default(uuid()) @db.Uuid
+  clinicId      String          @map("clinic_id") @db.Uuid
+  patientId     String          @map("patient_id") @db.Uuid
+  toothRecordId String?         @map("tooth_record_id") @db.Uuid
+  toothNumber   Int             @map("tooth_number") @db.SmallInt // денормализовано
+  changeType     ToothChangeType @map("change_type")
+  previousStatus ToothStatus?    @map("previous_status")
+  newStatus      ToothStatus?    @map("new_status")
+  diagnosis      String?
+  procedureDone  String?         @map("procedure_done") // что было сделано (текст для ленты)
+  doctorNote     String?         @map("doctor_note")
+  before         Json?           // полный снимок для аудита
+  after          Json?
+  changedById    String          @map("changed_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  toothRecord ToothRecord? @relation(fields: [toothRecordId], references: [id])
+
+  @@index([clinicId, patientId, toothNumber])
+  @@map("tooth_history")
+}
+
+// ───────────────────── D. Treatment ─────────────────────
+
+model TreatmentPlan {
+  id         String     @id @default(uuid()) @db.Uuid
+  clinicId   String     @map("clinic_id") @db.Uuid
+  patientId  String     @map("patient_id") @db.Uuid
+  doctorId   String     @map("doctor_id") @db.Uuid
+  title      String
+  status     PlanStatus @default(draft)
+  totalPrice Int        @default(0) @map("total_price") // гяпики, кэш суммы items
+  notes      String?
+  approvedAt DateTime?  @map("approved_at") @db.Timestamptz() // согласие пациента/опекуна
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic  Clinic          @relation(fields: [clinicId], references: [id])
+  patient Patient         @relation(fields: [patientId], references: [id])
+  doctor  Doctor          @relation(fields: [doctorId], references: [id])
+  items   TreatmentItem[]
+
+  @@index([clinicId, patientId])
+  @@map("treatment_plans")
+}
+
+model TreatmentItem {
+  id              String     @id @default(uuid()) @db.Uuid
+  clinicId        String     @map("clinic_id") @db.Uuid
+  patientId       String     @map("patient_id") @db.Uuid
+  doctorId        String     @map("doctor_id") @db.Uuid
+  treatmentPlanId String?    @map("treatment_plan_id") @db.Uuid // null = разовая процедура
+  toothRecordId   String?    @map("tooth_record_id") @db.Uuid
+  toothNumber     Int?       @map("tooth_number") @db.SmallInt // null = не по конкретному зубу
+  serviceId       String     @map("service_id") @db.Uuid
+  status          ItemStatus @default(planned)
+  price           Int // копия из прайса, редактируемая
+  discount        Int        @default(0)
+  surfaces        String? // зарезервировано: поверхности зуба (M/D/O/B/L)
+  appointmentId   String?    @map("appointment_id") @db.Uuid
+  invoiceId       String?    @map("invoice_id") @db.Uuid
+  performedAt     DateTime?  @map("performed_at") @db.Timestamptz()
+  notes           String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic        Clinic                  @relation(fields: [clinicId], references: [id])
+  patient       Patient                 @relation(fields: [patientId], references: [id])
+  doctor        Doctor                  @relation(fields: [doctorId], references: [id])
+  treatmentPlan TreatmentPlan?          @relation(fields: [treatmentPlanId], references: [id])
+  toothRecord   ToothRecord?            @relation(fields: [toothRecordId], references: [id])
+  service       Service                 @relation(fields: [serviceId], references: [id])
+  appointment   Appointment?            @relation(fields: [appointmentId], references: [id])
+  invoice       Invoice?                @relation(fields: [invoiceId], references: [id])
+  materials     TreatmentItemMaterial[]
+  invoiceItems  InvoiceItem[]
+  documents     Document[]
+  movements     InventoryMovement[]
+
+  @@index([clinicId, patientId, toothNumber])
+  @@map("treatment_items")
+}
+
+model TreatmentItemMaterial {
+  id              String  @id @default(uuid()) @db.Uuid
+  clinicId        String  @map("clinic_id") @db.Uuid
+  treatmentItemId String  @map("treatment_item_id") @db.Uuid
+  inventoryItemId String  @map("inventory_item_id") @db.Uuid
+  quantity        Decimal @db.Decimal(10, 3)
+  unitCost        Int     @map("unit_cost") // гяпики
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  treatmentItem TreatmentItem @relation(fields: [treatmentItemId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@map("treatment_item_materials")
+}
+
+// ─────────────────── E. Services & Prices ───────────────────
+
+model ServiceCategory {
+  id        String  @id @default(uuid()) @db.Uuid
+  clinicId  String  @map("clinic_id") @db.Uuid
+  name      String // terapiya, ortopediya, cərrahiyyə, uşaq stomatologiyası
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic   Clinic    @relation(fields: [clinicId], references: [id])
+  services Service[]
+
+  @@index([clinicId])
+  @@map("service_categories")
+}
+
+model Service {
+  id             String  @id @default(uuid()) @db.Uuid
+  clinicId       String  @map("clinic_id") @db.Uuid
+  categoryId     String? @map("category_id") @db.Uuid
+  name           String
+  code           String?
+  durationMin    Int?    @map("duration_min") @db.SmallInt
+  isChildService Boolean @default(false) @map("is_child_service")
+  isActive       Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic         Clinic           @relation(fields: [clinicId], references: [id])
+  category       ServiceCategory? @relation(fields: [categoryId], references: [id])
+  prices         Price[]
+  treatmentItems TreatmentItem[]
+  appointments   Appointment[]
+
+  @@index([clinicId])
+  @@map("services")
+}
+
+/// История цен, append-only. Текущая цена = validTo is null
+model Price {
+  id         String    @id @default(uuid()) @db.Uuid
+  clinicId   String    @map("clinic_id") @db.Uuid
+  serviceId  String    @map("service_id") @db.Uuid
+  price      Int // гяпики
+  childPrice Int?      @map("child_price") // детская цена, если отличается
+  validFrom  DateTime  @map("valid_from") @db.Date
+  validTo    DateTime? @map("valid_to") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([clinicId, serviceId, validTo])
+  @@map("prices")
+}
+
+// ───────────────────── F. Finance ─────────────────────
+
+model Invoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  clinicId      String        @map("clinic_id") @db.Uuid
+  patientId     String        @map("patient_id") @db.Uuid
+  doctorId      String?       @map("doctor_id") @db.Uuid
+  appointmentId String?       @map("appointment_id") @db.Uuid
+  number        Int // per-clinic последовательность
+  status        InvoiceStatus @default(draft)
+  subtotal      Int           @default(0)
+  discount      Int           @default(0)
+  total         Int           @default(0)
+  paidAmount    Int           @default(0) @map("paid_amount") // кэш из payments
+  dueDate       DateTime?     @map("due_date") @db.Date
+  notes         String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  doctor         Doctor?         @relation(fields: [doctorId], references: [id])
+  appointment    Appointment?    @relation(fields: [appointmentId], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
+  debt           Debt?
+  treatmentItems TreatmentItem[]
+
+  @@unique([clinicId, number])
+  @@index([clinicId, patientId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  clinicId        String  @map("clinic_id") @db.Uuid
+  invoiceId       String  @map("invoice_id") @db.Uuid
+  treatmentItemId String? @map("treatment_item_id") @db.Uuid
+  description     String
+  qty             Int     @default(1)
+  unitPrice       Int     @map("unit_price")
+  total           Int
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id])
+  treatmentItem TreatmentItem? @relation(fields: [treatmentItemId], references: [id])
+
+  @@map("invoice_items")
+}
+
+/// Append-only: возврат/сторно = новая запись с отрицательным amount
+model Payment {
+  id           String        @id @default(uuid()) @db.Uuid
+  clinicId     String        @map("clinic_id") @db.Uuid
+  patientId    String        @map("patient_id") @db.Uuid
+  invoiceId    String?       @map("invoice_id") @db.Uuid // null = аванс на баланс
+  amount       Int // гяпики; отрицательный = возврат
+  method       PaymentMethod
+  paidAt       DateTime      @map("paid_at") @db.Timestamptz()
+  receivedById String        @map("received_by") @db.Uuid
+  notes        String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic  Clinic   @relation(fields: [clinicId], references: [id])
+  patient Patient  @relation(fields: [patientId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([clinicId, patientId])
+  @@index([clinicId, paidAt])
+  @@map("payments")
+}
+
+/// Материализованный остаток по счёту (истина — invoices/payments)
+model Debt {
+  id             String     @id @default(uuid()) @db.Uuid
+  clinicId       String     @map("clinic_id") @db.Uuid
+  patientId      String     @map("patient_id") @db.Uuid
+  invoiceId      String     @unique @map("invoice_id") @db.Uuid
+  amount         Int // остаток = total − payments
+  status         DebtStatus @default(open)
+  dueDate        DateTime?  @map("due_date") @db.Date
+  lastReminderAt DateTime?  @map("last_reminder_at") @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+  patient Patient @relation(fields: [patientId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([clinicId, status])
+  @@map("debts")
+}
+
+// ───────────────────── G. Inventory ─────────────────────
+
+model InventoryCategory {
+  id       String  @id @default(uuid()) @db.Uuid
+  clinicId String  @map("clinic_id") @db.Uuid
+  name     String // plomba materialları, anesteziya, birdəfəlik, ...
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic Clinic          @relation(fields: [clinicId], references: [id])
+  items  InventoryItem[]
+
+  @@index([clinicId])
+  @@map("inventory_categories")
+}
+
+model InventoryItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  clinicId    String    @map("clinic_id") @db.Uuid
+  categoryId  String?   @map("category_id") @db.Uuid
+  name        String
+  sku         String?
+  unit        String // ədəd, ml, qr, qutu
+  quantity    Decimal   @default(0) @db.Decimal(12, 3) // кэш суммы движений
+  minQuantity Decimal   @default(0) @map("min_quantity") @db.Decimal(12, 3)
+  unitCost    Int?      @map("unit_cost")
+  supplierId  String?   @map("supplier_id") @db.Uuid
+  expiresAt   DateTime? @map("expires_at") @db.Date
+  isActive    Boolean   @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic     Clinic                  @relation(fields: [clinicId], references: [id])
+  category   InventoryCategory?      @relation(fields: [categoryId], references: [id])
+  supplier   Supplier?               @relation(fields: [supplierId], references: [id])
+  movements  InventoryMovement[]
+  materials  TreatmentItemMaterial[]
+  orderItems SupplierOrderItem[]
+
+  @@index([clinicId])
+  @@map("inventory_items")
+}
+
+/// Append-only журнал движений склада
+model InventoryMovement {
+  id              String       @id @default(uuid()) @db.Uuid
+  clinicId        String       @map("clinic_id") @db.Uuid
+  inventoryItemId String       @map("inventory_item_id") @db.Uuid
+  type            MovementType
+  quantity        Decimal      @db.Decimal(12, 3)
+  unitCost        Int?         @map("unit_cost")
+  reason          String?
+  treatmentItemId String?      @map("treatment_item_id") @db.Uuid // списание на процедуру
+  supplierOrderId String?      @map("supplier_order_id") @db.Uuid // приход по заказу
+  performedById   String       @map("performed_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  inventoryItem InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  treatmentItem TreatmentItem? @relation(fields: [treatmentItemId], references: [id])
+  supplierOrder SupplierOrder? @relation(fields: [supplierOrderId], references: [id])
+
+  @@index([clinicId, inventoryItemId])
+  @@map("inventory_movements")
+}
+
+model Supplier {
+  id          String  @id @default(uuid()) @db.Uuid
+  clinicId    String  @map("clinic_id") @db.Uuid
+  name        String
+  contactName String? @map("contact_name")
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic         Clinic          @relation(fields: [clinicId], references: [id])
+  inventoryItems InventoryItem[]
+  orders         SupplierOrder[]
+
+  @@index([clinicId])
+  @@map("suppliers")
+}
+
+model SupplierOrder {
+  id         String              @id @default(uuid()) @db.Uuid
+  clinicId   String              @map("clinic_id") @db.Uuid
+  supplierId String              @map("supplier_id") @db.Uuid
+  number     String
+  status      SupplierOrderStatus @default(draft)
+  totalCost   Int                 @default(0) @map("total_cost")
+  orderedAt   DateTime?           @map("ordered_at") @db.Timestamptz()
+  receivedAt  DateTime?           @map("received_at") @db.Timestamptz()
+  emailDraft  String?             @map("email_draft") // черновик письма поставщику
+  emailSentAt DateTime?           @map("email_sent_at") @db.Timestamptz() // null = не отправлено
+  createdById String              @map("created_by") @db.Uuid
+  notes       String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic    Clinic              @relation(fields: [clinicId], references: [id])
+  supplier  Supplier            @relation(fields: [supplierId], references: [id])
+  items     SupplierOrderItem[]
+  movements InventoryMovement[]
+
+  @@index([clinicId])
+  @@map("supplier_orders")
+}
+
+model SupplierOrderItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  clinicId        String  @map("clinic_id") @db.Uuid
+  supplierOrderId String  @map("supplier_order_id") @db.Uuid
+  inventoryItemId String  @map("inventory_item_id") @db.Uuid
+  quantity        Decimal @db.Decimal(12, 3)
+  unitCost        Int     @map("unit_cost")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  order         SupplierOrder @relation(fields: [supplierOrderId], references: [id])
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@map("supplier_order_items")
+}
+
+// ──────────── H. Documents & Communication ────────────
+
+model Document {
+  id               String       @id @default(uuid()) @db.Uuid
+  clinicId         String       @map("clinic_id") @db.Uuid
+  patientId        String?      @map("patient_id") @db.Uuid
+  toothRecordId    String?      @map("tooth_record_id") @db.Uuid // снимок конкретного зуба
+  treatmentItemId  String?      @map("treatment_item_id") @db.Uuid
+  type             DocumentType
+  title            String
+  fileUrl          String       @map("file_url") // storage-ключ с префиксом clinic_id/
+  mimeType         String       @map("mime_type")
+  fileSize         Int          @map("file_size")
+  signedByGuardian Boolean      @default(false) @map("signed_by_guardian") // согласие опекуна
+  uploadedById     String       @map("uploaded_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic        Clinic         @relation(fields: [clinicId], references: [id])
+  patient       Patient?       @relation(fields: [patientId], references: [id])
+  toothRecord   ToothRecord?   @relation(fields: [toothRecordId], references: [id])
+  treatmentItem TreatmentItem? @relation(fields: [treatmentItemId], references: [id])
+
+  @@index([clinicId, patientId])
+  @@map("documents")
+}
+
+/// Append-only реестр сгенерированных PDF
+model PdfRecord {
+  id            String  @id @default(uuid()) @db.Uuid
+  clinicId      String  @map("clinic_id") @db.Uuid
+  patientId     String? @map("patient_id") @db.Uuid
+  type          PdfType
+  sourceEntity  String  @map("source_entity") // invoice, treatment_plan, ...
+  sourceId      String  @map("source_id") @db.Uuid
+  fileUrl       String  @map("file_url")
+  generatedById String  @map("generated_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic  Clinic   @relation(fields: [clinicId], references: [id])
+  patient Patient? @relation(fields: [patientId], references: [id])
+
+  @@index([clinicId, sourceEntity, sourceId])
+  @@map("pdf_records")
+}
+
+model Notification {
+  id            String              @id @default(uuid()) @db.Uuid
+  clinicId      String              @map("clinic_id") @db.Uuid
+  patientId     String?             @map("patient_id") @db.Uuid
+  userId        String?             @map("user_id") @db.Uuid // in-app получатель-сотрудник
+  appointmentId String?             @map("appointment_id") @db.Uuid
+  channel       NotificationChannel
+  type          NotificationType
+  body          String
+  status        NotificationStatus  @default(pending)
+  scheduledAt   DateTime            @map("scheduled_at") @db.Timestamptz()
+  sentAt        DateTime?           @map("sent_at") @db.Timestamptz()
+  error         String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient?     @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([clinicId, status, scheduledAt])
+  @@map("notifications")
+}
+
+/// Токенизированные ссылки для пациентов (без логина) — мост к пациентскому кабинету
+model PatientResponseLink {
+  id            String      @id @default(uuid()) @db.Uuid
+  clinicId      String      @map("clinic_id") @db.Uuid
+  patientId     String      @map("patient_id") @db.Uuid
+  appointmentId String?     @map("appointment_id") @db.Uuid
+  token         String      @unique // криптослучайный
+  purpose       LinkPurpose
+  status           LinkStatus    @default(active)
+  expiresAt        DateTime      @map("expires_at") @db.Timestamptz()
+  respondedAt      DateTime?     @map("responded_at") @db.Timestamptz() // = used_at
+  responseType     ResponseType? @map("response_type") // confirm | running_late | reschedule_request | cancel
+  responseComment  String?       @map("response_comment")
+  newRequestedTime DateTime?     @map("new_requested_time") @db.Timestamptz() // желаемое время переноса
+  response         Json?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic      Clinic       @relation(fields: [clinicId], references: [id])
+  patient     Patient      @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("patient_response_links")
+}
+
+// ─────────────── H2. Settings & i18n ───────────────
+
+/// Key-value настройки. scope=clinic → doctorId/userId null;
+/// scope=doctor → doctorId задан; scope=user → userId задан.
+/// clinicId null = платформенные дефолты (super_admin).
+model Setting {
+  id       String       @id @default(uuid()) @db.Uuid
+  clinicId String?      @map("clinic_id") @db.Uuid
+  scope    SettingScope @default(clinic)
+  doctorId String?      @map("doctor_id") @db.Uuid
+  userId   String?      @map("user_id") @db.Uuid
+  key      String // напр. doctor_sees_all_patients, working_hours, reminder_hours_before
+  value    Json
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, scope, doctorId, userId, key])
+  @@index([clinicId, scope])
+  @@map("settings")
+}
+
+/// Переводы динамического контента (названия услуг/категорий клиники на RU/EN).
+/// UI-строки переводятся файлами i18n (az.json → ru.json/en.json), НЕ этой таблицей.
+/// В MVP таблица пустует — заложена, чтобы добавление RU/EN не меняло схему.
+model Translation {
+  id         String @id @default(uuid()) @db.Uuid
+  clinicId   String @map("clinic_id") @db.Uuid
+  locale     Locale
+  entityType String @map("entity_type") // service, service_category, ...
+  entityId   String @map("entity_id") @db.Uuid
+  field      String // name, description
+  value      String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, locale, entityType, entityId, field])
+  @@map("translations")
+}
+
+// ───────────────────── I. Audit ─────────────────────
+
+/// Append-only. clinicId null = действия super_admin на уровне платформы
+model AuditLog {
+  id         String  @id @default(uuid()) @db.Uuid
+  clinicId   String? @map("clinic_id") @db.Uuid
+  userId     String  @map("user_id") @db.Uuid
+  action     String // create, update, delete, login, export
+  entityType String  @map("entity_type")
+  entityId   String  @map("entity_id") @db.Uuid
+  before     Json?
+  after      Json?
+  ip         String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  clinic Clinic? @relation(fields: [clinicId], references: [id])
+
+  @@index([clinicId, entityType, entityId])
+  @@map("audit_logs")
+}

@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+build/
+.env
+.env.*
+!.env.example
+*.log
+*.sql.dump
+*.dump
+.claude/
+*.tsbuildinfo
+next-env.d.ts
+
+# локальная портативная PostgreSQL (бинарники + данные + логи)
+.pglocal/
+
+# сгенерированные PDF-документы (локальный storage, см. docs/DOCUMENTS.md)
+uploads/

@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Dental Pro CRM design tokens — см. docs/DESIGN.md */
+@theme {
+  --color-bg-base: #0b1220;
+  --color-bg-surface: #111b2e;
+  --color-bg-elevated: #16233b;
+  --color-border-subtle: #1e2d47;
+
+  --color-accent: #22d3ee;
+  --color-accent-deep: #0e7490;
+  --color-secondary: #3b82f6;
+
+  --color-text-primary: #e6edf7;
+  --color-text-secondary: #8fa3bf;
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #818cf8;
+
+  /* расширение палитры для статусов зубной карты (13 статусов > базовых токенов) */
+  --color-status-orange: #fb923c;
+  --color-status-violet: #a78bfa;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1rem;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgb(34 211 238 / 0.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(14 116 144 / 0.1), transparent 60%),
+    var(--color-bg-base);
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgb(34 211 238 / 0.25);
+}
+
+/* тонкий скроллбар под тёмную тему */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-subtle) transparent;
+}
