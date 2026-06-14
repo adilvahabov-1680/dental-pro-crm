@@ -68,6 +68,12 @@ class Session {
   }
 }
 
+// Seed-значение "Steril maska" (см. prisma/seed.ts: qty 6, min 3). Сид —
+// create-only и не сбрасывает quantity при повторных запусках, поэтому
+// тест сам гарантирует и восстанавливает достаточный остаток (test-data
+// hygiene, не относится к продуктовой логике inventory).
+const SAFE_MASKA_QTY = 6;
+
 async function main() {
   console.log(`E2E inventory check → ${BASE}\n`);
 
@@ -84,6 +90,13 @@ async function main() {
     await prisma.inventoryItem.delete({ where: { id: it.id } });
   }
   await prisma.treatmentItem.deleteMany({ where: { notes: "e2e-inv-cancelled" } });
+
+  // hygiene: "Steril maska" расходуется сценарием списания (шаг 15) и не
+  // восстанавливается сидом — гарантируем достаточный остаток перед прогоном
+  await prisma.inventoryItem.updateMany({
+    where: { clinicId: clinic.id, name: "Steril maska", quantity: { lt: 2 } },
+    data: { quantity: SAFE_MASKA_QTY },
+  });
 
   // 1. seed
   const seedCats = await prisma.inventoryCategory.count({ where: { clinicId: clinic.id } });
@@ -307,6 +320,10 @@ async function main() {
   await prisma.inventoryItem.delete({ where: { id: foreignItem.id } });
   await prisma.clinic.delete({ where: { id: clinicB.id } });
   await prisma.treatmentItem.delete({ where: { id: cancelled.id } });
+
+  // hygiene: возвращаем остаток "Steril maska" к seed-safe значению, чтобы
+  // повторные прогоны не исчерпывали его до 0 (см. комментарий у SAFE_MASKA_QTY)
+  await prisma.inventoryItem.update({ where: { id: maska.id }, data: { quantity: SAFE_MASKA_QTY } });
   console.log("\n  (временные данные e2e удалены)");
 
   console.log(`\nРезультат: ${passed} passed, ${failed} failed`);
