@@ -1,5 +1,6 @@
 import { MessageSquare } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/utils";
 import { LogCommunicationForm } from "@/components/communications/LogCommunicationForm";
 import {
@@ -58,9 +59,7 @@ export function CommunicationHistoryBlock({
         />
       )}
       {rows.length === 0 ? (
-        <p className="rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-4 text-center text-xs text-text-secondary">
-          {labels.empty}
-        </p>
+        <EmptyState icon={MessageSquare} title={labels.empty} />
       ) : (
         <ul className="space-y-1.5">
           {rows.map((r) => (

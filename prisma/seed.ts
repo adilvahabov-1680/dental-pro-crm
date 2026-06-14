@@ -39,6 +39,18 @@ const CLINIC_SETTINGS: Array<{ key: string; value: unknown }> = [
   { key: "doctor_sees_all_patients", value: false },
   { key: "reminder_hours_before", value: 24 },
   { key: "default_appointment_minutes", value: 30 },
+  {
+    key: "working_hours",
+    value: {
+      mon: { from: "09:00", to: "18:00" },
+      tue: { from: "09:00", to: "18:00" },
+      wed: { from: "09:00", to: "18:00" },
+      thu: { from: "09:00", to: "18:00" },
+      fri: { from: "09:00", to: "18:00" },
+      sat: { from: "10:00", to: "14:00" },
+      sun: null,
+    },
+  },
 ];
 
 async function upsertUser(opts: {

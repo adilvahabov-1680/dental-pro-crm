@@ -230,7 +230,6 @@ export const az = {
       newAppointment: "Yeni qəbul",
       toothChart: "Diş xəritəsi",
       pdf: "PDF çıxarış",
-      soon: "tezliklə",
       info: "Əsas məlumat",
       medical: "Tibbi məlumat",
       guardian: "Himayəçi",
@@ -250,7 +249,6 @@ export const az = {
       chronicDiseases: "Xroniki xəstəliklər",
       anamnesis: "Anamnez / dərmanlar",
       noData: "—",
-      futureNote: "Bu bölmə növbəti sessiyalarda aktivləşdiriləcək.",
       sections: {
         appointments: "Qəbullar",
         treatments: "Müalicə",
@@ -858,8 +856,6 @@ export const az = {
     },
   },
   common: {
-    comingSoon: "Hazırlanır",
-    comingSoonDesc: "Bu modul növbəti sessiyalarda hazırlanacaq.",
     noAccess: "Bu bölməyə icazəniz yoxdur",
     demo: "DEMO",
   },
