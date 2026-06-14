@@ -18,8 +18,8 @@ export const PERMISSIONS: Array<{ key: PermissionKey; module: Module; descriptio
 const vm = (m: Module): PermissionKey[] => [`${m}.view`, `${m}.manage`];
 const v = (m: Module): PermissionKey[] => [`${m}.view`];
 
-/** Все клиничные модули (без платформенного admin). */
-const ALL_CLINIC: PermissionKey[] = MODULES.filter((m) => m !== "admin").flatMap(vm);
+/** Все модули клиники, включая клиничный раздел Admin (управление кадрами). */
+const ALL_CLINIC: PermissionKey[] = MODULES.flatMap(vm);
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
   // super_admin управляет платформой, мед. данные клиник не видит
