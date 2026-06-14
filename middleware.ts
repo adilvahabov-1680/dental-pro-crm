@@ -9,6 +9,12 @@ const PUBLIC_PATHS = ["/login"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Health check (сессия 20) — без авторизации, для reverse proxy / process manager.
+  if (pathname === "/api/health") {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const user = token ? await verifySessionToken(token) : null;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

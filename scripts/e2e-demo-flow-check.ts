@@ -123,6 +123,11 @@ async function main() {
   const assistantSettings = await assistant.get("/settings");
   check("10. assistant: /settings əlçatan deyil (redirect)", assistantSettings.status >= 300);
 
+  // 11. health check открыт без авторизации (сессия 20)
+  const health = await fetch(BASE + "/api/health");
+  const healthBody = await health.json().catch(() => null);
+  check("11. /api/health işləyir (ok:true, авторизация tələb olunmur)", health.status === 200 && healthBody?.ok === true);
+
   console.log(`\nNəticə: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
