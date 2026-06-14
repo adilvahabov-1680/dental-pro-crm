@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Paperclip } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getTreatmentItemForUser } from "@/lib/treatments";
 import { listTreatmentMaterials, listInventoryItems, formatQty } from "@/lib/inventory";
+import { listTreatmentItemDocuments } from "@/lib/documents";
 import { TREATMENT_ITEM_STATUS_META } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -34,9 +35,11 @@ export default async function TreatmentMaterialsPage({
 
   const canAdd =
     hasPermission(user, "treatments.manage") && treatment.status !== "cancelled";
-  const [materials, stockItems] = await Promise.all([
+  const canViewDocuments = hasPermission(user, "documents.view");
+  const [materials, stockItems, documents] = await Promise.all([
     listTreatmentMaterials(user, treatment.id),
     canAdd ? listInventoryItems(user, {}) : Promise.resolve([]),
+    canViewDocuments ? listTreatmentItemDocuments(user, treatment.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -90,6 +93,42 @@ export default async function TreatmentMaterialsPage({
             labels={{ empty: ti.materials.empty, cost: ti.materials.cost }}
           />
         </Card>
+
+        {canViewDocuments && (
+          <Card className="p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-accent">
+              <Paperclip className="size-4" /> {t.treatments.itemDocuments.title}{" "}
+              <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[11px] tabular-nums text-text-secondary">
+                {documents.length}
+              </span>
+            </h2>
+            {documents.length === 0 ? (
+              <p className="rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-3 text-center text-xs text-text-secondary">
+                {t.treatments.itemDocuments.empty}
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {documents.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2 text-xs"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-text-primary">{doc.title}</span>
+                    <span className="tabular-nums text-text-secondary">{formatDate(doc.createdAt)}</span>
+                    <a
+                      href={`/api/documents/${doc.id}/download`}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-accent transition-colors hover:underline"
+                    >
+                      {t.treatments.itemDocuments.open}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
       </div>
     </div>
   );

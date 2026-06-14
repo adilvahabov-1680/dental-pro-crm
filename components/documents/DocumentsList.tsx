@@ -9,11 +9,14 @@ export function DocumentsList({
   labels,
   canDelete = false,
   deleteLabels,
+  linkLabels,
 }: {
   records: DocumentListRow[];
   labels: { empty: string; emptyDesc: string; open: string; download: string; total: string };
   canDelete?: boolean;
   deleteLabels?: { button: string; confirm: string; failed: string };
+  /** подписи для бейджей привязки к зубу/процедуре (сессия 19) */
+  linkLabels?: { tooth: string; treatment: string };
 }) {
   if (records.length === 0) {
     return (
@@ -32,6 +35,7 @@ export function DocumentsList({
             labels={{ open: labels.open, download: labels.download }}
             canDelete={canDelete}
             deleteLabels={deleteLabels}
+            linkLabels={linkLabels}
           />
         ))}
       </div>

@@ -15,7 +15,7 @@ import { getPatientForUser } from "@/lib/patients";
 import { listPatientAppointments } from "@/lib/appointments";
 import { listPatientTreatments } from "@/lib/treatments";
 import { listPatientFinance } from "@/lib/finance";
-import { listPatientDocumentRecords } from "@/lib/documents";
+import { listPatientDocumentRecords, listPatientLinkOptions } from "@/lib/documents";
 import { listPatientCommunications, COMMUNICATION_CHANNELS } from "@/lib/communications";
 import { prepareAppointmentReminder } from "@/lib/actions/communications";
 import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
@@ -78,9 +78,23 @@ export default async function PatientDetailPage({
     ? await listPatientFinance(user, patient.id)
     : { invoices: [], payments: [], invoiced: 0, paid: 0, debt: 0 };
   const canViewDocuments = hasPermission(user, "documents.view");
+  const canManageDocuments = hasPermission(user, "documents.manage");
   const documentRecords = canViewDocuments
     ? await listPatientDocumentRecords(user, patient.id)
     : [];
+  const documentLinkOptions = canManageDocuments
+    ? await listPatientLinkOptions(user, patient.id)
+    : { teeth: [], treatments: [] };
+  const documentToothOptions = documentLinkOptions.teeth.map((tr) => ({
+    value: tr.id,
+    label: `${t.documents.list.tooth} ${tr.toothNumber}`,
+  }));
+  const documentTreatmentOptions = documentLinkOptions.treatments.map((ti) => ({
+    value: ti.id,
+    label: ti.toothNumber
+      ? `${ti.serviceName} (${t.documents.list.tooth} ${ti.toothNumber})`
+      : ti.serviceName,
+  }));
   const communications = await listPatientCommunications(user, patient.id);
   const age = calcAge(patient.birthDate);
   const child = isChildPatient(patient.birthDate, patient.guardianId);
@@ -383,11 +397,14 @@ export default async function PatientDetailPage({
             patientId={patient.id}
             patientPhone={patient.phone}
             records={documentRecords}
-            canManage={hasPermission(user, "documents.manage")}
+            canManage={canManageDocuments}
             typeOptions={UPLOAD_DOCUMENT_TYPES.map((v) => ({
               value: v,
               label: DOCUMENT_TYPE_META[v].az,
             }))}
+            toothOptions={documentToothOptions}
+            treatmentOptions={documentTreatmentOptions}
+            linkLabels={{ tooth: t.documents.list.tooth, treatment: t.documents.list.treatment }}
             labels={{ ...t.documents.patientBlock }}
             generateLabels={{
               summary: t.documents.generate.summary,

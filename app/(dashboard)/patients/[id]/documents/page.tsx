@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getPatientForUser } from "@/lib/patients";
-import { listPatientDocuments } from "@/lib/documents";
+import { listPatientDocuments, listPatientLinkOptions } from "@/lib/documents";
 import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
 import { DOCUMENT_TYPE_META } from "@/lib/constants";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -30,6 +30,17 @@ export default async function PatientDocumentsPage({
 
   const canManage = hasPermission(user, "documents.manage");
   const records = await listPatientDocuments(user, patient.id);
+  const linkOptions = canManage ? await listPatientLinkOptions(user, patient.id) : { teeth: [], treatments: [] };
+  const toothOptions = linkOptions.teeth.map((tr) => ({
+    value: tr.id,
+    label: `${td.list.tooth} ${tr.toothNumber}`,
+  }));
+  const treatmentOptions = linkOptions.treatments.map((ti) => ({
+    value: ti.id,
+    label: ti.toothNumber
+      ? `${ti.serviceName} (${td.list.tooth} ${ti.toothNumber})`
+      : ti.serviceName,
+  }));
 
   return (
     <>
@@ -65,6 +76,8 @@ export default async function PatientDocumentsPage({
               value: v,
               label: DOCUMENT_TYPE_META[v].az,
             }))}
+            toothOptions={toothOptions}
+            treatmentOptions={treatmentOptions}
             labels={{ ...td.upload }}
             errors={td.errors}
           />
@@ -85,6 +98,7 @@ export default async function PatientDocumentsPage({
           confirm: td.delete.confirm,
           failed: td.delete.failed,
         }}
+        linkLabels={{ tooth: td.list.tooth, treatment: td.list.treatment }}
       />
     </>
   );

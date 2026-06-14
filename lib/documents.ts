@@ -50,6 +50,10 @@ export interface DocumentListRow {
   mimeType: string | null;
   createdAt: Date;
   patient: { id: string; firstName: string; lastName: string } | null;
+  /** номер зуба (FDI), если документ привязан к зубу (сессия 19) */
+  toothNumber: number | null;
+  /** название услуги, если документ привязан к процедуре (сессия 19) */
+  treatmentLabel: string | null;
 }
 
 function patientNameFilter(q: string) {
@@ -116,6 +120,8 @@ export async function listDocuments(
             mimeType: true,
             createdAt: true,
             patient: { select: { id: true, firstName: true, lastName: true } },
+            toothRecord: { select: { toothNumber: true } },
+            treatmentItem: { select: { service: { select: { name: true } } } },
           },
           orderBy: { createdAt: "desc" },
           take: 50,
@@ -132,6 +138,8 @@ export async function listDocuments(
       mimeType: "application/pdf",
       createdAt: r.createdAt,
       patient: r.patient,
+      toothNumber: null,
+      treatmentLabel: null,
     })),
     ...documents.map<DocumentListRow>((d) => ({
       id: d.id,
@@ -141,6 +149,8 @@ export async function listDocuments(
       mimeType: d.mimeType,
       createdAt: d.createdAt,
       patient: d.patient,
+      toothNumber: d.toothRecord?.toothNumber ?? null,
+      treatmentLabel: d.treatmentItem?.service.name ?? null,
     })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -196,9 +206,14 @@ export interface PatientDocumentRow {
   id: string;
   title: string;
   type: string;
+  mimeType?: string | null;
   createdAt: Date;
   /** id pdf_record → есть страница /documents/[id]; uploaded document — нет (v1) */
   pdfRecordId: string | null;
+  /** номер зуба (FDI), если документ привязан к зубу (сессия 19) */
+  toothNumber: number | null;
+  /** название услуги, если документ привязан к процедуре (сессия 19) */
+  treatmentLabel: string | null;
 }
 
 /** Последние документы и PDF-записи пациента (для PatientDocumentsBlock). */
@@ -211,7 +226,15 @@ export async function listPatientDocumentRecords(
   const [documents, pdfRecords] = await Promise.all([
     db.document.findMany({
       where: { patientId, deletedAt: null },
-      select: { id: true, title: true, type: true, createdAt: true },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        mimeType: true,
+        createdAt: true,
+        toothRecord: { select: { toothNumber: true } },
+        treatmentItem: { select: { service: { select: { name: true } } } },
+      },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
@@ -227,15 +250,21 @@ export async function listPatientDocumentRecords(
       id: d.id,
       title: d.title,
       type: d.type as string,
+      mimeType: d.mimeType,
       createdAt: d.createdAt,
       pdfRecordId: null,
+      toothNumber: d.toothRecord?.toothNumber ?? null,
+      treatmentLabel: d.treatmentItem?.service.name ?? null,
     })),
     ...pdfRecords.map((p) => ({
       id: p.id,
       title: p.type as string, // метка берётся из PDF_TYPE_META на рендере
       type: p.type as string,
+      mimeType: "application/pdf",
       createdAt: p.createdAt,
       pdfRecordId: p.id,
+      toothNumber: null,
+      treatmentLabel: null,
     })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
@@ -268,6 +297,8 @@ export async function listPatientDocuments(
         mimeType: true,
         createdAt: true,
         patient: { select: { id: true, firstName: true, lastName: true } },
+        toothRecord: { select: { toothNumber: true } },
+        treatmentItem: { select: { service: { select: { name: true } } } },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -282,6 +313,8 @@ export async function listPatientDocuments(
       mimeType: "application/pdf",
       createdAt: r.createdAt,
       patient: r.patient,
+      toothNumber: null,
+      treatmentLabel: null,
     })),
     ...documents.map<DocumentListRow>((d) => ({
       id: d.id,
@@ -291,8 +324,108 @@ export async function listPatientDocuments(
       mimeType: d.mimeType,
       createdAt: d.createdAt,
       patient: d.patient,
+      toothNumber: d.toothRecord?.toothNumber ?? null,
+      treatmentLabel: d.treatmentItem?.service.name ?? null,
     })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 50);
+}
+
+export interface LinkedDocumentRow {
+  id: string;
+  title: string;
+  type: string;
+  mimeType: string;
+  createdAt: Date;
+}
+
+const linkedDocumentSelect = {
+  id: true,
+  title: true,
+  type: true,
+  mimeType: true,
+  createdAt: true,
+} satisfies Prisma.DocumentSelect;
+
+/**
+ * Документы, привязанные к зубу (для ToothPanel, сессия 19).
+ * toothRecordId принадлежит уже scope-проверенному пациенту (вызывать
+ * после getPatientDentalChart) — отдельной scope-проверки здесь не требуется.
+ */
+export async function listToothRecordDocuments(
+  user: SessionUser,
+  toothRecordId: string,
+): Promise<LinkedDocumentRow[]> {
+  if (!user.clinicId) return [];
+  const db = tenantClient(user.clinicId);
+  return db.document.findMany({
+    where: { toothRecordId, deletedAt: null },
+    select: linkedDocumentSelect,
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  }) as Promise<LinkedDocumentRow[]>;
+}
+
+/**
+ * Документы, привязанные к процедуре (для страницы материалов, сессия 19).
+ * treatmentItemId принадлежит уже scope-проверенной процедуре (вызывать
+ * после getTreatmentItemForUser) — отдельной scope-проверки здесь не требуется.
+ */
+export async function listTreatmentItemDocuments(
+  user: SessionUser,
+  treatmentItemId: string,
+): Promise<LinkedDocumentRow[]> {
+  if (!user.clinicId) return [];
+  const db = tenantClient(user.clinicId);
+  return db.document.findMany({
+    where: { treatmentItemId, deletedAt: null },
+    select: linkedDocumentSelect,
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  }) as Promise<LinkedDocumentRow[]>;
+}
+
+export interface PatientLinkOptions {
+  teeth: Array<{ id: string; toothNumber: number }>;
+  treatments: Array<{ id: string; toothNumber: number | null; serviceName: string; createdAt: Date }>;
+}
+
+/**
+ * Опции для формы загрузки документа (сессия 19): зубы и процедуры пациента
+ * для опциональной привязки. Вызывать ПОСЛЕ getPatientForUser.
+ */
+export async function listPatientLinkOptions(
+  user: SessionUser,
+  patientId: string,
+): Promise<PatientLinkOptions> {
+  if (!user.clinicId) return { teeth: [], treatments: [] };
+  const db = tenantClient(user.clinicId);
+  const [teeth, treatments] = await Promise.all([
+    db.toothRecord.findMany({
+      where: { patientId, deletedAt: null },
+      select: { id: true, toothNumber: true },
+      orderBy: { toothNumber: "asc" },
+    }),
+    db.treatmentItem.findMany({
+      where: { patientId, deletedAt: null },
+      select: {
+        id: true,
+        toothNumber: true,
+        service: { select: { name: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    }),
+  ]);
+  return {
+    teeth,
+    treatments: treatments.map((t) => ({
+      id: t.id,
+      toothNumber: t.toothNumber,
+      serviceName: t.service.name,
+      createdAt: t.createdAt,
+    })),
+  };
 }

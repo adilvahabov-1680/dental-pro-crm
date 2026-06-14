@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-14 (после сессии 18: MVP Hardening & Demo Readiness)
+**by AV Systems** · обновлено: 2026-06-15 (после сессии 19: Documents Clinical Polish v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -51,7 +51,7 @@ Demo-логины (пароль у всех `Demo1234!`):
 | Dashboard (live) | готов | `e2e-dashboard-check` 20/20 |
 | Bildirişlər (in-app v1) | готов | `e2e-notifications-check` 17/17 |
 | Sənədlər / PDF v1 | готов | `e2e-documents-check` 36/36 |
-| Fayl yükləmə (Uploads v1 + soft-delete) | готов | `e2e-file-uploads-check` 39/39 |
+| Fayl yükləmə (Uploads v1 + soft-delete + клин. привязки) | готов | `e2e-file-uploads-check` 39/39, `e2e-document-clinical-links-check` 19/19 |
 | Ayarlar (Settings v1) | готов | `e2e-settings-check` 43/43 |
 | Əlaqə / Patient Communication (v1, manual click-to-chat) | готов | `e2e-communications-check` 40/40 |
 | Global Search (topbar, v1) | готов | `e2e-global-search-check` 22/22 |
@@ -112,8 +112,17 @@ global search, карточка пациента, hesab, Ayarlar, Admin, role-re
   (pdf_records → documents). Детали — DOCUMENTS.md.
 - **Soft-delete загруженных документов (сессия 14.5)**: кнопка «Sil»
   (documents.manage, только uploads) → deletedAt; **физический файл остаётся
-  на диске** (future: cleanup-job); удалённые скрыты везде и не скачиваются
-  (404); pdf_records не удаляются. Restore — только через БД.
+  на диске**; удалённые скрыты везде и не скачиваются (404); pdf_records
+  не удаляются. Restore — только через БД.
+- **Клинические привязки + cleanup (сессия 19)**: документы можно опционально
+  привязать к зубу (`toothRecordId`) и/или процедуре (`treatmentItemId`) —
+  поля в schema уже были, schema не менялась; бейджи «Diş N» / «Müalicə: …»
+  во всех списках, отображение в ToothPanel и на странице материалов
+  процедуры; server-side проверка владения (patient + tenant scope).
+  Превью изображений — `<img>` через существующий download route (без
+  нового эндпоинта). `scripts/cleanup-deleted-documents.ts` (dry-run по
+  умолчанию, `--execute` удаляет физические файлы soft-deleted `documents`,
+  без cron). Детали — DOCUMENTS.md.
 - **Production-долг**: serverless-деплой потеряет uploads/ — lib/storage.ts
   спроектирован как единственная точка замены на S3.
 
@@ -155,8 +164,8 @@ global search, карточка пациента, hesab, Ayarlar, Admin, role-re
 Кнопка «Pasiyent məlumat forması» (Tezliklə), **реальная** отправка
 WhatsApp/SMS/email (v1 — только manual click-to-chat через wa.me, см.
 COMMUNICATIONS.md), загрузка логотипа клиники (logoUrl в схеме, рендер в
-PDF не делался), удаление/привязка к зубу для загруженных файлов
-(toothRecordId в схеме есть).
+PDF не делался), автоматический (cron) cleanup физических файлов
+soft-deleted документов (v1 — ручной скрипт, см. DOCUMENTS.md).
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 
@@ -183,14 +192,42 @@ Polish-сессия без новых модулей/фич. Изменения:
   coming-soon, корректно оформлен, не трогали.
 - schema.prisma **не менялась**.
 
+## 7.2. Сессия 19 — итоги (Documents Clinical Polish v1)
+
+Polish-сессия модуля Sənədlər, без новых модулей и без изменения schema
+(`toothRecordId`/`treatmentItemId` в `documents` уже существовали):
+- Форма загрузки: опциональные select'ы «Dişlə əlaqələndir» /
+  «Müalicə ilə əlaqələndir» (опции — только зубы/процедуры пациента,
+  patient+tenant scope).
+- Server-side проверка владения привязки (чужой зуб/процедура → ошибка).
+- Бейджи «Diş N» / «Müalicə: …» в `/documents`, `/patients/[id]/documents`,
+  PatientDocumentsBlock.
+- ToothPanel (dental-chart) и `/treatments/[id]/materials` показывают
+  привязанные документы.
+- Превью изображений (`<img>`) в списках документов через существующий
+  download route.
+- `scripts/cleanup-deleted-documents.ts` — dry-run/--execute, только
+  физические файлы soft-deleted `documents`.
+- **Найден и исправлен production-баг** (с сессии 14): загрузка файла
+  пациентом без зубов/процедур падала с `patientNotFound`, т.к.
+  ненарисованный `<select>` не отправляет поле и `formData.get()` возвращал
+  `null`, что валился на zod-схеме. Исправлено в
+  `lib/validation/documents.ts` (`z.preprocess`).
+- Новый e2e: `scripts/e2e-document-clinical-links-check.ts` — 19/19.
+- Регрессия: `e2e-file-uploads-check` 39/39, `e2e-documents-check` 36/36,
+  `e2e-dental-chart-check` 23/23, `e2e-treatments-check` 31/31,
+  `e2e-patients-check` 22/22, `e2e-global-search-check` 22/22,
+  `e2e-demo-flow-check` 10/10 — все зелёные.
+- Новые permissions не добавлялись (переиспользованы `documents.view`/`documents.manage`).
+
 ## 8. Следующая сессия (рекомендация)
 
 Demo-readiness закрыт. Варианты по приоритету заказчика:
 1. Реальная отправка WhatsApp (Business API / провайдер) на основе
    подготовленных в v1 сообщений — требует отдельного решения по
    провайдеру/биллингу.
-2. Доработка documents: привязка к зубу/процедуре, preview изображений,
-   cleanup-job для deleted/orphan файлов.
+2. Автоматизация cleanup физических файлов (cron/scheduled job на основе
+   `scripts/cleanup-deleted-documents.ts`).
 3. Admin v2: per-permission overrides (UserPermission UI), custom
    clinic-specific roles, email-инвайты/password-reset.
 4. Git remote не настроен — `git remote add origin <URL>` + `git push -u origin main`.

@@ -48,6 +48,20 @@ export const uploadDocumentSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => (v ? v : null)),
+  /**
+   * Опциональная привязка к зубу/процедуре (сессия 19) — "" или отсутствие
+   * поля (select не отрендерен) = без привязки. formData.get() для
+   * отсутствующего поля возвращает null, поэтому null/"" нормализуются
+   * в undefined до .or(z.literal("")).
+   */
+  toothRecordId: z.preprocess(
+    (v) => (v === null ? "" : v),
+    z.string().uuid("invalidTooth").optional().or(z.literal("")),
+  ).transform((v) => (v ? v : null)),
+  treatmentItemId: z.preprocess(
+    (v) => (v === null ? "" : v),
+    z.string().uuid("invalidTreatment").optional().or(z.literal("")),
+  ).transform((v) => (v ? v : null)),
 });
 
 /**

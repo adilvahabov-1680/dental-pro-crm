@@ -386,6 +386,11 @@ export const az = {
       newTreatment: "Yeni müalicə",
       empty: "Bu diş üzrə prosedur yoxdur",
     },
+    itemDocuments: {
+      title: "Sənədlər",
+      empty: "Bu prosedur üzrə sənəd yoxdur",
+      open: "Aç",
+    },
     errors: {
       patientRequired: "Pasiyent seçin",
       doctorRequired: "Həkim seçin",
@@ -547,6 +552,9 @@ export const az = {
       uploading: "Yüklənir…",
       success: "Sənəd yükləndi",
       hint: "PDF, JPG, PNG, WebP · maks. 10 MB",
+      toothLink: "Dişlə əlaqələndir",
+      treatmentLink: "Müalicə ilə əlaqələndir",
+      noLink: "Əlaqəsiz sənəd",
     },
     list: {
       empty: "Sənəd tapılmadı",
@@ -556,6 +564,8 @@ export const az = {
       patient: "Pasiyent",
       date: "Tarix",
       total: "sənəd",
+      tooth: "Diş",
+      treatment: "Müalicə",
       filters: {
         type: "Növ",
         all: "Hamısı",
@@ -584,6 +594,8 @@ export const az = {
       fileRequired: "Fayl seçin",
       fileTooLarge: "Fayl çox böyükdür (maks. 10 MB)",
       unsupportedType: "Bu fayl növü dəstəklənmir",
+      invalidTooth: "Seçilmiş diş bu pasiyentə aid deyil",
+      invalidTreatment: "Seçilmiş müalicə bu pasiyentə aid deyil",
       generic: "Xəta baş verdi. Yenidən cəhd edin.",
     },
   },
@@ -747,6 +759,11 @@ export const az = {
       close: "Bağla",
       readOnly: "Yalnız baxış rejimi — dəyişiklik üçün icazəniz yoxdur",
       noChanges: "Dəyişiklik yoxdur",
+    },
+    documents: {
+      title: "Sənədlər",
+      empty: "Bu diş üzrə sənəd yoxdur",
+      open: "Aç",
     },
     priorities: {
       low: "Aşağı",

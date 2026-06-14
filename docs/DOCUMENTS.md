@@ -1,5 +1,5 @@
 # Dental Pro CRM — Модуль Sənədlər / PDF Documents
-**by AV Systems** · v1.2 · Сессии 11 (блок), 12 (PDF), 14 (загрузка), 14.5 (soft-delete)
+**by AV Systems** · v1.3 · Сессии 11 (блок), 12 (PDF), 14 (загрузка), 14.5 (soft-delete), 19 (клинические привязки, превью, cleanup)
 Связанные документы: [DATABASE.md](DATABASE.md) §H · [FINANCE.md](FINANCE.md) · [DEVELOPMENT_RULES.md](DEVELOPMENT_RULES.md)
 
 ## Типы документов v1
@@ -54,6 +54,64 @@ title, fileUrl (relative), mimeType, fileSize, uploadedById, deletedAt.
 - UI: кнопка «Sil» (confirm) — только для kind=upload при documents.manage;
   `pdf_records` не удаляются (append-only), у них кнопки нет. Restore-UI и
   bulk delete не делались.
+
+## Клинические привязки: зуб / процедура (сессия 19)
+
+Таблица **documents** уже содержала `toothRecordId` / `treatmentItemId`
+(schema не менялась) — в v1.3 они используются:
+
+- **Форма загрузки** (`UploadDocumentForm`): два опциональных select'а —
+  «Dişlə əlaqələndir» (зубы пациента из ToothRecord) и «Müalicə ilə
+  əlaqələndir» (процедуры пациента из TreatmentItem, с номером зуба в
+  лейбле). Без выбора — «Əlaqəsiz sənəd» (toothRecordId/treatmentItemId =
+  null). Опции — `listPatientLinkOptions` (lib/documents.ts), tenant +
+  patient-scope.
+- **Валидация** (`uploadPatientDocument`, lib/actions/documents.ts):
+  привязка проверяется server-side — зуб/процедура должны принадлежать
+  тому же пациенту (и tenant'у через `tenantClient`); иначе
+  `invalidTooth` / `invalidTreatment`.
+- **Бейджи привязки** — везде, где документ показывается в общих списках
+  (`/documents`, `/patients/[id]/documents`, PatientDocumentsBlock):
+  «Diş 16» / «Müalicə: <название услуги>».
+- **Контекст зуба** (ToothPanel на `/patients/[id]/dental-chart`):
+  блок «привязанные документы» под историей зуба — список с заголовком,
+  датой и ссылкой «Aç» (открывает download route).
+- **Контекст процедуры** (`/treatments/[id]/materials`): отдельная
+  карточка с привязанными документами, аналогично ToothPanel.
+- Источник данных: `listToothRecordDocuments`, `listTreatmentItemDocuments`
+  (lib/documents.ts) — оба tenant + scope, `deletedAt: null`.
+
+⚠️ **Важный фикс валидации**: если у пациента нет ни одного зуба/процедуры,
+соответствующий `<select>` не рендерится — браузер не отправляет это поле,
+`formData.get()` возвращает `null`. `uploadDocumentSchema` (lib/validation/documents.ts)
+оборачивает `toothRecordId`/`treatmentItemId` в `z.preprocess` (`null → ""`)
+перед `.optional().or(z.literal(""))` — без этого **любая** загрузка файла
+такому пациенту падала с ошибкой `patientNotFound`. Затронуто с сессии 14
+(до 19 баг не проявлялся, т.к. select'ов не было вовсе).
+
+## Превью изображений (сессия 19)
+
+В списках документов (`/documents`, `/patients/[id]/documents`,
+PatientDocumentsBlock) для `mimeType` `image/png|jpeg|webp` рядом с записью
+рендерится `<img src="/api/documents/[id]/download">` (миниатюра) — download
+route уже отдавал `Content-Disposition: inline` для изображений, доп.
+эндпоинт не нужен. Клик/«Aç» открывает оригинал в новой вкладке. PDF — без
+превью (как раньше, через iframe на `/documents/[id]`).
+
+## Cleanup физических файлов (сессия 19)
+
+`scripts/cleanup-deleted-documents.ts` — отдельный, безопасный скрипт для
+удаления **физических файлов** soft-deleted записей `documents` (записи в
+БД не трогаются, `pdf_records` не затрагиваются):
+
+```
+npx tsx scripts/cleanup-deleted-documents.ts            # dry-run (по умолчанию)
+npx tsx scripts/cleanup-deleted-documents.ts --execute  # реально удалить файлы
+```
+
+Без cron — запуск вручную/по плану. Path-traversal-safe (та же логика, что
+`resolveUploadPath` в lib/storage.ts); небезопасные пути пропускаются с
+пометкой.
 
 ## Routes
 
@@ -120,18 +178,27 @@ sniff mime (octet-stream → image/png; скрипт-подделка откло
 `/documents` + фильтр, doctor scope, assistant (manage/view), cross-tenant
 upload/download. Cleanup удаляет записи и файлы.
 
-## Не входит в v1.1
+## E2E клинических привязок (сессия 19)
+
+`npx tsx scripts/e2e-document-clinical-links-check.ts` — 19 проверок:
+загрузка с привязкой к зубу/процедуре, бейджи «Diş N» / «Müalicə: ...» в
+PatientDocumentsBlock, `/patients/[id]/documents`, `/documents`, отображение
+в ToothPanel и на странице материалов процедуры, cross-patient/cross-tenant
+отклонение привязки, PNG-превью (content-type, `<img>`), soft-delete (скрытие
++ файл на диске остаётся до cleanup). Cleanup удаляет e2e-документы, файлы и
+временную клинику B.
+
+## Не входит в v1.3
 
 Отправка пациенту (email/WhatsApp/SMS), электронная подпись, редактор шаблонов,
 «Pasiyent məlumat forması» (кнопка с Tezliklə), restore-UI / hard delete /
-bulk delete, редактирование загруженных документов, привязка файла к
-зубу/процедуре (toothRecordId / treatmentItemId в схеме есть), preview-сетка
-изображений, mass upload / drag-and-drop, Office-форматы, брендирование PDF
-логотипом клиники, S3-storage
+bulk delete, редактирование загруженных документов, OCR, аннотирование
+изображений, DICOM-просмотр, версии документов, mass upload /
+drag-and-drop, Office-форматы, брендирование PDF логотипом клиники, S3-storage
 (**локальный диск не подходит для serverless** — lib/storage.ts остаётся
 единственной точкой замены на S3-совместимый слой).
 
 ## Next step
 
-Отправка PDF/напоминаний пациенту (WhatsApp/SMS) или привязка загруженных
-файлов к зубу/процедуре — по приоритету заказчика.
+Отправка PDF/напоминаний пациенту (WhatsApp/SMS), либо автоматизация cleanup
+(cron) для физических файлов soft-deleted документов — по приоритету заказчика.

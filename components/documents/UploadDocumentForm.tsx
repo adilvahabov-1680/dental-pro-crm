@@ -14,12 +14,18 @@ const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,
 export function UploadDocumentForm({
   patientId,
   typeOptions,
+  toothOptions = [],
+  treatmentOptions = [],
   labels,
   errors,
   compact = false,
 }: {
   patientId: string;
   typeOptions: Array<{ value: string; label: string }>;
+  /** зубы пациента для опциональной привязки (сессия 19) */
+  toothOptions?: Array<{ value: string; label: string }>;
+  /** процедуры пациента для опциональной привязки (сессия 19) */
+  treatmentOptions?: Array<{ value: string; label: string }>;
   labels: {
     title: string;
     file: string;
@@ -30,6 +36,9 @@ export function UploadDocumentForm({
     uploading: string;
     success: string;
     hint: string;
+    toothLink: string;
+    treatmentLink: string;
+    noLink: string;
   };
   errors: Record<string, string>;
   /** компактный вариант для блока на карточке пациента */
@@ -71,6 +80,31 @@ export function UploadDocumentForm({
           <Input id={`title-${patientId}`} name="title" label={labels.titleLabel} />
           <p className="mt-1 text-[11px] text-text-secondary/80">{labels.titleHint}</p>
         </div>
+        {toothOptions.length > 0 && (
+          <Select id={`tooth-${patientId}`} name="toothRecordId" label={labels.toothLink} defaultValue="">
+            <option value="">{labels.noLink}</option>
+            {toothOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        )}
+        {treatmentOptions.length > 0 && (
+          <Select
+            id={`treatment-${patientId}`}
+            name="treatmentItemId"
+            label={labels.treatmentLink}
+            defaultValue=""
+          >
+            <option value="">{labels.noLink}</option>
+            {treatmentOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       {state?.error && (

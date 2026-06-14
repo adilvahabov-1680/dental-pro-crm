@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { X, History, ArrowRight, Lock, Stethoscope, Plus } from "lucide-react";
+import { X, History, ArrowRight, Lock, Stethoscope, Plus, Paperclip } from "lucide-react";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
@@ -93,6 +93,8 @@ export function ToothPanel({
   lastTreatments = [],
   newTreatmentHref = null,
   treatmentLabels,
+  linkedDocuments = [],
+  documentsLabels,
 }: {
   record: ToothPanelRecord;
   quadrantLabel: string;
@@ -108,6 +110,9 @@ export function ToothPanel({
   /** ссылка «Yeni müalicə» (null = нет treatments.manage) */
   newTreatmentHref?: string | null;
   treatmentLabels?: { title: string; empty: string; new: string };
+  /** документы, привязанные к этому зубу (сессия 19) */
+  linkedDocuments?: Array<{ id: string; title: string; type: string; date: string }>;
+  documentsLabels?: { title: string; empty: string; open: string };
 }) {
   const [state, formAction, pending] = useActionState<ToothFormState | undefined, FormData>(
     updateToothRecord,
@@ -265,6 +270,40 @@ export function ToothPanel({
                       <span className="min-w-0 flex-1 truncate text-text-primary">{tr.service}</span>
                       <span className="tabular-nums font-medium text-text-primary">{tr.price}</span>
                       <span className="text-text-secondary">{tr.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* документы по зубу (сессия 19) */}
+          {documentsLabels && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <Paperclip className="size-4 text-accent" /> {documentsLabels.title}
+              </h3>
+              {linkedDocuments.length === 0 ? (
+                <p className="rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2.5 text-center text-xs text-text-secondary">
+                  {documentsLabels.empty}
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {linkedDocuments.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2 text-xs"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-text-primary">{doc.title}</span>
+                      <span className="tabular-nums text-text-secondary">{doc.date}</span>
+                      <a
+                        href={`/api/documents/${doc.id}/download`}
+                        target="_blank"
+                        rel="noopener"
+                        className="text-accent transition-colors hover:underline"
+                      >
+                        {documentsLabels.open}
+                      </a>
                     </li>
                   ))}
                 </ul>

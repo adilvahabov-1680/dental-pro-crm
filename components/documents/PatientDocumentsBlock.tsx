@@ -22,6 +22,8 @@ export function PatientDocumentsBlock({
   records,
   canManage,
   typeOptions,
+  toothOptions = [],
+  treatmentOptions = [],
   labels,
   generateLabels,
   uploadLabels,
@@ -29,12 +31,17 @@ export function PatientDocumentsBlock({
   errors,
   whatsappLabels,
   communicationErrors,
+  linkLabels,
 }: {
   patientId: string;
   patientPhone: string | null;
   records: PatientDocumentRow[];
   canManage: boolean;
   typeOptions: Array<{ value: string; label: string }>;
+  /** зубы пациента для опциональной привязки документа (сессия 19) */
+  toothOptions?: Array<{ value: string; label: string }>;
+  /** процедуры пациента для опциональной привязки документа (сессия 19) */
+  treatmentOptions?: Array<{ value: string; label: string }>;
   labels: {
     title: string;
     soon: string;
@@ -57,11 +64,16 @@ export function PatientDocumentsBlock({
     uploading: string;
     success: string;
     hint: string;
+    toothLink: string;
+    treatmentLink: string;
+    noLink: string;
   };
   deleteLabels: { button: string; confirm: string; failed: string };
   errors: Record<string, string>;
   whatsappLabels: { documentMessage: string; prepared: string; noPhone: string };
   communicationErrors: Record<string, string>;
+  /** подписи для бейджей привязки (сессия 19) */
+  linkLabels?: { tooth: string; treatment: string };
 }) {
   return (
     <Card className="p-5">
@@ -109,6 +121,8 @@ export function PatientDocumentsBlock({
               <UploadDocumentForm
                 patientId={patientId}
                 typeOptions={typeOptions}
+                toothOptions={toothOptions}
+                treatmentOptions={treatmentOptions}
                 labels={uploadLabels}
                 errors={errors}
                 compact
@@ -149,9 +163,19 @@ export function PatientDocumentsBlock({
                       rel="noopener"
                       className="flex min-w-0 flex-1 items-center justify-between gap-2 transition-colors hover:text-accent"
                     >
-                      <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex min-w-0 flex-wrap items-center gap-2">
                         <DocumentTypeBadge type={r.type} />
                         <span className="min-w-0 truncate text-xs text-text-primary">{r.title}</span>
+                        {linkLabels && r.toothNumber && (
+                          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] text-accent">
+                            {linkLabels.tooth} {r.toothNumber}
+                          </span>
+                        )}
+                        {linkLabels && r.treatmentLabel && (
+                          <span className="rounded-full bg-info/10 px-2 py-0.5 text-[11px] text-info">
+                            {linkLabels.treatment}: {r.treatmentLabel}
+                          </span>
+                        )}
                       </span>
                       <span className="text-[11px] tabular-nums text-text-secondary">
                         {formatDate(r.createdAt)}

@@ -53,6 +53,7 @@ export default async function DocumentsPage({
           confirm: t.documents.delete.confirm,
           failed: t.documents.delete.failed,
         }}
+        linkLabels={{ tooth: td.tooth, treatment: td.treatment }}
       />
     </>
   );

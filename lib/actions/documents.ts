@@ -277,6 +277,8 @@ export async function uploadPatientDocument(
     patientId: formData.get("patientId"),
     type: formData.get("type"),
     title: formData.get("title"),
+    toothRecordId: formData.get("toothRecordId"),
+    treatmentItemId: formData.get("treatmentItemId"),
   });
   if (!parsed.success) return { error: "patientNotFound" };
   const input = parsed.data;
@@ -288,6 +290,26 @@ export async function uploadPatientDocument(
   // пациент — только из scope (tenant + роль)
   const patient = await getPatientForUser(user, input.patientId);
   if (!patient) return { error: "patientNotFound" };
+
+  const db = tenantClient(clinicId);
+
+  // привязка к зубу — опционально, только зуб этого пациента (tenant + scope)
+  if (input.toothRecordId) {
+    const tooth = await db.toothRecord.findFirst({
+      where: { id: input.toothRecordId, patientId: patient.id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!tooth) return { error: "invalidTooth" };
+  }
+
+  // привязка к процедуре — опционально, только процедура этого пациента (tenant + scope)
+  if (input.treatmentItemId) {
+    const treatment = await db.treatmentItem.findFirst({
+      where: { id: input.treatmentItemId, patientId: patient.id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!treatment) return { error: "invalidTreatment" };
+  }
 
   let documentId: string;
   try {
@@ -304,7 +326,6 @@ export async function uploadPatientDocument(
 
     await saveUploadFile(fileUrl, bytes);
 
-    const db = tenantClient(clinicId);
     const record = await db.document.create({
       data: {
         patientId: patient.id,
@@ -314,6 +335,8 @@ export async function uploadPatientDocument(
         mimeType: mime,
         fileSize: bytes.length,
         uploadedById: user.id,
+        toothRecordId: input.toothRecordId,
+        treatmentItemId: input.treatmentItemId,
       },
     } as never);
     documentId = (record as { id: string }).id;
@@ -324,7 +347,15 @@ export async function uploadPatientDocument(
         action: "create",
         entityType: "document",
         entityId: documentId,
-        after: { type: input.type, patientId: patient.id, fileUrl, mimeType: mime, fileSize: bytes.length },
+        after: {
+          type: input.type,
+          patientId: patient.id,
+          fileUrl,
+          mimeType: mime,
+          fileSize: bytes.length,
+          toothRecordId: input.toothRecordId,
+          treatmentItemId: input.treatmentItemId,
+        },
       },
     } as never);
   } catch (e) {

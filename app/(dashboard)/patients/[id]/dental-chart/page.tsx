@@ -14,6 +14,7 @@ import {
   CHILD_LOWER,
 } from "@/lib/dental-chart";
 import { lastToothTreatments } from "@/lib/treatments";
+import { listToothRecordDocuments } from "@/lib/documents";
 import { TOOTH_STATUS_META, TREATMENT_ITEM_STATUS_META } from "@/lib/constants";
 import { TOOTH_STATUSES, TOOTH_PRIORITIES } from "@/lib/validation/dental-chart";
 import { calcAge, cn, formatDate, formatMoney, isChildPatient } from "@/lib/utils";
@@ -58,6 +59,9 @@ export default async function PatientDentalChartPage({
     selected && canViewTreatments
       ? await lastToothTreatments(user, patient.id, selected.toothNumber)
       : [];
+  const canViewDocuments = hasPermission(user, "documents.view");
+  const toothDocuments =
+    selected && canViewDocuments ? await listToothRecordDocuments(user, selected.id) : [];
 
   const basePath = `/patients/${patient.id}/dental-chart`;
   const age = calcAge(patient.birthDate);
@@ -201,6 +205,13 @@ export default async function PatientDentalChartPage({
                 }
               : undefined
           }
+          linkedDocuments={toothDocuments.map((doc) => ({
+            id: doc.id,
+            title: doc.title,
+            type: doc.type,
+            date: formatDate(doc.createdAt),
+          }))}
+          documentsLabels={canViewDocuments ? { ...dc.documents } : undefined}
         />
       )}
     </>
