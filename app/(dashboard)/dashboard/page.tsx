@@ -16,6 +16,7 @@ import {
   listRecentActivity,
 } from "@/lib/dashboard";
 import { listLowStockItems } from "@/lib/inventory";
+import { listReminderCandidates } from "@/lib/communications";
 import { hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -23,19 +24,22 @@ import { TodayAppointmentsPanel } from "@/components/dashboard/TodayAppointments
 import { FinanceOverviewPanel } from "@/components/dashboard/FinanceOverviewPanel";
 import { RecentActivityPanel } from "@/components/dashboard/RecentActivityPanel";
 import { LowStockPanel } from "@/components/inventory/LowStockPanel";
+import { TodayRemindersPanel } from "@/components/dashboard/TodayRemindersPanel";
 
 export default async function DashboardPage() {
   const user = await requireAuth();
   const t = getDict(user.locale);
   const d = t.dashboard;
 
-  const [summary, todayAppts, openInvoices, lowStockItems, activity] = await Promise.all([
-    dashboardSummary(user),
-    listTodayAppointments(user),
-    listOpenInvoices(user),
-    hasPermission(user, "inventory.view") ? listLowStockItems(user) : Promise.resolve([]),
-    listRecentActivity(user),
-  ]);
+  const [summary, todayAppts, openInvoices, lowStockItems, activity, reminderCandidates] =
+    await Promise.all([
+      dashboardSummary(user),
+      listTodayAppointments(user),
+      listOpenInvoices(user),
+      hasPermission(user, "inventory.view") ? listLowStockItems(user) : Promise.resolve([]),
+      listRecentActivity(user),
+      listReminderCandidates(user),
+    ]);
 
   const fmtTime = (dt: Date) =>
     new Date(dt).toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" });
@@ -163,6 +167,20 @@ export default async function DashboardPage() {
               entities: d.activity.entities,
               actions: d.activity.actions,
             }}
+          />
+        )}
+        {showAppointments && (
+          <TodayRemindersPanel
+            candidates={reminderCandidates}
+            labels={{
+              title: t.communications.reminders.title,
+              empty: t.communications.reminders.empty,
+              alreadyPrepared: t.communications.reminders.alreadyPrepared,
+              action: t.communications.reminders.action,
+              prepared: t.communications.whatsapp.prepared,
+              noPhone: t.communications.errors.noPhone,
+            }}
+            errors={t.communications.errors}
           />
         )}
       </div>

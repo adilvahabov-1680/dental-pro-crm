@@ -6,6 +6,8 @@ import { DocumentTypeBadge } from "@/components/documents/DocumentTypeBadge";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
 import { UploadDocumentForm } from "@/components/documents/UploadDocumentForm";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
+import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
+import { prepareDocumentMessage } from "@/lib/actions/communications";
 import { formatDate } from "@/lib/utils";
 import type { PatientDocumentRow } from "@/lib/documents";
 
@@ -16,6 +18,7 @@ import type { PatientDocumentRow } from "@/lib/documents";
  */
 export function PatientDocumentsBlock({
   patientId,
+  patientPhone,
   records,
   canManage,
   typeOptions,
@@ -24,8 +27,11 @@ export function PatientDocumentsBlock({
   uploadLabels,
   deleteLabels,
   errors,
+  whatsappLabels,
+  communicationErrors,
 }: {
   patientId: string;
+  patientPhone: string | null;
   records: PatientDocumentRow[];
   canManage: boolean;
   typeOptions: Array<{ value: string; label: string }>;
@@ -54,6 +60,8 @@ export function PatientDocumentsBlock({
   };
   deleteLabels: { button: string; confirm: string; failed: string };
   errors: Record<string, string>;
+  whatsappLabels: { documentMessage: string; prepared: string; noPhone: string };
+  communicationErrors: Record<string, string>;
 }) {
   return (
     <Card className="p-5">
@@ -133,7 +141,7 @@ export function PatientDocumentsBlock({
                 ) : (
                   <li
                     key={r.id}
-                    className="flex items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2"
+                    className="flex flex-wrap items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-2"
                   >
                     <a
                       href={`/api/documents/${r.id}/download`}
@@ -149,6 +157,19 @@ export function PatientDocumentsBlock({
                         {formatDate(r.createdAt)}
                       </span>
                     </a>
+                    {canManage && (
+                      <WhatsAppActionButton
+                        action={prepareDocumentMessage}
+                        hiddenName="documentId"
+                        hiddenValue={r.id}
+                        label={whatsappLabels.documentMessage}
+                        preparedLabel={whatsappLabels.prepared}
+                        noPhoneLabel={whatsappLabels.noPhone}
+                        errors={communicationErrors}
+                        hasPhone={!!patientPhone}
+                        small
+                      />
+                    )}
                     {canManage && (
                       <DeleteDocumentButton documentId={r.id} labels={deleteLabels} small />
                     )}

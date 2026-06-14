@@ -16,9 +16,13 @@ import { listPatientAppointments } from "@/lib/appointments";
 import { listPatientTreatments } from "@/lib/treatments";
 import { listPatientFinance } from "@/lib/finance";
 import { listPatientDocumentRecords } from "@/lib/documents";
+import { listPatientCommunications, COMMUNICATION_CHANNELS } from "@/lib/communications";
+import { prepareAppointmentReminder } from "@/lib/actions/communications";
 import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
-import { DOCUMENT_TYPE_META } from "@/lib/constants";
+import { DOCUMENT_TYPE_META, COMMUNICATION_CHANNEL_META } from "@/lib/constants";
 import { PatientDocumentsBlock } from "@/components/documents/PatientDocumentsBlock";
+import { CommunicationHistoryBlock } from "@/components/communications/CommunicationHistoryBlock";
+import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { PatientTreatmentBlock } from "@/components/treatments/PatientTreatmentBlock";
 import { PatientFinanceBlock } from "@/components/finance/PatientFinanceBlock";
@@ -77,6 +81,7 @@ export default async function PatientDetailPage({
   const documentRecords = canViewDocuments
     ? await listPatientDocumentRecords(user, patient.id)
     : [];
+  const communications = await listPatientCommunications(user, patient.id);
   const age = calcAge(patient.birthDate);
   const child = isChildPatient(patient.birthDate, patient.guardianId);
   const genderLabel = { male: t.patients.filters.male, female: t.patients.filters.female };
@@ -265,6 +270,21 @@ export default async function PatientDetailPage({
                       {appts.upcoming.doctor.user.fullName}
                       {appts.upcoming.complaint && ` · ${appts.upcoming.complaint}`}
                     </p>
+                    {canManageAppointments && (
+                      <div className="mt-2">
+                        <WhatsAppActionButton
+                          action={prepareAppointmentReminder}
+                          hiddenName="appointmentId"
+                          hiddenValue={appts.upcoming.id}
+                          label={t.communications.whatsapp.appointmentReminder}
+                          preparedLabel={t.communications.whatsapp.prepared}
+                          noPhoneLabel={t.communications.errors.noPhone}
+                          errors={t.communications.errors}
+                          hasPhone={!!patient.phone}
+                          small
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="rounded-[10px] border border-border-subtle bg-bg-base/50 px-3 py-3 text-center text-xs text-text-secondary">
@@ -361,6 +381,7 @@ export default async function PatientDetailPage({
         <div className="mt-4">
           <PatientDocumentsBlock
             patientId={patient.id}
+            patientPhone={patient.phone}
             records={documentRecords}
             canManage={hasPermission(user, "documents.manage")}
             typeOptions={UPLOAD_DOCUMENT_TYPES.map((v) => ({
@@ -379,9 +400,30 @@ export default async function PatientDetailPage({
               failed: t.documents.delete.failed,
             }}
             errors={t.documents.errors}
+            whatsappLabels={{
+              documentMessage: t.communications.whatsapp.documentMessage,
+              prepared: t.communications.whatsapp.prepared,
+              noPhone: t.communications.errors.noPhone,
+            }}
+            communicationErrors={t.communications.errors}
           />
         </div>
       )}
+
+      {/* Əlaqə tarixçəsi — сессия 15 */}
+      <div className="mt-4">
+        <CommunicationHistoryBlock
+          patientId={patient.id}
+          rows={communications}
+          canManage={canManage}
+          channelOptions={COMMUNICATION_CHANNELS.map((c) => ({
+            value: c,
+            label: COMMUNICATION_CHANNEL_META[c]?.az ?? c,
+          }))}
+          labels={{ ...t.communications.history }}
+          errors={t.communications.errors}
+        />
+      </div>
     </>
   );
 }

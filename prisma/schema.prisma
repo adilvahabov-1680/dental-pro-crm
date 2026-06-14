@@ -192,6 +192,8 @@ enum NotificationChannel {
   whatsapp
   in_app
   email
+  phone // ручной звонок (сессия 15: коммуникация с пациентом)
+  other
 }
 
 enum NotificationType {
@@ -202,6 +204,9 @@ enum NotificationType {
   debt_reminder
   inventory_low_stock // получатель — сотрудник (user_id), in_app
   custom
+  document_message // сессия 15: подготовленное сообщение о документе
+  payment_reminder // сессия 15: напоминание об оплате (WhatsApp click-to-chat)
+  manual_note // сессия 15: ручная запись в истории коммуникации
 }
 
 enum NotificationStatus {
@@ -210,6 +215,7 @@ enum NotificationStatus {
   delivered
   failed
   read
+  prepared // сессия 15: сообщение подготовлено вручную (click-to-chat), без отправки через API
 }
 
 enum LinkPurpose {
@@ -315,6 +321,7 @@ model User {
   doctorProfile    Doctor?
   assistantProfile Assistant?
   extraPermissions UserPermission[]
+  loggedNotifications Notification[] @relation("NotificationCreatedBy")
 
   @@index([clinicId])
   @@map("users")
@@ -774,6 +781,7 @@ model Invoice {
   payments       Payment[]
   debt           Debt?
   treatmentItems TreatmentItem[]
+  notifications  Notification[]
 
   @@unique([clinicId, number])
   @@index([clinicId, patientId])
@@ -1005,6 +1013,7 @@ model Document {
   patient       Patient?       @relation(fields: [patientId], references: [id])
   toothRecord   ToothRecord?   @relation(fields: [toothRecordId], references: [id])
   treatmentItem TreatmentItem? @relation(fields: [treatmentItemId], references: [id])
+  notifications Notification[]
 
   @@index([clinicId, patientId])
   @@map("documents")
@@ -1036,6 +1045,9 @@ model Notification {
   patientId     String?             @map("patient_id") @db.Uuid
   userId        String?             @map("user_id") @db.Uuid // in-app получатель-сотрудник
   appointmentId String?             @map("appointment_id") @db.Uuid
+  documentId    String?             @map("document_id") @db.Uuid // сессия 15: связанный загруженный документ
+  invoiceId     String?             @map("invoice_id") @db.Uuid // сессия 15: связанный счёт
+  createdById   String?             @map("created_by") @db.Uuid // сессия 15: кто подготовил/записал коммуникацию
   channel       NotificationChannel
   type          NotificationType
   body          String
@@ -1047,6 +1059,9 @@ model Notification {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
+  document    Document?    @relation(fields: [documentId], references: [id])
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
+  createdBy   User?        @relation("NotificationCreatedBy", fields: [createdById], references: [id])
   clinic      Clinic       @relation(fields: [clinicId], references: [id])
   patient     Patient?     @relation(fields: [patientId], references: [id])
   appointment Appointment? @relation(fields: [appointmentId], references: [id])

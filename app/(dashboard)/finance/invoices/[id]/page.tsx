@@ -16,6 +16,8 @@ import { PaymentsList } from "@/components/finance/PaymentsList";
 import { PaymentForm } from "@/components/finance/PaymentForm";
 import { CancelInvoiceButton } from "@/components/finance/CancelInvoiceButton";
 import { GenerateDocumentButton } from "@/components/documents/GenerateDocumentButton";
+import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
+import { prepareInvoiceReminder } from "@/lib/actions/communications";
 
 export default async function InvoiceDetailPage({
   params,
@@ -139,6 +141,20 @@ export default async function InvoiceDetailPage({
             />
           </Card>
 
+          {canManage && balance > 0 && invoice.status !== "cancelled" && (
+            <Card className="p-5">
+              <WhatsAppActionButton
+                action={prepareInvoiceReminder}
+                hiddenName="invoiceId"
+                hiddenValue={invoice.id}
+                label={t.communications.whatsapp.paymentReminder}
+                preparedLabel={t.communications.whatsapp.prepared}
+                noPhoneLabel={t.communications.errors.noPhone}
+                errors={t.communications.errors}
+                hasPhone={!!invoice.patient.phone}
+              />
+            </Card>
+          )}
           {canGeneratePdf && (
             <Card className="p-5">
               <GenerateDocumentButton

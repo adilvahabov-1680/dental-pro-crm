@@ -589,6 +589,42 @@ export const az = {
       generic: "Xəta baş verdi. Yenidən cəhd edin.",
     },
   },
+  communications: {
+    history: {
+      title: "Əlaqə tarixçəsi",
+      empty: "Hələ əlaqə qeydi yoxdur",
+      channel: "Kanal",
+      type: "Növ",
+      message: "Mesaj",
+      createdBy: "Kim",
+      addNote: "Qeydi əlavə et",
+      messagePlaceholder: "Qeyd mətni…",
+      submit: "Əlavə et",
+      saving: "Saxlanılır…",
+      success: "Qeyd əlavə edildi",
+    },
+    whatsapp: {
+      appointmentReminder: "WhatsApp xatırlatma",
+      paymentReminder: "WhatsApp ödəniş xatırlatması",
+      documentMessage: "WhatsApp mesaj hazırla",
+      prepared: "Mesaj hazırlandı",
+      opening: "Açılır…",
+    },
+    reminders: {
+      title: "Bugünkü xatırlatmalar",
+      empty: "Bugün/sabah üçün xatırlatma tələb edən qəbul yoxdur",
+      alreadyPrepared: "Hazırlanıb",
+      action: "WhatsApp xatırlatma",
+    },
+    errors: {
+      notFound: "Tapılmadı",
+      noPhone: "Telefon nömrəsi yoxdur",
+      messageRequired: "Mesaj daxil edin",
+      messageTooLong: "Mesaj çox uzundur",
+      channelRequired: "Kanal seçin",
+      generic: "Xəta baş verdi. Yenidən cəhd edin.",
+    },
+  },
   inventory: {
     new: "Yeni material",
     summary: {

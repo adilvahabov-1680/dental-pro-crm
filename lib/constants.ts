@@ -96,6 +96,22 @@ export const DOCUMENT_TYPE_META: Record<string, { az: string; color: string }> =
   other: { az: "Digər sənəd", color: "text-secondary" },
 };
 
+/** AZ-метки каналов коммуникации с пациентом (сессия 15). */
+export const COMMUNICATION_CHANNEL_META: Record<string, { az: string; color: string }> = {
+  whatsapp: { az: "WhatsApp", color: "success" },
+  sms: { az: "SMS", color: "info" },
+  phone: { az: "Telefon", color: "secondary" },
+  other: { az: "Digər", color: "text-secondary" },
+};
+
+/** AZ-метки типов записей коммуникации с пациентом (сессия 15). */
+export const COMMUNICATION_TYPE_META: Record<string, { az: string; color: string }> = {
+  appointment_reminder: { az: "Qəbul xatırlatması", color: "accent" },
+  document_message: { az: "Sənəd mesajı", color: "info" },
+  payment_reminder: { az: "Ödəniş xatırlatması", color: "warning" },
+  manual_note: { az: "Qeyd", color: "text-secondary" },
+};
+
 /**
  * Отображаемый номер PDF-документа. Косметический (в pdf_records не хранится):
  * считается как count+1 на момент генерации, без lock — для демонстрационного
