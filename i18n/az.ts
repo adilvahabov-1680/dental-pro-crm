@@ -860,9 +860,21 @@ export const az = {
   common: {
     comingSoon: "Hazırlanır",
     comingSoonDesc: "Bu modul növbəti sessiyalarda hazırlanacaq.",
-    search: "Pasiyent axtar… (tezliklə)",
     noAccess: "Bu bölməyə icazəniz yoxdur",
     demo: "DEMO",
+  },
+  globalSearch: {
+    placeholder: "Axtarış (pasiyent, qəbul, hesab, sənəd)…",
+    minLength: "Ən azı 2 simvol yazın",
+    loading: "Axtarılır…",
+    empty: "Nəticə tapılmadı",
+    groups: {
+      patients: "Pasiyentlər",
+      appointments: "Qəbullar",
+      invoices: "Hesablar",
+      documents: "Sənədlər",
+      services: "Xidmətlər",
+    },
   },
 } as const;
 

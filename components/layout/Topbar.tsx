@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { LogOut, Search, Bell } from "lucide-react";
+import { LogOut, Bell } from "lucide-react";
 import { logout } from "@/lib/actions/auth";
 import { getDict } from "@/lib/i18n";
 import { hasPermission } from "@/lib/permissions";
 import { unreadNotificationsCount } from "@/lib/notifications";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import type { SessionUser } from "@/types/auth";
 
 export async function Topbar({ user }: { user: SessionUser }) {
@@ -13,15 +14,17 @@ export async function Topbar({ user }: { user: SessionUser }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border-subtle bg-bg-base/80 px-4 backdrop-blur-md sm:px-6">
-      {/* Глобальный поиск — заглушка до модуля пациентов */}
-      <div className="relative hidden max-w-sm flex-1 items-center md:flex">
-        <Search className="pointer-events-none absolute left-3 size-4 text-text-secondary" />
-        <input
-          disabled
-          placeholder={t.common.search}
-          className="h-9 w-full rounded-[10px] border border-border-subtle bg-bg-surface/60 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-secondary/60 outline-none disabled:cursor-not-allowed"
+      {!!user.clinicId && (
+        <GlobalSearch
+          labels={{
+            placeholder: t.globalSearch.placeholder,
+            minLength: t.globalSearch.minLength,
+            loading: t.globalSearch.loading,
+            empty: t.globalSearch.empty,
+            groups: t.globalSearch.groups,
+          }}
         />
-      </div>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         {showBell && (
