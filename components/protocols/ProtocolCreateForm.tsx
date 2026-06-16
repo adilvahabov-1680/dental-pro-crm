@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { createProtocol } from "@/lib/actions/protocols";
 import type { ProtocolFormState } from "@/lib/validation/protocols";
+import { useToast } from "@/components/ui/Toaster";
 
 interface Labels {
   new: string;
@@ -11,6 +12,7 @@ interface Labels {
   create: string;
   creating: string;
   error: string;
+  saved: string;
 }
 
 export function ProtocolCreateForm({ labels }: { labels: Labels }) {
@@ -18,6 +20,13 @@ export function ProtocolCreateForm({ labels }: { labels: Labels }) {
     createProtocol,
     undefined,
   );
+  const toast = useToast();
+  const prevState = useRef<typeof state>(undefined);
+  useEffect(() => {
+    if (state === prevState.current) return;
+    prevState.current = state;
+    if (state?.saved) toast(labels.saved, "success");
+  }, [state, labels.saved, toast]);
 
   return (
     <form

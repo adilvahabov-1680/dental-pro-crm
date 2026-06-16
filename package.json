@@ -12,6 +12,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "prod:migrate": "npx prisma migrate deploy",
+    "prod:update": "npx prisma migrate deploy && npx prisma generate && npm run build",
     "demo:deploy:init": "npx prisma migrate deploy && npx prisma generate && npm run db:seed"
   },
   "prisma": {

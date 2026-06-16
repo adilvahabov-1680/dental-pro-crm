@@ -51,6 +51,7 @@ export default async function ProtocolsPage() {
               create: ts.protocols.create,
               creating: ts.protocols.creating,
               error: ts.errors.generic,
+              saved: ts.saved,
             }}
           />
         </div>

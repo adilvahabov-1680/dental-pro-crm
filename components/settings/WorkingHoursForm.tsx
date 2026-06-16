@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { updateWorkingHours } from "@/lib/actions/settings";
 import { Button } from "@/components/ui/Button";
 import { WEEK_DAYS, type WorkingHours } from "@/lib/validation/settings";
+import { useToast } from "@/components/ui/Toaster";
 import type { SettingsFormState } from "@/lib/validation/settings";
 import type { Dict } from "@/i18n/az";
 
@@ -20,6 +21,13 @@ export function WorkingHoursForm({
     updateWorkingHours,
     undefined,
   );
+  const toast = useToast();
+  const prevState = useRef<typeof state>(undefined);
+  useEffect(() => {
+    if (state === prevState.current) return;
+    prevState.current = state;
+    if (state?.saved) toast(dict.saved, "success");
+  }, [state, dict.saved, toast]);
   const [enabled, setEnabled] = useState<Record<string, boolean>>(
     Object.fromEntries(WEEK_DAYS.map((d) => [d, hours[d] !== null])),
   );
@@ -85,12 +93,9 @@ export function WorkingHoursForm({
         )}
 
         {canManage && (
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={pending}>
-              {pending ? dict.saving : dict.save}
-            </Button>
-            {state?.saved && !pending && <span className="text-sm text-success">{dict.saved}</span>}
-          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? dict.saving : dict.save}
+          </Button>
         )}
       </fieldset>
     </form>

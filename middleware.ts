@@ -10,8 +10,8 @@ const PUBLIC_PATHS = ["/login"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Health check (сессия 20) — без авторизации, для reverse proxy / process manager.
-  if (pathname === "/api/health") {
+  // Health checks — без авторизации, для reverse proxy / monitoring.
+  if (pathname === "/api/health" || pathname === "/api/health/db") {
     return NextResponse.next();
   }
 

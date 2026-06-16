@@ -49,7 +49,7 @@ export function GlobalSearch({
       } finally {
         setLoading(false);
       }
-    }, 300);
+    }, 400);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };

@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { updateClinicParams } from "@/lib/actions/settings";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toaster";
 import type { SettingsFormState } from "@/lib/validation/settings";
 import type { Dict } from "@/i18n/az";
 
@@ -24,6 +25,13 @@ export function ClinicParamsForm({
     updateClinicParams,
     undefined,
   );
+  const toast = useToast();
+  const prevState = useRef<typeof state>(undefined);
+  useEffect(() => {
+    if (state === prevState.current) return;
+    prevState.current = state;
+    if (state?.saved) toast(dict.saved, "success");
+  }, [state, dict.saved, toast]);
   const f = dict.params;
   const err = (key: string) =>
     state?.fieldErrors?.[key]
@@ -77,12 +85,9 @@ export function ClinicParamsForm({
         )}
 
         {canManage && (
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={pending}>
-              {pending ? dict.saving : dict.save}
-            </Button>
-            {state?.saved && !pending && <span className="text-sm text-success">{dict.saved}</span>}
-          </div>
+          <Button type="submit" disabled={pending}>
+            {pending ? dict.saving : dict.save}
+          </Button>
         )}
       </fieldset>
     </form>
