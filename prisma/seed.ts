@@ -7,14 +7,14 @@
  * категории услуг и склада, базовые настройки клиники.
  *
  * Пароли — только bcrypt-хэш (plain text не хранится).
- * Demo-пароль: env SEED_DEMO_PASSWORD (default Demo1234!).
+ * Demo-пароль: env SEED_DEMO_PASSWORD (default admin123 — для demo/Vercel).
  */
 import { PrismaClient, RoleKey, SettingScope, ToothStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } from "../lib/permissions";
 
 const prisma = new PrismaClient();
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo1234!";
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "admin123";
 
 const SERVICE_CATEGORIES = [
   "Terapiya",

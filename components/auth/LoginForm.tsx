@@ -21,10 +21,10 @@ export function LoginForm({
       <Input
         id="email"
         name="email"
-        type="email"
+        type="text"
         label={labels.email}
         placeholder="hekim@klinika.az"
-        autoComplete="email"
+        autoComplete="username"
         required
       />
       <Input

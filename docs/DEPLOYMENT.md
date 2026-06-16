@@ -1,7 +1,7 @@
 # Dental Pro CRM — Deployment Guide
-**by AV Systems** · v1.0 · сессия 20 (Deployment Readiness / Production Setup)
-Связанные документы: [SETUP.md](SETUP.md) (local dev) · [SESSION_HANDOFF.md](SESSION_HANDOFF.md) ·
-[DOCUMENTS.md](DOCUMENTS.md) (storage) · [DATABASE.md](DATABASE.md)
+**by AV Systems** · v1.1 · обновлено в сессии 21
+Связанные документы: [SETUP.md](SETUP.md) (local dev) · [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) (Vercel + Neon) ·
+[SESSION_HANDOFF.md](SESSION_HANDOFF.md) · [DOCUMENTS.md](DOCUMENTS.md) (storage) · [DATABASE.md](DATABASE.md)
 
 Эта сессия — техническая подготовка к запуску, **без изменений бизнес-логики**
 и **без изменений schema.prisma**. Документ описывает, как развернуть текущую
@@ -45,7 +45,7 @@
 git clone https://github.com/adilvahabov-1680/dental-pro-crm.git
 cd dental-pro-crm
 
-# 2. Установить зависимости
+# 2. Установить зависимости (postinstall автоматически запускает prisma generate)
 npm install
 
 # 3. Создать .env из примера и заполнить production-значения
@@ -56,7 +56,7 @@ cp .env.example .env
 #  - AUTH_MOCK="false"
 #  - SEED_DEMO_PASSWORD → задать свой, если планируется запускать seed
 
-# 4. Сгенерировать Prisma Client
+# 4. Сгенерировать Prisma Client (уже сделано postinstall, но явно — не помешает)
 npx prisma generate
 
 # 5. Применить миграции (production-режим, без интерактивных вопросов)
@@ -156,6 +156,16 @@ npm run db:seed
 curl http://localhost:3000/api/health
 # → {"ok":true,"service":"dental-pro-crm"}
 ```
+
+## 9. Бесплатный публичный demo-деплой (Vercel + Neon)
+
+Для быстрого публичного demo без VPS — см. [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md).
+Основные отличия от VPS-деплоя:
+
+- DATABASE_URL — Neon Postgres (direct connection string, не pooled).
+- Миграции и seed запускаются **локально** один раз: `npm run demo:deploy:init`.
+- `NEXT_PUBLIC_DEMO_MODE=true` включает подсказку "admin / admin123" на логин-странице.
+- Файлы в `uploads/` **не сохраняются** между деплоями (Vercel ephemeral FS).
 
 ## 8. Health check
 

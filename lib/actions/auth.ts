@@ -20,8 +20,15 @@ async function setSessionCookie(user: SessionUser) {
   });
 }
 
+// Short aliases for demo convenience: "admin" → full email.
+// Safe: alias only resolves if the corresponding user exists with correct password.
+const LOGIN_ALIASES: Record<string, string> = {
+  admin: "admin@demo.dentalpro.az",
+};
+
 export async function login(_prev: LoginState | undefined, formData: FormData): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const raw = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = (!raw.includes("@") && LOGIN_ALIASES[raw]) ? LOGIN_ALIASES[raw] : raw;
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "invalid" };
 

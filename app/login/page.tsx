@@ -2,11 +2,10 @@ import { Card } from "@/components/ui/Card";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { getDict } from "@/lib/i18n";
-import { DEMO_USERS, DEMO_PASSWORD } from "@/lib/constants";
 
 export default function LoginPage() {
   const t = getDict();
-  const mock = process.env.AUTH_MOCK === "true";
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
@@ -41,20 +40,13 @@ export default function LoginPage() {
           />
         </Card>
 
-        {mock && (
-          /* ВРЕМЕННО: подсказка demo-входов, пока AUTH_MOCK=true */
+        {demoMode && (
           <Card className="mt-4 p-4">
-            <p className="mb-2 text-xs font-medium text-warning">{t.auth.demoTitle}</p>
-            <ul className="space-y-1 text-xs text-text-secondary">
-              {DEMO_USERS.map((u) => (
-                <li key={u.email} className="flex justify-between gap-2">
-                  <span>{u.email}</span>
-                  <span className="text-text-secondary/60">{t.roles[u.role]}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-xs text-text-secondary/60">
-              {t.auth.password}: <span className="font-mono">{DEMO_PASSWORD}</span>
+            <p className="mb-1 text-xs font-medium text-text-secondary">Demo giriş</p>
+            <p className="font-mono text-sm">
+              <span className="text-accent">admin</span>
+              <span className="text-text-secondary/50"> / </span>
+              <span className="text-text-secondary">admin123</span>
             </p>
           </Card>
         )}
