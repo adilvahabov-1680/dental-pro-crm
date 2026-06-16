@@ -15,6 +15,8 @@ import { requirePermission } from "@/lib/auth";
 import { ADMIN_ROLES, countActiveAdmins, listAssignableRoles } from "@/lib/admin";
 import {
   createStaffSchema,
+  resetPasswordSchema,
+  changeLoginSchema,
   roleChangeSchema,
   statusToggleSchema,
   type AdminFormState,
@@ -173,4 +175,76 @@ export async function createStaffUser(
 
   revalidatePath("/admin");
   return { saved: true, tempPassword, email };
+}
+
+export async function resetStaffPassword(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = resetPasswordSchema.safeParse({
+    userId: formData.get("userId"),
+    newPassword: formData.get("newPassword"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { userId, newPassword } = parsed.data;
+
+  const target = await loadTargetUser(user.clinicId, userId);
+  if (!target || target.role.key === "super_admin") return { error: "notFound" };
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: target.id }, data: { passwordHash } });
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "update",
+      entityType: "user",
+      entityId: target.id,
+      after: { passwordReset: true },
+    },
+  });
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+export async function changeStaffLogin(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = changeLoginSchema.safeParse({
+    userId: formData.get("userId"),
+    newEmail: formData.get("newEmail"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { userId, newEmail } = parsed.data;
+
+  const target = await loadTargetUser(user.clinicId, userId);
+  if (!target || target.role.key === "super_admin") return { error: "notFound" };
+
+  const existing = await prisma.user.findUnique({ where: { email: newEmail }, select: { id: true } });
+  if (existing && existing.id !== target.id) return { error: "emailExists" };
+
+  const oldEmail = target.email;
+  await prisma.user.update({ where: { id: target.id }, data: { email: newEmail } });
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "update",
+      entityType: "user",
+      entityId: target.id,
+      before: { email: oldEmail },
+      after: { email: newEmail },
+    },
+  });
+
+  revalidatePath("/admin");
+  return { saved: true };
 }

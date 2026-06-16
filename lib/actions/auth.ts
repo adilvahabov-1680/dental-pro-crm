@@ -24,6 +24,7 @@ async function setSessionCookie(user: SessionUser) {
 // Safe: alias only resolves if the corresponding user exists with correct password.
 const LOGIN_ALIASES: Record<string, string> = {
   admin: "admin@demo.dentalpro.az",
+  super: "super@demo.dentalpro.az",
 };
 
 export async function login(_prev: LoginState | undefined, formData: FormData): Promise<LoginState> {
@@ -51,9 +52,12 @@ export async function login(_prev: LoginState | undefined, formData: FormData): 
         extraPermissions: { include: { permission: true } },
         doctorProfile: { select: { id: true } },
         assistantProfile: { select: { assignedDoctorId: true } },
+        clinic: { select: { status: true } },
       },
     });
     if (user && user.isActive && !user.deletedAt) {
+      // Block login for users of suspended clinics (super_admin has no clinic)
+      if (user.clinic?.status === "suspended") return { error: "clinicSuspended" };
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (ok) {
         const roleKey = user.role.key as RoleKey;

@@ -9,7 +9,14 @@ import type { LoginState } from "@/types/auth";
 export function LoginForm({
   labels,
 }: {
-  labels: { email: string; password: string; submit: string; submitting: string; error: string };
+  labels: {
+    email: string;
+    password: string;
+    submit: string;
+    submitting: string;
+    error: string;
+    clinicSuspended: string;
+  };
 }) {
   const [state, action, pending] = useActionState<LoginState | undefined, FormData>(
     login,
@@ -38,7 +45,7 @@ export function LoginForm({
       />
       {state?.error && (
         <p className="rounded-[10px] border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-          {labels.error}
+          {state.error === "clinicSuspended" ? labels.clinicSuspended : labels.error}
         </p>
       )}
       <Button type="submit" disabled={pending} className="w-full">

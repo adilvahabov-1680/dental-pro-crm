@@ -137,6 +137,14 @@ async function main() {
     roleId: roleIds.super_admin!,
     passwordHash,
   });
+  // Short alias for super_admin (matches LOGIN_ALIASES in lib/actions/auth.ts)
+  await upsertUser({
+    email: "super@demo.dentalpro.az",
+    fullName: "Super Admin",
+    clinicId: null,
+    roleId: roleIds.super_admin!,
+    passwordHash,
+  });
   const adminUser = await upsertUser({
     email: "admin@demo.dentalpro.az",
     fullName: "Aysel Məmmədova",

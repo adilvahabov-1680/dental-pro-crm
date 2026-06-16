@@ -17,6 +17,21 @@ export const statusToggleSchema = z.object({
   userId: z.string().uuid("notFound"),
 });
 
+export const resetPasswordSchema = z.object({
+  userId: z.string().uuid("notFound"),
+  newPassword: z.string().min(6).max(100),
+});
+
+export const changeLoginSchema = z.object({
+  userId: z.string().uuid("notFound"),
+  newEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(200)
+    .refine((v) => /^\S+@\S+\.\S+$/.test(v), "invalidEmail"),
+});
+
 export const createStaffSchema = z.object({
   fullName: z.string().trim().min(1, "nameRequired").max(200),
   email: z

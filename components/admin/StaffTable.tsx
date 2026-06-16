@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { changeStaffRole, toggleStaffStatus } from "@/lib/actions/admin";
+import { useActionState, useRef, useState } from "react";
+import { changeStaffRole, toggleStaffStatus, resetStaffPassword, changeStaffLogin } from "@/lib/actions/admin";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import type { AdminFormState } from "@/lib/validation/admin";
@@ -93,6 +93,84 @@ function StatusForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] }) {
   );
 }
 
+const inlineInputCls =
+  "h-7 rounded-[8px] border border-border-subtle bg-bg-elevated px-2 text-xs text-text-primary " +
+  "focus:outline-none focus:ring-1 focus:ring-accent/40";
+
+function ResetPasswordForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] }) {
+  const [state, formAction, pending] = useActionState<AdminFormState | undefined, FormData>(
+    resetStaffPassword,
+    undefined,
+  );
+  const prevState = useRef<typeof state>(undefined);
+  const [show, setShow] = useState(false);
+
+  if (state !== prevState.current) {
+    prevState.current = state;
+    if (state?.saved) setShow(false);
+  }
+
+  const pr = dict.passwordReset;
+  const error = errMsg(dict, state);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2" data-e2e-admin-reset={row.id}>
+      <input type="hidden" name="userId" value={row.id} />
+      {!show ? (
+        <button type="button" onClick={() => setShow(true)} className="text-xs text-accent hover:underline">
+          {pr.title}
+        </button>
+      ) : (
+        <>
+          <input name="newPassword" required minLength={6} maxLength={100} placeholder={pr.newPassword} className={`${inlineInputCls} w-32`} />
+          <button type="submit" disabled={pending} className="rounded-[6px] border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs text-accent disabled:opacity-50">
+            {pending ? pr.resetting : "OK"}
+          </button>
+          <button type="button" onClick={() => setShow(false)} className="text-xs text-text-tertiary">✕</button>
+          {error && <span className="text-xs text-danger">{error}</span>}
+        </>
+      )}
+    </form>
+  );
+}
+
+function ChangeLoginForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] }) {
+  const [state, formAction, pending] = useActionState<AdminFormState | undefined, FormData>(
+    changeStaffLogin,
+    undefined,
+  );
+  const prevState = useRef<typeof state>(undefined);
+  const [show, setShow] = useState(false);
+
+  if (state !== prevState.current) {
+    prevState.current = state;
+    if (state?.saved) setShow(false);
+  }
+
+  const lc = dict.loginChange;
+  const error = errMsg(dict, state);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2" data-e2e-admin-login-change={row.id}>
+      <input type="hidden" name="userId" value={row.id} />
+      {!show ? (
+        <button type="button" onClick={() => setShow(true)} className="text-xs text-accent hover:underline">
+          {lc.title}
+        </button>
+      ) : (
+        <>
+          <input name="newEmail" type="text" required maxLength={255} defaultValue={row.email} className={`${inlineInputCls} w-44`} />
+          <button type="submit" disabled={pending} className="rounded-[6px] border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs text-accent disabled:opacity-50">
+            {pending ? lc.changing : "OK"}
+          </button>
+          <button type="button" onClick={() => setShow(false)} className="text-xs text-text-tertiary">✕</button>
+          {error && <span className="text-xs text-danger">{error}</span>}
+        </>
+      )}
+    </form>
+  );
+}
+
 export function StaffTable({
   rows,
   roles,
@@ -121,6 +199,7 @@ export function StaffTable({
             <th className="py-2 pr-3 font-medium">{tt.status}</th>
             <th className="py-2 pr-3 font-medium">{tt.created}</th>
             <th className="py-2 pr-3 font-medium">{tt.lastLogin}</th>
+            {canManage && <th className="py-2 font-medium" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-border-subtle/50">
@@ -152,6 +231,14 @@ export function StaffTable({
               <td className="py-3 pr-3 text-text-secondary">
                 {row.lastLoginAt ? formatDate(row.lastLoginAt) : tt.never}
               </td>
+              {canManage && (
+                <td className="py-3">
+                  <div className="flex flex-col gap-2">
+                    <ResetPasswordForm row={row} dict={dict} />
+                    <ChangeLoginForm row={row} dict={dict} />
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

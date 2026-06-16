@@ -29,6 +29,11 @@ enum ClinicStatus {
   suspended
 }
 
+enum ClinicType {
+  clinic
+  solo_doctor
+}
+
 enum RoleKey {
   super_admin
   owner
@@ -259,6 +264,7 @@ model Clinic {
   defaultLocale Locale       @default(az) @map("default_locale")
   logoUrl       String?      @map("logo_url")
   status        ClinicStatus @default(trial)
+  clinicType    ClinicType   @default(clinic) @map("clinic_type")
   plan          String?
   // настройки клиники — в таблице settings (scope=clinic), не json-полем
 

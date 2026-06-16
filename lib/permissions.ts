@@ -23,7 +23,7 @@ const ALL_CLINIC: PermissionKey[] = MODULES.flatMap(vm);
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
   // super_admin управляет платформой, мед. данные клиник не видит
-  super_admin: [...vm("admin")],
+  super_admin: [...vm("platform"), ...vm("admin")],
   owner: ALL_CLINIC,
   admin: ALL_CLINIC,
   doctor: [

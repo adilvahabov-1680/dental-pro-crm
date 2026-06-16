@@ -10,6 +10,7 @@ export const MODULES = [
   "notifications",
   "settings",
   "admin",
+  "platform",
 ] as const;
 
 export type Module = (typeof MODULES)[number];

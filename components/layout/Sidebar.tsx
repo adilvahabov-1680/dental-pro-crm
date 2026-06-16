@@ -13,6 +13,7 @@ import {
   Bell,
   Settings,
   ShieldCheck,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import { ToothIcon } from "@/components/ui/ToothIcon";
@@ -32,6 +33,7 @@ const ICONS: Record<NavIconKey, LucideIcon | ComponentType<SVGProps<SVGSVGElemen
   notifications: Bell,
   settings: Settings,
   admin: ShieldCheck,
+  platform: Building2,
 };
 
 function NavLink({ item, compact = false }: { item: NavItem; compact?: boolean }) {

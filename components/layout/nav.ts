@@ -18,7 +18,8 @@ export type NavIconKey =
   | "documents"
   | "notifications"
   | "settings"
-  | "admin";
+  | "admin"
+  | "platform";
 
 export interface NavItem {
   key: NavIconKey;
@@ -38,6 +39,7 @@ const NAV: Array<{ key: NavIconKey; href: string; perm: string | null; clinicOnl
   { key: "notifications", href: "/notifications", perm: "notifications.view" },
   { key: "settings", href: "/settings", perm: "settings.view" },
   { key: "admin", href: "/admin", perm: "admin.view", clinicOnly: true },
+  { key: "platform", href: "/platform/clinics", perm: "platform.view", clinicOnly: false },
 ];
 
 export function buildNav(user: SessionUser): NavItem[] {
