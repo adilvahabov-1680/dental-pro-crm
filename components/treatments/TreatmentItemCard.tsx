@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Receipt, Package } from "lucide-react";
+import { User, Receipt, Package, CalendarPlus } from "lucide-react";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { TreatmentStatusBadge } from "@/components/treatments/TreatmentStatusBadge";
 import { TreatmentStatusControl } from "@/components/treatments/TreatmentStatusControl";
@@ -14,6 +14,7 @@ export function TreatmentItemCard({
   labels,
   showPatient = false,
   materialsLabel,
+  followUpLabel,
 }: {
   item: TreatmentItemFull;
   canManage: boolean;
@@ -22,6 +23,8 @@ export function TreatmentItemCard({
   showPatient?: boolean;
   /** метка «Material əlavə et» — ссылка на /treatments/[id]/materials (done/in_progress) */
   materialsLabel?: string;
+  /** метка «Növbəti qəbul planla» — ссылка на /treatments/[id]/followup (planned/in_progress, без appointmentId) */
+  followUpLabel?: string;
 }) {
   const cancelled = item.status === "cancelled";
   const date = item.performedAt ?? item.createdAt;
@@ -92,6 +95,15 @@ export function TreatmentItemCard({
 
       {/* цена + статус */}
       <div className="flex shrink-0 items-center gap-3">
+        {followUpLabel && ["planned", "in_progress"].includes(item.status) && !item.appointmentId && (
+          <Link
+            href={`/treatments/${item.id}/followup`}
+            title={followUpLabel}
+            className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
+          >
+            <CalendarPlus className="size-4" />
+          </Link>
+        )}
         {materialsLabel && ["done", "in_progress"].includes(item.status) && (
           <Link
             href={`/treatments/${item.id}/materials`}

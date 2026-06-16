@@ -57,6 +57,8 @@ const TENANT_MODELS = new Set<string>([
   "TreatmentPlan",
   "TreatmentItem",
   "TreatmentItemMaterial",
+  "TreatmentProtocol",
+  "TreatmentProtocolStep",
   "ServiceCategory",
   "Service",
   "Price",

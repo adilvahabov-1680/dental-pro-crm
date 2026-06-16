@@ -90,6 +90,21 @@ export default async function SettingsPage() {
               </Link>
             </div>
           </Card>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">{ts.protocols.title}</h2>
+                <p className="mt-0.5 text-xs text-text-secondary">{ts.protocols.desc}</p>
+              </div>
+              <Link
+                href="/settings/protocols"
+                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[10px] border border-accent/40 bg-accent/10 px-4 text-sm text-accent transition-colors hover:bg-accent/20"
+              >
+                {ts.protocols.openPage} <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          </Card>
         </div>
       </div>
     </>

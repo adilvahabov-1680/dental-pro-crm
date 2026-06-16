@@ -277,7 +277,9 @@ model Clinic {
   toothHistory         ToothHistory[]
   treatmentPlans       TreatmentPlan[]
   treatmentItems       TreatmentItem[]
-  serviceCategories    ServiceCategory[]
+  treatmentProtocols      TreatmentProtocol[]
+  treatmentProtocolSteps  TreatmentProtocolStep[]
+  serviceCategories       ServiceCategory[]
   services             Service[]
   prices               Price[]
   invoices             Invoice[]
@@ -726,8 +728,9 @@ model Service {
   clinic         Clinic           @relation(fields: [clinicId], references: [id])
   category       ServiceCategory? @relation(fields: [categoryId], references: [id])
   prices         Price[]
-  treatmentItems TreatmentItem[]
-  appointments   Appointment[]
+  treatmentItems  TreatmentItem[]
+  appointments    Appointment[]
+  protocolSteps   TreatmentProtocolStep[]
 
   @@index([clinicId])
   @@map("services")
@@ -1139,6 +1142,52 @@ model Translation {
 
   @@unique([clinicId, locale, entityType, entityId, field])
   @@map("translations")
+}
+
+// ─────────────── H2. Treatment Protocols ───────────────
+
+/// Шаблон лечения: набор шагов (услуг) с интервалами между ними.
+/// Применяется к пациенту → создаёт TreatmentItem-ы с нужным orderIndex.
+model TreatmentProtocol {
+  id          String  @id @default(uuid()) @db.Uuid
+  clinicId    String  @map("clinic_id") @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic Clinic                  @relation(fields: [clinicId], references: [id])
+  steps  TreatmentProtocolStep[]
+
+  @@index([clinicId])
+  @@map("treatment_protocols")
+}
+
+/// Один шаг протокола: услуга + интервал после предыдущего шага.
+model TreatmentProtocolStep {
+  id           String  @id @default(uuid()) @db.Uuid
+  clinicId     String  @map("clinic_id") @db.Uuid
+  protocolId   String  @map("protocol_id") @db.Uuid
+  serviceId    String  @map("service_id") @db.Uuid
+  orderIndex   Int     @map("order_index") @db.SmallInt
+  durationMin  Int?    @map("duration_min") @db.SmallInt // override service.durationMin
+  intervalDays Int?    @map("interval_days") @db.SmallInt // дней после предыдущего шага
+  notes        String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic   Clinic            @relation(fields: [clinicId], references: [id])
+  protocol TreatmentProtocol @relation(fields: [protocolId], references: [id])
+  service  Service           @relation(fields: [serviceId], references: [id])
+
+  @@index([clinicId, protocolId])
+  @@map("treatment_protocol_steps")
 }
 
 // ───────────────────── I. Audit ─────────────────────

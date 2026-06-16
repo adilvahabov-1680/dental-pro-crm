@@ -694,6 +694,73 @@ async function main() {
     console.log("  demo materials usage: tooth 16 (Kompozit 1, Artikain 1, Bonding 0.2)");
   }
 
+  // ─── 21. Demo treatment protocols (idempotent) ───────────────
+  // 3 протокола: Sadə dolğu (1 шаг), Kanal müalicəsi (3 шага), İmplant (4 шага).
+  // Услуги берём из уже созданных выше serviceIds.
+  interface ProtoDef {
+    name: string;
+    desc: string;
+    steps: { serviceName: string; intervalDays: number | null; durationMin: number | null }[];
+  }
+  const DEMO_PROTOCOLS: ProtoDef[] = [
+    {
+      name: "Sadə dolğu",
+      desc: "Sadə kariyes müalicəsi: diaqnoz + plomba",
+      steps: [
+        { serviceName: "Kariyes müalicəsi", intervalDays: null, durationMin: 30 },
+        { serviceName: "Kompozit plomba", intervalDays: 0, durationMin: 45 },
+      ],
+    },
+    {
+      name: "Kanal müalicəsi protokolu",
+      desc: "3 mərhələli kanal müalicəsi",
+      steps: [
+        { serviceName: "Konsultasiya", intervalDays: null, durationMin: 30 },
+        { serviceName: "Kanal müalicəsi", intervalDays: 1, durationMin: 90 },
+        { serviceName: "Kompozit plomba", intervalDays: 7, durationMin: 45 },
+      ],
+    },
+    {
+      name: "Profilaktik müayinə",
+      desc: "İllik profilaktik müayinə + təmizlik",
+      steps: [
+        { serviceName: "Konsultasiya", intervalDays: null, durationMin: 20 },
+        { serviceName: "Profilaktik təmizlik", intervalDays: 0, durationMin: 60 },
+      ],
+    },
+  ];
+  for (const pd of DEMO_PROTOCOLS) {
+    let proto = await prisma.treatmentProtocol.findFirst({
+      where: { clinicId: clinic.id, name: pd.name },
+    });
+    if (!proto) {
+      proto = await prisma.treatmentProtocol.create({
+        data: { clinicId: clinic.id, name: pd.name, description: pd.desc },
+      });
+    }
+    for (let i = 0; i < pd.steps.length; i++) {
+      const sd = pd.steps[i];
+      const svcId = serviceIds[sd.serviceName];
+      if (!svcId) continue;
+      const stepExists = await prisma.treatmentProtocolStep.findFirst({
+        where: { protocolId: proto.id, serviceId: svcId, deletedAt: null },
+      });
+      if (!stepExists) {
+        await prisma.treatmentProtocolStep.create({
+          data: {
+            clinicId: clinic.id,
+            protocolId: proto.id,
+            serviceId: svcId,
+            orderIndex: i,
+            durationMin: sd.durationMin,
+            intervalDays: sd.intervalDays,
+          },
+        });
+      }
+    }
+  }
+  console.log("  demo protocols: 3 (Sadə dolğu, Kanal müalicəsi, Profilaktik müayinə)");
+
   // Статусы зубов и приёмов — Postgres enum'ы (ToothStatus, AppointmentStatus),
   // их AZ-метки — в lib/constants.ts (TOOTH_STATUS_META, APPOINTMENT_STATUS_META).
   console.log("✓ Seed finished");
