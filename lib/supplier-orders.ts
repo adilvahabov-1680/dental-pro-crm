@@ -37,6 +37,10 @@ const orderItemSelect = {
   unitSnapshot: true,
   priceSnapshot: true,
   currencySnapshot: true,
+  receivedQty: true,
+  receivedAt: true,
+  receivedById: true,
+  stockMovementId: true,
   createdAt: true,
 } satisfies Prisma.SupplierOrderItemSelect;
 

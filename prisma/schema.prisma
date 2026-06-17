@@ -1032,6 +1032,12 @@ model SupplierOrderItem {
   priceSnapshot   Decimal  @map("price_snapshot") @db.Decimal(12, 2)
   currencySnapshot String  @default("AZN") @map("currency_snapshot") @db.Char(3)
 
+  // Receiving tracking (set once on first receive; stockMovementId acts as idempotency guard)
+  receivedQty     Decimal?  @map("received_qty")      @db.Decimal(12, 3)
+  receivedAt      DateTime? @map("received_at")       @db.Timestamptz()
+  receivedById    String?   @map("received_by")       @db.Uuid
+  stockMovementId String?   @map("stock_movement_id") @db.Uuid
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   order         SupplierOrder        @relation(fields: [supplierOrderId], references: [id])

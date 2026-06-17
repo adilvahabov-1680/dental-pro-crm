@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getSupplierOrderForUser, buildSupplierOrderMessage } from "@/lib/supplier-orders";
 import { listCatalogItems } from "@/lib/suppliers";
+import { listInventoryItems } from "@/lib/inventory";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { OrderDetailCard } from "@/components/supplier-orders/OrderDetailCard";
 import { OrderItemsTable } from "@/components/supplier-orders/OrderItemsTable";
@@ -28,9 +29,16 @@ export default async function SupplierOrderDetailPage({
   if (!order) notFound();
 
   const isDraft = order.status === "draft";
-  const catalogItems = isDraft && canManage
-    ? await listCatalogItems(user, order.supplier.id, { activeOnly: true })
-    : [];
+  const isReceived = order.status === "received";
+
+  const [catalogItems, inventoryItems] = await Promise.all([
+    isDraft && canManage
+      ? listCatalogItems(user, order.supplier.id, { activeOnly: true })
+      : Promise.resolve([]),
+    isReceived && canManage
+      ? listInventoryItems(user, {})
+      : Promise.resolve([]),
+  ]);
 
   const message = buildSupplierOrderMessage(order, order.items);
 
@@ -50,7 +58,7 @@ export default async function SupplierOrderDetailPage({
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">
-          <OrderItemsTable order={order} dict={ts} canManage={canManage} />
+          <OrderItemsTable order={order} dict={ts} canManage={canManage} inventoryItems={inventoryItems} />
 
           {isDraft && canManage && catalogItems.length > 0 && (
             <AddCatalogItemForm

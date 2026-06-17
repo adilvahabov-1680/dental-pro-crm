@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, PackageCheck } from "lucide-react";
 import { updateSupplierOrderItemQty, removeSupplierOrderItem } from "@/lib/actions/supplier-orders";
+import { ReceiveOrderItemForm } from "@/components/supplier-orders/ReceiveOrderItemForm";
 import type { SupplierOrderFull } from "@/lib/supplier-orders";
 import type { SupplierOrderActionState } from "@/lib/validation/supplier-orders";
+import type { InventoryItemFull } from "@/lib/inventory";
 import type { Dict } from "@/i18n/az";
 
 function QtyCell({
@@ -68,12 +70,15 @@ export function OrderItemsTable({
   order,
   dict,
   canManage,
+  inventoryItems = [],
 }: {
   order: SupplierOrderFull;
   dict: Dict["supplierOrders"];
   canManage: boolean;
+  inventoryItems?: InventoryItemFull[];
 }) {
   const isDraft = order.status === "draft";
+  const isReceived = order.status === "received";
   const it = dict.itemsTable;
 
   if (order.items.length === 0) {
@@ -96,6 +101,9 @@ export function OrderItemsTable({
             <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">{it.unit}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary uppercase tracking-wide">{it.price}</th>
             <th className="px-4 py-3 text-right text-xs font-semibold text-text-secondary uppercase tracking-wide">{it.total}</th>
+            {isReceived && canManage && (
+              <th className="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">{dict.receiveToInventory}</th>
+            )}
             {canManage && isDraft && (
               <th className="px-4 py-3" />
             )}
@@ -122,6 +130,15 @@ export function OrderItemsTable({
                 <td className="px-4 py-3 text-right tabular-nums font-medium text-text-primary">
                   {rowTotal.toFixed(2)} {item.currencySnapshot}
                 </td>
+                {isReceived && canManage && (
+                  <td className="px-4 py-3 min-w-[280px]">
+                    <ReceiveOrderItemForm
+                      item={item}
+                      inventoryItems={inventoryItems}
+                      dict={dict}
+                    />
+                  </td>
+                )}
                 {canManage && isDraft && (
                   <td className="px-4 py-3">
                     <RemoveButton itemId={item.id} dict={dict} />
@@ -139,6 +156,7 @@ export function OrderItemsTable({
             <td className="px-4 py-3 text-right tabular-nums font-semibold text-text-primary">
               {(order.totalCost / 100).toFixed(2)} AZN
             </td>
+            {isReceived && canManage && <td />}
             {canManage && isDraft && <td />}
           </tr>
         </tfoot>

@@ -103,6 +103,12 @@ async function main() {
   });
   await prisma.patient.update({ where: { id: turalPatient.id }, data: { primaryDoctorId: doctor.id } });
 
+  // Record all of hekim's patients before the test so we can restore them afterward
+  const hekimPatientsBefore = await prisma.patient.findMany({
+    where: { clinicId: clinic.id, primaryDoctorId: doctor.id },
+    select: { id: true },
+  });
+
   // Create a second doctor (transfer target)
   const doctorRole = await prisma.role.findFirstOrThrow({ where: { clinicId: null, key: "doctor" } });
   const doc2User = await prisma.user.create({
@@ -334,7 +340,14 @@ async function main() {
     );
   } finally {
     // ── Cleanup ──────────────────────────────────────────────────────────────
-    // Restore Tural to original state (no doctor)
+    // Restore all of hekim's patients that were transferred during this test
+    if (hekimPatientsBefore.length > 0) {
+      await prisma.patient.updateMany({
+        where: { id: { in: hekimPatientsBefore.map((p) => p.id) } },
+        data: { primaryDoctorId: doctor.id },
+      }).catch(() => {});
+    }
+    // Restore Tural to original state (no doctor — Tural has no primary doctor in seed)
     await prisma.patient.update({ where: { id: turalPatient.id }, data: { primaryDoctorId: null } }).catch(() => {});
 
     // Delete test appointment

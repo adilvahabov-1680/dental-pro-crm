@@ -60,14 +60,14 @@ draft ────── sent ───── received  (terminal)
 | `createdById` | UUID | FK → User |
 | `notes` | String? | Произвольный текст |
 
-### `SupplierOrderItem` (обновлено в сессии 29)
+### `SupplierOrderItem` (обновлено в сессиях 29–30)
 
 | Поле | Тип | Описание |
 |---|---|---|
 | `id` | UUID | PK |
 | `clinicId` | UUID | Tenant-ключ |
 | `supplierOrderId` | UUID | FK → SupplierOrder |
-| `inventoryItemId` | UUID? | FK → InventoryItem (nullable, v1 — null) |
+| `inventoryItemId` | UUID? | FK → InventoryItem (заполняется при оприходовании) |
 | `catalogItemId` | UUID? | FK → SupplierCatalogItem |
 | `quantity` | Decimal(12,3) | Количество |
 | `unitCost` | Int | Цена единицы в гяпиках |
@@ -76,6 +76,10 @@ draft ────── sent ───── received  (terminal)
 | `unitSnapshot` | String? | Единица измерения |
 | `priceSnapshot` | Decimal(12,2) | Цена каталога (Decimal — исключение из правила Int) |
 | `currencySnapshot` | Char(3) | Валюта |
+| `receivedQty` | Decimal(12,3)? | Фактически принятое количество (сессия 30) |
+| `receivedAt` | Timestamptz? | Момент оприходования (сессия 30) |
+| `receivedById` | UUID? | Кто оприходовал (сессия 30) |
+| `stockMovementId` | UUID? | FK → InventoryMovement (idempotency guard; сессия 30) |
 
 Snapshot-поля фиксируют данные из каталога в момент добавления позиции — изменения каталога на них не влияют.
 
@@ -149,13 +153,17 @@ Demo-данные в `prisma/seed.ts` (секция 17):
 - Добавляет `catalog_item_id` + snapshot-поля в `supplier_order_items`.
 - Добавляет FK от `supplier_order_items` к `supplier_catalog_items`.
 
-## Out of scope (v1)
+## Получение на склад (сессия 30)
+
+После перевода в `received` каждую позицию можно оприходовать отдельно через кнопку
+«Anbara qəbul et». Подробности — **SUPPLIER_RECEIVING.md**.
+
+## Out of scope
 
 - Автоматическая отправка email / WhatsApp.
-- Движения склада при получении (v2 — «оприходовать заказ»).
 - Платёжный процесс, счета-фактуры.
 - Портал поставщика, публичные ссылки, PDF-печать.
-- Связь `InventoryItem` ↔ `SupplierOrderItem` (inventoryItemId = null в v1).
+- Частичные / многопартийные поставки.
 - Разбор входящих счетов, approvals.
 
 ## Известные ограничения
