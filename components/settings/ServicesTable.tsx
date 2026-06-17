@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { toggleServiceActive, updateServicePrice } from "@/lib/actions/settings";
 import { Badge } from "@/components/ui/Badge";
@@ -132,6 +133,13 @@ export function ServicesTable({
             <div className="flex flex-wrap items-center gap-4">
               <PriceForm row={row} dict={dict} />
               <ToggleForm row={row} dict={dict} />
+              <Link
+                href={`/settings/services/${row.id}`}
+                className="text-xs text-accent/80 underline-offset-2 transition-colors hover:text-accent hover:underline"
+                data-e2e-marker={`consumables-link-${row.id}`}
+              >
+                {dict.services.consumables}
+              </Link>
             </div>
           ) : (
             <p className="text-sm tabular-nums text-text-primary">

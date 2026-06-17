@@ -15,8 +15,15 @@
     "prod:migrate": "npx prisma migrate deploy",
     "prod:update": "npx prisma migrate deploy && npx prisma generate && npm run build",
     "demo:deploy:init": "npx prisma migrate deploy && npx prisma generate && npm run db:seed",
+    "e2e-service-consumable-templates-check": "tsx scripts/e2e-service-consumable-templates-check.ts",
+    "e2e-inventory-units-check": "tsx scripts/e2e-inventory-units-check.ts",
     "e2e-inventory-corrections-check": "tsx scripts/e2e-inventory-corrections-check.ts",
-    "e2e-inventory-units-check": "tsx scripts/e2e-inventory-units-check.ts"
+    "e2e-inventory-check": "tsx scripts/e2e-inventory-check.ts",
+    "e2e-supplier-receiving-check": "tsx scripts/e2e-supplier-receiving-check.ts",
+    "e2e-supplier-orders-check": "tsx scripts/e2e-supplier-orders-check.ts",
+    "e2e-admin-check": "tsx scripts/e2e-admin-check.ts",
+    "e2e-platform-admin-check": "tsx scripts/e2e-platform-admin-check.ts",
+    "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

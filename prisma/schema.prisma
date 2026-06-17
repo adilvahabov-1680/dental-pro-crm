@@ -296,9 +296,10 @@ model Clinic {
   inventoryItems       InventoryItem[]
   inventoryMovements   InventoryMovement[]
   suppliers            Supplier[]
-  supplierOrders       SupplierOrder[]
-  supplierCatalogItems SupplierCatalogItem[]
-  documents            Document[]
+  supplierOrders            SupplierOrder[]
+  supplierCatalogItems      SupplierCatalogItem[]
+  serviceConsumableTemplates ServiceConsumableTemplate[]
+  documents                 Document[]
   pdfRecords           PdfRecord[]
   notifications        Notification[]
   patientResponseLinks PatientResponseLink[]
@@ -735,10 +736,11 @@ model Service {
 
   clinic         Clinic           @relation(fields: [clinicId], references: [id])
   category       ServiceCategory? @relation(fields: [categoryId], references: [id])
-  prices         Price[]
-  treatmentItems  TreatmentItem[]
-  appointments    Appointment[]
-  protocolSteps   TreatmentProtocolStep[]
+  prices               Price[]
+  treatmentItems        TreatmentItem[]
+  appointments          Appointment[]
+  protocolSteps         TreatmentProtocolStep[]
+  consumableTemplates   ServiceConsumableTemplate[]
 
   @@index([clinicId])
   @@map("services")
@@ -761,6 +763,32 @@ model Price {
 
   @@index([clinicId, serviceId, validTo])
   @@map("prices")
+}
+
+/// Шаблон стандартных расходников услуги. Только шаблон — не списывает склад.
+/// Фактическое списание при лечении — Session 34.
+model ServiceConsumableTemplate {
+  id              String  @id @default(uuid()) @db.Uuid
+  clinicId        String  @map("clinic_id") @db.Uuid
+  serviceId       String  @map("service_id") @db.Uuid
+  inventoryItemId String  @map("inventory_item_id") @db.Uuid
+  quantity        Decimal @db.Decimal(12, 3)
+  unit            String  // base unit of item or "dose" (requires doseToBaseFactor)
+  allowOverride   Boolean @default(true) @map("allow_override")
+  isRequired      Boolean @default(true) @map("is_required")
+  note            String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic        Clinic        @relation(fields: [clinicId], references: [id])
+  service       Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+  @@unique([clinicId, serviceId, inventoryItemId])
+  @@index([clinicId])
+  @@index([serviceId])
+  @@map("service_consumable_templates")
 }
 
 // ───────────────────── F. Finance ─────────────────────
@@ -902,12 +930,13 @@ model InventoryItem {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
 
-  clinic     Clinic                  @relation(fields: [clinicId], references: [id])
-  category   InventoryCategory?      @relation(fields: [categoryId], references: [id])
-  supplier   Supplier?               @relation(fields: [supplierId], references: [id])
-  movements  InventoryMovement[]
-  materials  TreatmentItemMaterial[]
-  orderItems SupplierOrderItem[]
+  clinic               Clinic                      @relation(fields: [clinicId], references: [id])
+  category             InventoryCategory?           @relation(fields: [categoryId], references: [id])
+  supplier             Supplier?                    @relation(fields: [supplierId], references: [id])
+  movements            InventoryMovement[]
+  materials            TreatmentItemMaterial[]
+  orderItems           SupplierOrderItem[]
+  consumableTemplates  ServiceConsumableTemplate[]
 
   @@index([clinicId])
   @@map("inventory_items")

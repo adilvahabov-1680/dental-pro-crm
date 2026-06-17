@@ -69,6 +69,7 @@ const TENANT_MODELS = new Set<string>([
   "InventoryCategory",
   "InventoryItem",
   "InventoryMovement",
+  "ServiceConsumableTemplate",
   "Supplier",
   "SupplierOrder",
   "SupplierOrderItem",

@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-17 (после сессии 32: Inventory Unit Conversions v1)
+**by AV Systems** · обновлено: 2026-06-18 (после сессии 33: Service Consumable Templates v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -64,6 +64,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Supplier Receiving v1 (Anbara qəbul et per item, create/link InventoryItem) | готов | `e2e-supplier-receiving-check` 27/27 |
 | Inventory Stock Corrections v1 (adjustment/adjustment_out/write_off, audit trail, note field) | готов | `e2e-inventory-corrections-check` 34/34 |
 | Inventory Unit Conversions v1 (purchaseUnit, purchaseToBaseFactor, doseToBaseFactor) | готов | `e2e-inventory-units-check` 27/27 |
+| Service Consumable Templates v1 (шаблоны расходников по услуге, template-only, no stock deduction) | готов | `e2e-service-consumable-templates-check` 30/30 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -528,6 +529,49 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 `e2e-supplier-orders-check` 38/38, `e2e-admin-check` 36/36,
 `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
+## 7.12. Сессия 33 — итоги (Service Consumable Templates v1)
+
+Добавлена модель шаблонов расходников для услуг. **Template only** — stock не списывается.
+Фактическое списание при лечении — Session 34.
+
+**Изменения:**
+- **Migration** `20260617160000_add_service_consumable_templates`: новая таблица
+  `service_consumable_templates` (uuid PK, clinicId FK, serviceId FK CASCADE, inventoryItemId FK RESTRICT,
+  quantity DECIMAL(12,3), unit TEXT, allow_override BOOL, is_required BOOL, note TEXT?).
+  Unique constraint `(clinicId, serviceId, inventoryItemId)`.
+- **`prisma/schema.prisma`**: модель `ServiceConsumableTemplate` + back-relations на `Service`,
+  `InventoryItem`, `Clinic`. `ServiceConsumableTemplate` добавлена в `TENANT_MODELS` (lib/tenant.ts).
+- **`lib/validation/service-consumables.ts`**: `createConsumableTemplateSchema`,
+  `updateConsumableTemplateSchema`, `deleteConsumableTemplateSchema`, `ServiceConsumableFormState`.
+- **`lib/service-consumables.ts`**: `listServiceConsumableTemplates`, `listInventoryItemsForConsumable`.
+- **`lib/actions/service-consumables.ts`**: три server actions — `createConsumableTemplate`,
+  `updateConsumableTemplate`, `deleteConsumableTemplate`. Все требуют `settings.manage`.
+  Super admin (`clinicId=null`) → `{ error: "unauthorized" }`.
+- **Unit validation**: `unit = "dose"` разрешён только если `item.doseToBaseFactor` задан (Session 32).
+- **`i18n/az.ts`**: `settings.services.consumablesPage.*` + новые ключи в `settings.errors`.
+- **`components/settings/ServiceConsumableAddForm.tsx`**: client component, add-форма с item select
+  (показывает doseToBaseFactor hint), dynamic unit options, checkboxes.
+- **`components/settings/ServiceConsumablesList.tsx`**: client component, список шаблонов как
+  inline edit-форм (update + delete с confirm).
+- **`components/settings/ServicesTable.tsx`**: добавлена ссылка «Sərfiyyatlar» per service row.
+- **`app/(dashboard)/settings/services/[id]/page.tsx`**: новая RSC-страница, route `/settings/services/[id]`.
+- **`scripts/e2e-service-consumable-templates-check.ts`** (30 checks): auth, permission, create,
+  duplicate protection, update, dose validation, qty validation, tenant isolation, super admin safety, delete, regression.
+- **`package.json`**: добавлен `e2e-service-consumable-templates-check`; добавлены все остальные
+  e2e-скрипты как npm-скрипты (inventory-check, supplier-*, admin-*, platform-admin-*, demo-flow-*).
+- **`docs/SERVICE_CONSUMABLE_TEMPLATES.md`**: новый profile-doc.
+
+**Не реализовано (out of scope):**
+- Session 34 — автоматическое списание со склада при лечении
+- Session 34 — treatment consumable checklist (изменение qty per patient)
+- Session 35 — cost reports по расходникам
+
+**E2E (все 10 суит зелёные после сессии):**
+`e2e-service-consumable-templates-check` 30/30, `e2e-inventory-units-check` 27/27,
+`e2e-inventory-corrections-check` 34/34, `e2e-inventory-check` 33/33,
+`e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
+`e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
+
 ---
 
 ## 7.6. Сессия 23 — итоги (Production Health & UX Polish)
@@ -591,4 +635,4 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 FINANCE, INVENTORY, DASHBOARD, NOTIFICATIONS, DOCUMENTS, SETTINGS,
 COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
 **DOCTOR_ASSISTANT_ASSIGNMENT**, **DOCTOR_TRANSFER**, **INVENTORY_CORRECTIONS**,
-**INVENTORY_UNITS**.
+**INVENTORY_UNITS**, **SERVICE_CONSUMABLE_TEMPLATES**.
