@@ -74,9 +74,15 @@ export async function countActiveAdmins(clinicId: string, excludeUserId?: string
 // ─── Doctor ↔ Assistant assignment helpers ───────────────────────────────────
 
 export interface DoctorForAdmin {
+  doctorId: string;
   doctorUserId: string;
   doctorName: string;
   linkedAssistants: Array<{ assistantUserId: string; fullName: string }>;
+}
+
+export interface DoctorTransferPreview {
+  patientCount: number;
+  upcomingAppointmentCount: number;
 }
 
 export interface AssistantUserForAdmin {
@@ -99,6 +105,7 @@ export async function listDoctorsForAdmin(clinicId: string): Promise<DoctorForAd
     orderBy: { createdAt: "asc" },
   });
   return doctors.map((d) => ({
+    doctorId: d.id,
     doctorUserId: d.userId,
     doctorName: d.user.fullName,
     linkedAssistants: d.assistants.map((a) => ({
@@ -106,6 +113,32 @@ export async function listDoctorsForAdmin(clinicId: string): Promise<DoctorForAd
       fullName: a.user.fullName,
     })),
   }));
+}
+
+/**
+ * Preview counts for doctor transfer: patients and upcoming active appointments.
+ * fromDoctorId is Doctor.id (profile ID, not userId).
+ */
+export async function getDoctorTransferPreview(
+  clinicId: string,
+  fromDoctorId: string,
+): Promise<DoctorTransferPreview> {
+  const now = new Date();
+  const [patientCount, upcomingAppointmentCount] = await Promise.all([
+    prisma.patient.count({
+      where: { clinicId, primaryDoctorId: fromDoctorId, deletedAt: null },
+    }),
+    prisma.appointment.count({
+      where: {
+        clinicId,
+        doctorId: fromDoctorId,
+        status: { in: ["scheduled", "notified", "confirmed", "reschedule_requested"] },
+        startsAt: { gte: now },
+        deletedAt: null,
+      },
+    }),
+  ]);
+  return { patientCount, upcomingAppointmentCount };
 }
 
 /** Активные ассистенты клиники с их текущей привязкой к врачу (по userId врача). */

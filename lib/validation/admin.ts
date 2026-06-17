@@ -6,6 +6,8 @@ export interface AdminFormState {
   saved?: boolean;
   tempPassword?: string;
   email?: string;
+  patientsMoved?: number;
+  appointmentsMoved?: number;
 }
 
 export const roleChangeSchema = z.object({
@@ -47,6 +49,13 @@ export const assignDoctorAssistantSchema = z.object({
 
 export const removeAssistantLinkSchema = z.object({
   assistantUserId: z.string().uuid("assistantNotFound"),
+});
+
+export const transferDoctorSchema = z.object({
+  fromDoctorUserId: z.string().uuid("doctorNotFound"),
+  toDoctorUserId: z.string().uuid("doctorNotFound"),
+  transferPatients: z.preprocess((v) => v === "on" || v === true, z.boolean()),
+  transferAppointments: z.preprocess((v) => v === "on" || v === true, z.boolean()),
 });
 
 export const createStaffSchema = z.object({

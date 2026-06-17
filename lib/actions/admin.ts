@@ -22,6 +22,7 @@ import {
   assignPatientDoctorSchema,
   assignDoctorAssistantSchema,
   removeAssistantLinkSchema,
+  transferDoctorSchema,
   type AdminFormState,
 } from "@/lib/validation/admin";
 
@@ -391,6 +392,92 @@ export async function assignDoctorAssistant(
 
   revalidatePath("/admin");
   return { saved: true };
+}
+
+/**
+ * Bulk-transfer a doctor's patients and/or upcoming appointments to another doctor.
+ * Requires admin.manage. Cross-tenant: both doctors must be in the caller's clinic.
+ * Known limitation: Assistant.assignedDoctorId is NOT updated — manual reassignment
+ * via /admin (Həkim–Assistent section) remains required after transfer.
+ */
+export async function transferDoctor(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = transferDoctorSchema.safeParse({
+    fromDoctorUserId: formData.get("fromDoctorUserId"),
+    toDoctorUserId: formData.get("toDoctorUserId"),
+    transferPatients: formData.get("transferPatients"),
+    transferAppointments: formData.get("transferAppointments"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { fromDoctorUserId, toDoctorUserId, transferPatients, transferAppointments } = parsed.data;
+
+  if (!transferPatients && !transferAppointments) return { error: "nothingSelected" };
+
+  const [fromDoctor, toDoctor] = await Promise.all([
+    prisma.doctor.findFirst({
+      where: { userId: fromDoctorUserId, clinicId: user.clinicId, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.doctor.findFirst({
+      where: { userId: toDoctorUserId, clinicId: user.clinicId, deletedAt: null },
+      select: { id: true },
+    }),
+  ]);
+  if (!fromDoctor) return { error: "doctorNotFound" };
+  if (!toDoctor) return { error: "doctorNotFound" };
+  if (fromDoctor.id === toDoctor.id) return { error: "sameDoctor" };
+
+  const now = new Date();
+  const { patientsMoved, appointmentsMoved } = await prisma.$transaction(async (tx) => {
+    let patientsMoved = 0;
+    let appointmentsMoved = 0;
+
+    if (transferPatients) {
+      const result = await tx.patient.updateMany({
+        where: { clinicId: user.clinicId!, primaryDoctorId: fromDoctor.id },
+        data: { primaryDoctorId: toDoctor.id },
+      });
+      patientsMoved = result.count;
+    }
+
+    if (transferAppointments) {
+      const result = await tx.appointment.updateMany({
+        where: {
+          clinicId: user.clinicId!,
+          doctorId: fromDoctor.id,
+          status: { in: ["scheduled", "notified", "confirmed", "reschedule_requested"] },
+          startsAt: { gte: now },
+          deletedAt: null,
+        },
+        data: { doctorId: toDoctor.id },
+      });
+      appointmentsMoved = result.count;
+    }
+
+    return { patientsMoved, appointmentsMoved };
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "transfer",
+      entityType: "doctor",
+      entityId: fromDoctor.id,
+      before: { fromDoctorId: fromDoctor.id },
+      after: { toDoctorId: toDoctor.id, patientsMoved, appointmentsMoved },
+    },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/patients");
+  revalidatePath("/appointments");
+  return { saved: true, patientsMoved, appointmentsMoved };
 }
 
 /**

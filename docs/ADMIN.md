@@ -1,4 +1,4 @@
-# Admin v1 (сессия 17, обновлено в сессиях 24, 25)
+# Admin v1 (сессия 17, обновлено в сессиях 24, 25, 26)
 
 Клиничный раздел `/admin` — управление кадрами и ролями текущей клиники.
 Заменяет прежний платформенный placeholder (`requireRole("super_admin")`).
@@ -117,6 +117,26 @@ Idempotent: повторный вызов не меняет существующ
 - Колонка врача в `/patients` уже существовала (поле включено в listInclude).
 
 Детали — `docs/DOCTOR_ASSISTANT_ASSIGNMENT.md`.
+
+### 10. Doctor Transfer (`admin.manage`, добавлено в сессии 26)
+
+Карточка «Həkim transferi» в `/admin` ниже «Həkim–Assistent bağlantıları»
+(только при ≥2 активных Doctor-профилях в клинике).
+
+- `transferDoctor`: bulk-update `Patient.primaryDoctorId` и/или `Appointment.doctorId`
+  в рамках `prisma.$transaction`.
+- `transferAppointments` затрагивает только активные будущие приёмы:
+  `status ∈ {scheduled, notified, confirmed, reschedule_requested}` и `startsAt ≥ now`.
+- Cross-tenant: оба врача обязаны принадлежать клинике текущего пользователя.
+- Guard: fromDoctorUserId === toDoctorUserId → `{ error: "sameDoctor" }`.
+- `getDoctorTransferPreview(clinicId, fromDoctorId)` → предварительные цифры
+  рядом с каждым select'ом в форме.
+
+**Known limitation**: `Assistant.assignedDoctorId` НЕ обновляется при transfer.
+Ассистенты врача-источника остаются привязанными к нему; переназначение вручную
+через карточку «Həkim–Assistent bağlantıları» выше.
+
+Детали — `docs/DOCTOR_TRANSFER.md`.
 
 ## Out of scope (v1)
 

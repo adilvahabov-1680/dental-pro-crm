@@ -8,12 +8,14 @@ import {
   listStaff,
   listDoctorsForAdmin,
   listAssistantUsersForAdmin,
+  getDoctorTransferPreview,
 } from "@/lib/admin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StaffTable, type StaffRowDto } from "@/components/admin/StaffTable";
 import { CreateStaffForm } from "@/components/admin/CreateStaffForm";
 import { DoctorAssistantsCard } from "@/components/admin/DoctorAssistantsCard";
+import { DoctorTransferForm, type DoctorForTransfer } from "@/components/admin/DoctorTransferForm";
 
 /** Admin v1 — клиничный раздел: кадры и роли (owner/admin). */
 export default async function AdminPage() {
@@ -32,6 +34,17 @@ export default async function AdminPage() {
     canManage ? listDoctorsForAdmin(user.clinicId) : Promise.resolve([]),
     canManage ? listAssistantUsersForAdmin(user.clinicId) : Promise.resolve([]),
   ]);
+
+  const doctorsWithPreview: DoctorForTransfer[] =
+    canManage && doctors.length >= 2
+      ? await Promise.all(
+          doctors.map(async (d) => ({
+            userId: d.doctorUserId,
+            name: d.doctorName,
+            preview: await getDoctorTransferPreview(user.clinicId!, d.doctorId),
+          })),
+        )
+      : [];
   const roleKeys = ASSIGNABLE_ROLES.filter((key) => roles.some((r) => r.key === key));
 
   const rows: StaffRowDto[] = staff.map((s) => ({
@@ -81,6 +94,16 @@ export default async function AdminPage() {
                 allAssistants={assistants}
                 dict={ta}
               />
+            </Card>
+          )}
+
+          {canManage && doctorsWithPreview.length >= 2 && (
+            <Card className="h-fit p-5">
+              <h2 className="mb-2 text-sm font-semibold text-accent">
+                {ta.transfer.title}
+              </h2>
+              <p className="mb-4 text-xs text-text-secondary">{ta.transfer.desc}</p>
+              <DoctorTransferForm doctors={doctorsWithPreview} dict={ta} />
             </Card>
           )}
         </div>
