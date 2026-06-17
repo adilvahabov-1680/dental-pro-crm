@@ -97,6 +97,12 @@ async function main() {
     where: { clinicId: clinic.id, name: "Steril maska", quantity: { lt: 2 } },
     data: { quantity: SAFE_MASKA_QTY },
   });
+  // hygiene: "Bonding agent" должен быть 1.8 (2.0 минус 0.2 от treatments e2e).
+  // supplier-receiving e2e может изменить это значение через link-existing тест.
+  await prisma.inventoryItem.updateMany({
+    where: { clinicId: clinic.id, name: "Bonding agent", quantity: { not: 1.8 } },
+    data: { quantity: 1.8 },
+  });
 
   // 1. seed
   const seedCats = await prisma.inventoryCategory.count({ where: { clinicId: clinic.id } });
@@ -146,19 +152,19 @@ async function main() {
   check("audit: material create",
     !!(await prisma.auditLog.findFirst({ where: { entityType: "inventory_item", entityId: newId! } })));
 
-  // 7-8. приход и расход
+  // 7-8. приход и расход — используем StockCorrectionForm (сессия 31: itemId, adjustment/adjustment_out)
   const itemPage = await owner.get(`/inventory/${newId}`);
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
-    inventoryItemId: newId!,
-    type: "in_stock",
+    itemId: newId!,
+    type: "adjustment",
     quantity: "5",
     reason: "e2e-purchase",
   });
   let q = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: newId! } });
   check("приход +5 → qty 15", Number(q.quantity) === 15, `got ${q.quantity}`);
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
-    inventoryItemId: newId!,
-    type: "out_stock",
+    itemId: newId!,
+    type: "adjustment_out",
     quantity: "11",
     reason: "e2e-usage",
   });
@@ -169,8 +175,8 @@ async function main() {
 
   // 9. нельзя списать больше остатка
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
-    inventoryItemId: newId!,
-    type: "out_stock",
+    itemId: newId!,
+    type: "adjustment_out",
     quantity: "100",
     reason: "e2e-over",
   });
@@ -184,8 +190,8 @@ async function main() {
     where: { clinicId: clinic.id, type: "inventory_low_stock" },
   });
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
-    inventoryItemId: newId!,
-    type: "out_stock",
+    itemId: newId!,
+    type: "adjustment_out",
     quantity: "2",
     reason: "e2e-to-low",
   });
@@ -194,8 +200,8 @@ async function main() {
   });
   check("low stock: notification создан при переходе", notifAfterLow === notifBefore + 1);
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
-    inventoryItemId: newId!,
-    type: "out_stock",
+    itemId: newId!,
+    type: "adjustment_out",
     quantity: "1",
     reason: "e2e-still-low",
   });

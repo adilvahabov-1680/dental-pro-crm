@@ -10,13 +10,11 @@ import {
   inventoryStatus,
   formatQty,
 } from "@/lib/inventory";
-import { MOVEMENT_TYPE_META } from "@/lib/constants";
-import { MOVEMENT_FORM_TYPES } from "@/lib/validation/inventory";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { InventoryStatusBadge } from "@/components/inventory/InventoryStatusBadge";
-import { InventoryMovementForm } from "@/components/inventory/InventoryMovementForm";
+import { StockCorrectionForm } from "@/components/inventory/StockCorrectionForm";
 import { InventoryMovementsList } from "@/components/inventory/InventoryMovementsList";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -92,14 +90,11 @@ export default async function InventoryItemPage({
 
           {canManage && (
             <Card className="border-accent/20 bg-accent/5 p-5">
-              <InventoryMovementForm
+              <StockCorrectionForm
                 inventoryItemId={item.id}
                 unit={item.unit}
-                typeOptions={MOVEMENT_FORM_TYPES.map((v) => ({
-                  value: v,
-                  label: MOVEMENT_TYPE_META[v].az,
-                }))}
-                labels={{ ...ti.movement }}
+                currentQuantity={Number(item.quantity)}
+                labels={{ ...ti.correction }}
                 errors={ti.errors}
               />
             </Card>

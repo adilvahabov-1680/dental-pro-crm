@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-17 (после сессии 30: Supplier Receiving v1)
+**by AV Systems** · обновлено: 2026-06-17 (после сессии 31: Inventory Stock Corrections v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -62,6 +62,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Supplier Catalog / Excel Import v1 | готов | `e2e-supplier-catalog-check` 23/23 |
 | Supplier Orders v1 (draft→sent→received/cancelled, WhatsApp/email message) | готов | `e2e-supplier-orders-check` 38/38 |
 | Supplier Receiving v1 (Anbara qəbul et per item, create/link InventoryItem) | готов | `e2e-supplier-receiving-check` 27/27 |
+| Inventory Stock Corrections v1 (adjustment/adjustment_out/write_off, audit trail, note field) | готов | `e2e-inventory-corrections-check` 34/34 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →

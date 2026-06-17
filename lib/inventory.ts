@@ -88,6 +88,7 @@ export interface MovementRow {
   type: string;
   quantity: number;
   reason: string | null;
+  note: string | null;
   treatmentItemId: string | null;
   performedByName: string;
   createdAt: Date;
@@ -102,7 +103,7 @@ export async function listItemMovements(
   const rows = await db.inventoryMovement.findMany({
     where: { inventoryItemId },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: 50,
   });
   const users = await prisma.user.findMany({
     where: { id: { in: [...new Set(rows.map((r) => r.performedById))] }, clinicId: user.clinicId },
@@ -114,6 +115,7 @@ export async function listItemMovements(
     type: r.type,
     quantity: Number(r.quantity),
     reason: r.reason,
+    note: r.note,
     treatmentItemId: r.treatmentItemId,
     performedByName: names.get(r.performedById) ?? "—",
     createdAt: r.createdAt,

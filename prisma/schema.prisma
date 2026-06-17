@@ -161,9 +161,10 @@ enum DebtStatus {
 }
 
 enum MovementType {
-  in_stock   @map("in")
-  out_stock  @map("out")
+  in_stock       @map("in")
+  out_stock      @map("out")
   adjustment
+  adjustment_out
   write_off
 }
 
@@ -918,6 +919,7 @@ model InventoryMovement {
   quantity        Decimal      @db.Decimal(12, 3)
   unitCost        Int?         @map("unit_cost")
   reason          String?
+  note            String?
   treatmentItemId String?      @map("treatment_item_id") @db.Uuid // списание на процедуру
   supplierOrderId String?      @map("supplier_order_id") @db.Uuid // приход по заказу
   performedById   String       @map("performed_by") @db.Uuid

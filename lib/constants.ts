@@ -129,12 +129,13 @@ export const INVENTORY_STATUS_META: Record<string, { az: string; color: string }
   expiring: { az: "Vaxtı yaxınlaşır", color: "warning" },
 };
 
-/** AZ-метки типов движений склада (enum MovementType: in/out/adjustment/write_off). */
+/** AZ-метки типов движений склада (enum MovementType: in/out/adjustment/adjustment_out/write_off). */
 export const MOVEMENT_TYPE_META: Record<string, { az: string; sign: 1 | -1 }> = {
   in_stock: { az: "Mədaxil", sign: 1 },
   out_stock: { az: "Məxaric", sign: -1 },
-  adjustment: { az: "Düzəliş", sign: 1 },
-  write_off: { az: "Silinmə", sign: -1 },
+  adjustment: { az: "Düzəliş (artırma)", sign: 1 },
+  adjustment_out: { az: "Düzəliş (azalma)", sign: -1 },
+  write_off: { az: "Silinmə / xarab / itki", sign: -1 },
 };
 
 // ─────────────────────────────────────────────────────────────

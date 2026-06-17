@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-/** Типы движений в формах v1 (adjustment — в схеме, UI отложен). */
+/** Типы движений в формах v1 (addInventoryMovement action). */
 export const MOVEMENT_FORM_TYPES = ["in_stock", "out_stock", "write_off"] as const;
+
+/** Типы ручных корректировок склада (сессия 31). */
+export const CORRECTION_TYPES = ["adjustment", "adjustment_out", "write_off"] as const;
 
 const optionalText = z
   .string()
@@ -47,6 +50,14 @@ export const movementSchema = z.object({
   reason: optionalText,
 });
 
+export const stockCorrectionSchema = z.object({
+  itemId: z.string().uuid(),
+  type: z.enum(CORRECTION_TYPES),
+  quantity: decimalQty(0.001),
+  reason: z.string().trim().min(3, "reasonTooShort").max(500),
+  note: optionalText,
+});
+
 export const treatmentMaterialSchema = z.object({
   treatmentItemId: z.string().uuid(),
   inventoryItemId: z.string().uuid(),
@@ -56,4 +67,5 @@ export const treatmentMaterialSchema = z.object({
 export interface InventoryFormState {
   error?: string;
   fieldErrors?: Record<string, string>;
+  success?: string;
 }

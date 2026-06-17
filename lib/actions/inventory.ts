@@ -37,7 +37,7 @@ async function applyMovement(
   clinicId: string,
   userId: string,
   itemId: string,
-  type: "in_stock" | "out_stock" | "write_off",
+  type: "in_stock" | "out_stock" | "adjustment" | "adjustment_out" | "write_off",
   quantity: number,
   reason: string | null,
   treatmentItemId: string | null = null,
@@ -49,7 +49,8 @@ async function applyMovement(
 
   const prev = Number(item.quantity);
   const min = Number(item.minQuantity);
-  const delta = type === "in_stock" ? quantity : -quantity;
+  const isIncoming = type === "in_stock" || type === "adjustment";
+  const delta = isIncoming ? quantity : -quantity;
   const next = Math.round((prev + delta) * 1000) / 1000;
   if (next < 0) throw new InventoryError("insufficientStock");
 

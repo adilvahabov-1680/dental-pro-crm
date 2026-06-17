@@ -234,6 +234,15 @@ async function main() {
     check("link-existing: inventory quantity increased by 3",
       Number(updatedInv?.quantity) === qtyBefore + 3,
       `before=${qtyBefore} after=${updatedInv?.quantity}`);
+
+    // Restore the existing item's quantity so other e2e tests see consistent seed state
+    if (linkedItem?.stockMovementId) {
+      await prisma.inventoryMovement.delete({ where: { id: linkedItem.stockMovementId } }).catch(() => {});
+    }
+    await prisma.inventoryItem.update({
+      where: { id: existingInvItem.id },
+      data: { quantity: qtyBefore },
+    }).catch(() => {});
   }
 
   // Summary
