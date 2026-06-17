@@ -769,6 +769,38 @@ async function main() {
   }
   console.log("  demo protocols: 3 (Sadə dolğu, Kanal müalicəsi, Profilaktik müayinə)");
 
+  // 22. Personal platform owner account (optional, from env)
+  // Set PLATFORM_OWNER_EMAIL + PLATFORM_OWNER_PASSWORD + PLATFORM_OWNER_LOGIN
+  // in .env to create/update a personal super_admin account.
+  // Never hardcode real credentials here.
+  const poEmail = process.env.PLATFORM_OWNER_EMAIL;
+  const poPassword = process.env.PLATFORM_OWNER_PASSWORD;
+  const poLogin = process.env.PLATFORM_OWNER_LOGIN; // short alias, logged only
+  const poName = process.env.PLATFORM_OWNER_NAME ?? "Platform Owner";
+
+  if (poEmail && poPassword) {
+    const poHash = await bcrypt.hash(poPassword, 10);
+    const poUser = await prisma.user.upsert({
+      where: { email: poEmail },
+      update: {
+        fullName: poName,
+        roleId: roleIds.super_admin!,
+        clinicId: null,
+        isActive: true,
+        passwordHash: poHash,
+      },
+      create: {
+        email: poEmail,
+        fullName: poName,
+        clinicId: null,
+        roleId: roleIds.super_admin!,
+        passwordHash: poHash,
+        locale: "az",
+      },
+    });
+    console.log(`  platform owner: ${poUser.email}${poLogin ? ` (alias: ${poLogin})` : ""}`);
+  }
+
   // Статусы зубов и приёмов — Postgres enum'ы (ToothStatus, AppointmentStatus),
   // их AZ-метки — в lib/constants.ts (TOOTH_STATUS_META, APPOINTMENT_STATUS_META).
   console.log("✓ Seed finished");

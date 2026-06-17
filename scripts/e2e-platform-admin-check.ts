@@ -1,9 +1,11 @@
 /**
- * E2E-проверка Platform Admin v1 (сессия 24, dev-скрипт):
+ * E2E-проверка Platform Admin v1 (сессия 24, обновлено сессия 27, dev-скрипт):
  *   npx tsx scripts/e2e-platform-admin-check.ts
- * Требует dev-сервер + seed. 18 проверок:
+ * Требует dev-сервер + seed. 18 обязательных проверок + check 19 (conditional):
  * доступ super_admin к /platform, создание клиники, управление пользователями,
  * смена пароля/логина, блокировка suspended клиники, tenant-изоляция, регрессия.
+ * Check 19: platform owner alias — выполняется только если заданы
+ *   PLATFORM_OWNER_LOGIN, PLATFORM_OWNER_EMAIL, PLATFORM_OWNER_PASSWORD в .env.
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -314,6 +316,23 @@ async function main() {
 
     // Also verify demo clinic patients page (catch-all regression)
     check("regression: /patients loads for demo admin", (await demoAdmin.get("/patients")).status === 200);
+
+    // ── 19. platform owner alias login (conditional) ─────────────────────────
+    const poLogin = process.env.PLATFORM_OWNER_LOGIN;
+    const poEmail = process.env.PLATFORM_OWNER_EMAIL;
+    const poPassword = process.env.PLATFORM_OWNER_PASSWORD;
+    if (poLogin && poEmail && poPassword) {
+      console.log("\n── Check 19: platform owner alias ──");
+      const poSession = new Session();
+      const poLoggedIn = await poSession.login(poLogin, poPassword);
+      check("19. PLATFORM_OWNER_LOGIN alias resolves and logs in", poLoggedIn);
+      if (poLoggedIn) {
+        check("19b. platform owner: /dashboard → 200", (await poSession.get("/dashboard")).status === 200);
+        check("19c. platform owner: /platform/clinics → 200", (await poSession.get("/platform/clinics")).status === 200);
+      }
+    } else {
+      console.log("\n── Check 19: platform owner alias (SKIPPED — PLATFORM_OWNER_LOGIN/EMAIL/PASSWORD not set) ──");
+    }
   } finally {
     // ── Cleanup ────────────────────────────────────────────────────────────────
     const userIds = [testAdmin.id, testStaff.id, clinicBAdmin.id];

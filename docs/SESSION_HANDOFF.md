@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-17 (после сессии 25: Doctor & Assistant Assignment v1)
+**by AV Systems** · обновлено: 2026-06-17 (после сессии 27: Platform Owner via Env Vars)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -34,7 +34,8 @@ npx tsc --noEmit
 npm run build        # ВАЖНО: останавливать dev server перед build (общий .next)
 ```
 
-Demo-логины (пароль у всех `Demo1234!`):
+Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`, дефолт `admin123` для свежей БД;
+локальная БД может иметь старый пароль если passwordHash не сбрасывался):
 `admin@demo.dentalpro.az` (owner, алиас `admin`) · `hekim@demo.dentalpro.az` (doctor) ·
 `assistent@demo.dentalpro.az` (assistant) · `super@demo.dentalpro.az` (super_admin, алиас `super`).
 
@@ -55,9 +56,9 @@ Demo-логины (пароль у всех `Demo1234!`):
 | Ayarlar (Settings v1) | готов | `e2e-settings-check` 43/43 |
 | Əlaqə / Patient Communication (v1, manual click-to-chat) | готов | `e2e-communications-check` 40/40 |
 | Global Search (topbar, v1) | готов | `e2e-global-search-check` 22/22 |
-| Admin (кадры/роли/врач-ассистент, v1+password/login+assignment) | готов | `e2e-admin-check` 36/36 |
+| Admin (кадры/роли/врач-ассистент/transfer, v1+password/login+assignment+transfer) | готов | `e2e-admin-check` 36/36, `e2e-doctor-transfer-check` 12/12 |
 | Treatment Protocols & Follow-up | готов | `e2e-treatment-protocols-check` 31/31 |
-| Platform Admin (super_admin, клиники) | готов | `e2e-platform-admin-check` 42/42 |
+| Platform Admin (super_admin, клиники, platform owner) | готов | `e2e-platform-admin-check` 42/42 (+ check 19 conditional) |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -372,6 +373,76 @@ Doctor/Assistant профиля при назначении роли `doctor`/`a
 - `notFound()` в Next.js 15 dev возвращает HTTP 200 (не 404); e2e-тесты
   проверяют отсутствие контента (не статус).
 
+## 7.10. Сессия 27 — итоги (Platform Owner via Env Vars)
+
+Персональный платформенный доступ без хардкода учётных данных в коде/docs.
+Schema **не менялась**. Migration не выполнялась.
+
+**`prisma/seed.ts`**: блок upsert platform owner — если `PLATFORM_OWNER_EMAIL` и
+`PLATFORM_OWNER_PASSWORD` заданы в `.env`, `prisma.user.upsert` создаёт/обновляет
+`super_admin`-пользователя с хэшированным паролем и `clinicId: null`.
+
+**`lib/actions/auth.ts`**: функция `resolveLoginEmail` заменила inline-тернарное
+выражение. Теперь: сначала static `LOGIN_ALIASES`, затем `PLATFORM_OWNER_LOGIN` →
+`PLATFORM_OWNER_EMAIL` из env (runtime, без пересборки). Email-вход без алиасов
+не затронут.
+
+**`.env.example`**: добавлены 4 placeholder-строки (`PLATFORM_OWNER_LOGIN/EMAIL/PASSWORD/NAME`)
+с комментарием — закомментированы, реальные значения не хардкодятся.
+
+**`docs/PLATFORM_ADMIN.md`**: добавлен раздел «Персональный платформенный владелец»
+с описанием env vars, seed-логики, входа через алиас, замечаниями по безопасности.
+
+**`docs/DEMO.md`**: исправлен пароль demo-аккаунтов — `admin123` (дефолт для свежей БД),
+убрана ссылка на устаревший `Demo1234!`.
+
+**`scripts/e2e-platform-admin-check.ts`**: добавлена проверка **19** (conditional):
+если `PLATFORM_OWNER_LOGIN/EMAIL/PASSWORD` заданы в env — тест проверяет вход через
+алиас и доступ к `/dashboard` и `/platform/clinics`. Если env не задан — checks пропускаются
+с пояснением в консоли. Не ломает запуск без env vars.
+
+`npx tsc --noEmit` → 0 ошибок. Все существующие e2e не затронуты (210/210 зелёных).
+
+## 7.9. Сессия 26 — итоги (Doctor Transfer v1)
+
+Добавлен bulk-transfer врача: форма в `/admin`, server action, preview-хелпер.
+Schema **не менялась** — все поля существовали. Migration не выполнялась.
+
+**Новый server action** `transferDoctor` (`lib/actions/admin.ts`):
+- `prisma.$transaction(async tx => {...})` — атомарный bulk-update
+- `Patient.primaryDoctorId` (если `transferPatients=true`)
+- `Appointment.doctorId` (если `transferAppointments=true`, только `status ∈ {scheduled,notified,confirmed,reschedule_requested}` и `startsAt >= now`)
+- Guards: `sameDoctor`, `nothingSelected`, cross-tenant (both doctors looked up with `clinicId`)
+- Один `audit_log` на transfer
+
+**Новый helper** `getDoctorTransferPreview` (`lib/admin.ts`):
+- Два `prisma.count` в `Promise.all`; отображает цифры под select'ами в форме
+
+**Обновлён `DoctorForAdmin`**: добавлено поле `doctorId: string` (Doctor.id)
+
+**Новый компонент** `DoctorTransferForm` (`components/admin/DoctorTransferForm.tsx`):
+- `"use client"`, `useActionState`
+- Два select с preview-строкой (patron через `useState`, без серверного запроса)
+- Атрибут `data-e2e-doctor-transfer` на форме
+
+**Обновлён `/admin` page**: preview загружается в `Promise.all`; карточка рендерится при `doctors.length >= 2`
+
+**Новая Zod-схема** `transferDoctorSchema` + `patientsMoved/appointmentsMoved` в `AdminFormState`
+
+**i18n** (`i18n/az.ts`): `admin.transfer.*`, `admin.errors.sameDoctor`, `admin.errors.nothingSelected`
+
+**E2E**: `scripts/e2e-doctor-transfer-check.ts` — 12/12.
+Все 8 существующих e2e-сьютов зелёные (198 проверок + 12 новых = 210 всего).
+
+`npx tsc --noEmit` → 0 ошибок.
+
+Известные ограничения (задокументированы в `docs/DOCTOR_TRANSFER.md`):
+- `Assistant.assignedDoctorId` НЕ обновляется при transfer — ручное переназначение
+  через «Həkim–Assistent bağlantıları» карточку в /admin
+- `TreatmentItem.doctorId`, `TreatmentPlan.doctorId`, `ToothRecord.doctorId` — историческая запись, не меняется
+- `arrived`/`in_progress`/`running_late` приёмы не переносятся (опасно в v1)
+- Нет undo/rollback — обратный transfer вручную через ту же форму
+
 ## 7.7. Сессия 24 — итоги (Super Admin Clinic & User Management v1)
 
 Новый платформенный модуль `super_admin` поверх существующего Admin v1.
@@ -474,4 +545,4 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 (окружение) · profile-доки: PATIENTS, DENTAL_CHART, APPOINTMENTS, TREATMENTS,
 FINANCE, INVENTORY, DASHBOARD, NOTIFICATIONS, DOCUMENTS, SETTINGS,
 COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
-**DOCTOR_ASSISTANT_ASSIGNMENT**.
+**DOCTOR_ASSISTANT_ASSIGNMENT**, **DOCTOR_TRANSFER**.

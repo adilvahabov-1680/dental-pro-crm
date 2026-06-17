@@ -20,16 +20,27 @@ async function setSessionCookie(user: SessionUser) {
   });
 }
 
-// Short aliases for demo convenience: "admin" → full email.
-// Safe: alias only resolves if the corresponding user exists with correct password.
+// Static aliases for demo convenience: "admin" / "super" → full emails.
+// Safe: alias resolves only if the user exists with the correct password.
 const LOGIN_ALIASES: Record<string, string> = {
   admin: "admin@demo.dentalpro.az",
   super: "super@demo.dentalpro.az",
 };
 
+// Resolve a short alias or email input to a full email.
+// Also checks PLATFORM_OWNER_LOGIN → PLATFORM_OWNER_EMAIL at runtime (no rebuild needed).
+function resolveLoginEmail(raw: string): string {
+  if (raw.includes("@")) return raw;
+  if (LOGIN_ALIASES[raw]) return LOGIN_ALIASES[raw];
+  const ownerLogin = process.env.PLATFORM_OWNER_LOGIN;
+  const ownerEmail = process.env.PLATFORM_OWNER_EMAIL;
+  if (ownerLogin && ownerEmail && raw === ownerLogin) return ownerEmail;
+  return raw;
+}
+
 export async function login(_prev: LoginState | undefined, formData: FormData): Promise<LoginState> {
   const raw = String(formData.get("email") ?? "").trim().toLowerCase();
-  const email = (!raw.includes("@") && LOGIN_ALIASES[raw]) ? LOGIN_ALIASES[raw] : raw;
+  const email = resolveLoginEmail(raw);
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "invalid" };
 
