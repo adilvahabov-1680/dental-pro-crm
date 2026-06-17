@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-17 (после сессии 31: Inventory Stock Corrections v1)
+**by AV Systems** · обновлено: 2026-06-17 (после сессии 32: Inventory Unit Conversions v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -63,6 +63,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Supplier Orders v1 (draft→sent→received/cancelled, WhatsApp/email message) | готов | `e2e-supplier-orders-check` 38/38 |
 | Supplier Receiving v1 (Anbara qəbul et per item, create/link InventoryItem) | готов | `e2e-supplier-receiving-check` 27/27 |
 | Inventory Stock Corrections v1 (adjustment/adjustment_out/write_off, audit trail, note field) | готов | `e2e-inventory-corrections-check` 34/34 |
+| Inventory Unit Conversions v1 (purchaseUnit, purchaseToBaseFactor, doseToBaseFactor) | готов | `e2e-inventory-units-check` 27/27 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -489,6 +490,46 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 - Нет pagination для `/platform/clinics` и `/platform/clinics/[id]`.
 - Клинику нельзя удалить через UI (только через БД).
 
+## 7.11. Сессия 32 — итоги (Inventory Unit Conversions v1)
+
+Добавлены поля конвертации единиц к `InventoryItem`. Backwards-compatible: существующие
+материалы не требуют изменений, `quantity` по-прежнему хранится в базовой единице.
+
+**Изменения:**
+- **Migration** `20260617150000_add_inventory_unit_conversions`: три новых колонки:
+  `purchase_unit TEXT`, `purchase_to_base_factor DECIMAL(12,4) DEFAULT 1`,
+  `dose_to_base_factor DECIMAL(12,4)` — все nullable/с дефолтом.
+- **`prisma/schema.prisma`**: `purchaseUnit String?`, `purchaseToBaseFactor Decimal @default(1)`,
+  `doseToBaseFactor Decimal?` добавлены в `InventoryItem`.
+- **`lib/validation/inventory.ts`**: добавлены `decimalFactor` (>0, empty→1) и
+  `optionalFactor` (>0 или null); `inventoryItemSchema` расширен тремя полями;
+  ошибка `factorInvalid` — реджект нуля и отрицательных значений.
+- **`lib/actions/inventory.ts`**: `createInventoryItem` сохраняет три новых поля.
+- **`i18n/az.ts`**: ключи `inventory.form.purchaseUnit/purchaseToBaseFactor/doseToBaseFactor/...`,
+  `inventory.item.purchaseUnit/purchaseConversion/doseConversion`,
+  `inventory.errors.factorInvalid`.
+- **`components/inventory/InventoryItemForm.tsx`**: секция «Vahid çevrilməsi» с тремя полями
+  (purchaseUnit, purchaseToBaseFactor defaultValue="1", doseToBaseFactor optional).
+- **`app/(dashboard)/inventory/[id]/page.tsx`**: InfoRow'ы конвертации (только если
+  `purchaseUnit` или `doseToBaseFactor` заданы).
+- **`scripts/e2e-inventory-units-check.ts`** (27 checks): auth guard, permission guard,
+  baseUnit "ml", purchaseUnit "qutu"+factor 50, doseToBaseFactor 2, factor=0 rejected,
+  factor=-5 rejected, corrections compat, tenant isolation.
+- **`package.json`**: добавлен скрипт `e2e-inventory-units-check`.
+- **`docs/INVENTORY_UNITS.md`**: новый profile-doc.
+
+**Не реализовано (out of scope):** dispensingUnit, отдельная модель Unit, шаблоны
+списания на процедуру, auto-deduction по doseToBaseFactor, cost-reports по дозе,
+конвертация в форме supplier receiving.
+
+**E2E (все 9 суит зелёные после сессии):**
+`e2e-inventory-units-check` 27/27, `e2e-inventory-corrections-check` 34/34,
+`e2e-inventory-check` 33/33, `e2e-supplier-receiving-check` 27/27,
+`e2e-supplier-orders-check` 38/38, `e2e-admin-check` 36/36,
+`e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
+
+---
+
 ## 7.6. Сессия 23 — итоги (Production Health & UX Polish)
 
 Технические улучшения без новых CRM-модулей и без изменений schema.prisma:
@@ -549,4 +590,5 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 (окружение) · profile-доки: PATIENTS, DENTAL_CHART, APPOINTMENTS, TREATMENTS,
 FINANCE, INVENTORY, DASHBOARD, NOTIFICATIONS, DOCUMENTS, SETTINGS,
 COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
-**DOCTOR_ASSISTANT_ASSIGNMENT**, **DOCTOR_TRANSFER**.
+**DOCTOR_ASSISTANT_ASSIGNMENT**, **DOCTOR_TRANSFER**, **INVENTORY_CORRECTIONS**,
+**INVENTORY_UNITS**.

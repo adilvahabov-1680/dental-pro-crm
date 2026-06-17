@@ -887,7 +887,10 @@ model InventoryItem {
   categoryId  String?   @map("category_id") @db.Uuid
   name        String
   sku         String?
-  unit        String // ədəd, ml, qr, qutu
+  unit        String // ədəd, ml, qr, qutu — base/storage unit (= baseUnit)
+  purchaseUnit         String?  @map("purchase_unit") // alış vahidi; null = unit ilə eyni
+  purchaseToBaseFactor Decimal  @default(1) @map("purchase_to_base_factor") @db.Decimal(12, 4)
+  doseToBaseFactor     Decimal? @map("dose_to_base_factor") @db.Decimal(12, 4)
   quantity    Decimal   @default(0) @db.Decimal(12, 3) // кэш суммы движений
   minQuantity Decimal   @default(0) @map("min_quantity") @db.Decimal(12, 3)
   unitCost    Int?      @map("unit_cost")

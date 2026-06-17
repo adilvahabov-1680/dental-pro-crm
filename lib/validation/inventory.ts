@@ -32,10 +32,33 @@ const optionalMoney = z
   .transform((v) => (v ? Math.round(Number(v.replace(",", ".")) * 100) : null))
   .refine((v) => v === null || (!Number.isNaN(v) && v >= 0), "quantityInvalid");
 
+/** "50" | "1,5" | "" → number > 0; empty → 1 (default). */
+const decimalFactor = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ? v.replace(",", ".") : "1"))
+  .refine((v) => !Number.isNaN(Number(v)) && Number(v) > 0, "factorInvalid")
+  .transform((v) => Math.round(Number(v) * 10000) / 10000);
+
+/** "2" | "" | undefined → number > 0 or null. */
+const optionalFactor = z
+  .string()
+  .trim()
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ? v.replace(",", ".") : null))
+  .refine((v) => v === null || (!Number.isNaN(Number(v)) && Number(v) > 0), "factorInvalid")
+  .transform((v) => (v !== null ? Math.round(Number(v) * 10000) / 10000 : null));
+
 export const inventoryItemSchema = z.object({
   name: z.string().trim().min(1, "nameRequired").max(200),
   categoryId: optionalText,
   unit: z.string().trim().min(1, "unitRequired").max(50),
+  purchaseUnit: optionalText,
+  purchaseToBaseFactor: decimalFactor,
+  doseToBaseFactor: optionalFactor,
   initialQuantity: decimalQty(0),
   minQuantity: decimalQty(0),
   purchasePrice: optionalMoney,

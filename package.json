@@ -15,7 +15,8 @@
     "prod:migrate": "npx prisma migrate deploy",
     "prod:update": "npx prisma migrate deploy && npx prisma generate && npm run build",
     "demo:deploy:init": "npx prisma migrate deploy && npx prisma generate && npm run db:seed",
-    "e2e-inventory-corrections-check": "tsx scripts/e2e-inventory-corrections-check.ts"
+    "e2e-inventory-corrections-check": "tsx scripts/e2e-inventory-corrections-check.ts",
+    "e2e-inventory-units-check": "tsx scripts/e2e-inventory-units-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

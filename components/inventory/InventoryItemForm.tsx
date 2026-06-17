@@ -73,6 +73,41 @@ export function InventoryItemForm({
         <Input id="expiresAt" name="expiresAt" type="date" label={f.expiresAt} />
       </div>
 
+      <div className="space-y-3 rounded-xl border border-border-subtle/60 bg-bg-elevated/40 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+          {f.unitConversionSection}
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            id="purchaseUnit"
+            name="purchaseUnit"
+            label={f.purchaseUnit}
+            placeholder={f.purchaseUnitPlaceholder}
+          />
+          <div>
+            <Input
+              id="purchaseToBaseFactor"
+              name="purchaseToBaseFactor"
+              label={f.purchaseToBaseFactor}
+              inputMode="decimal"
+              defaultValue="1"
+              error={err("purchaseToBaseFactor")}
+            />
+            <p className="mt-1 text-[11px] text-text-secondary">{f.purchaseToBaseFactorHint}</p>
+          </div>
+          <div className="sm:col-span-2">
+            <Input
+              id="doseToBaseFactor"
+              name="doseToBaseFactor"
+              label={f.doseToBaseFactor}
+              inputMode="decimal"
+              error={err("doseToBaseFactor")}
+            />
+            <p className="mt-1 text-[11px] text-text-secondary">{f.doseToBaseFactorHint}</p>
+          </div>
+        </div>
+      </div>
+
       {state?.error && (
         <p className="rounded-[10px] border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
           {dict.errors[state.error as keyof typeof dict.errors] ?? dict.errors.generic}

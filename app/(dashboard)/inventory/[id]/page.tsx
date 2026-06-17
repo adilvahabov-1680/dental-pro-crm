@@ -75,7 +75,20 @@ export default async function InventoryItemPage({
               </p>
             </div>
             <div className="divide-y divide-border-subtle/50">
+              <InfoRow label={ti.item.unit} value={item.unit} />
               <InfoRow label={ti.item.minQuantity} value={`${formatQty(item.minQuantity)} ${item.unit}`} />
+              {item.purchaseUnit && (
+                <InfoRow
+                  label={ti.item.purchaseUnit}
+                  value={`1 ${item.purchaseUnit} = ${Number(item.purchaseToBaseFactor)} ${item.unit}`}
+                />
+              )}
+              {item.doseToBaseFactor && (
+                <InfoRow
+                  label={ti.item.doseConversion}
+                  value={`1 doza = ${Number(item.doseToBaseFactor)} ${item.unit}`}
+                />
+              )}
               <InfoRow
                 label={ti.item.purchasePrice}
                 value={item.unitCost != null ? formatMoney(item.unitCost) : null}
