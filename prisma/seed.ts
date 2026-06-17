@@ -801,6 +801,54 @@ async function main() {
     console.log(`  platform owner: ${poUser.email}${poLogin ? ` (alias: ${poLogin})` : ""}`);
   }
 
+  // 16. Demo-supplier catalog
+  let demoSupplier = await prisma.supplier.findFirst({
+    where: { clinicId: clinic.id, name: "Demo Dental Təchizat" },
+  });
+  if (!demoSupplier) {
+    demoSupplier = await prisma.supplier.create({
+      data: {
+        clinicId: clinic.id,
+        name: "Demo Dental Təchizat",
+        contactName: "Tural Həsənov",
+        phone: "+994 55 123 45 67",
+        whatsapp: "+994 55 123 45 67",
+        email: "info@demosupplier.az",
+        address: "Hüseyn Cavid pr. 40, Bakı",
+        notes: "Demo məqsədli təchizatçı",
+      },
+    });
+  }
+  const DEMO_CATALOG = [
+    { sku: "DC-001", name: "Septanest 1:100000 kartuş", category: "Anesteziya", brand: "Septodont", unit: "qutu", price: "45.00", availability: "Var" },
+    { sku: "DC-002", name: "Filtek Z250 kompozit A2 4q", category: "Plomba materialları", brand: "3M ESPE", unit: "ədəd", price: "28.50", availability: "Var" },
+    { sku: "DC-003", name: "ProTaper Next F1 fayl dəsti", category: "Endodontiya", brand: "Dentsply Sirona", unit: "dəst", price: "62.00", availability: "Sifarişlə" },
+    { sku: "DC-004", name: "Birdəfəlik əlcək L ölçü (100 əd)", category: "Birdəfəlik ləvazimat", brand: "Medicom", unit: "qutu", price: "12.00", availability: "Var" },
+  ];
+  for (const item of DEMO_CATALOG) {
+    const exists = await prisma.supplierCatalogItem.findFirst({
+      where: { clinicId: clinic.id, supplierId: demoSupplier.id, sku: item.sku },
+    });
+    if (!exists) {
+      await prisma.supplierCatalogItem.create({
+        data: {
+          clinicId: clinic.id,
+          supplierId: demoSupplier.id,
+          sku: item.sku,
+          name: item.name,
+          category: item.category,
+          brand: item.brand,
+          unit: item.unit,
+          price: item.price,
+          currency: "AZN",
+          availability: item.availability,
+          sourceRow: DEMO_CATALOG.indexOf(item) + 2,
+        },
+      });
+    }
+  }
+  console.log("  demo supplier: Demo Dental Təchizat + 4 catalog items");
+
   // Статусы зубов и приёмов — Postgres enum'ы (ToothStatus, AppointmentStatus),
   // их AZ-метки — в lib/constants.ts (TOOTH_STATUS_META, APPOINTMENT_STATUS_META).
   console.log("✓ Seed finished");

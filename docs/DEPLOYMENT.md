@@ -138,6 +138,9 @@ npm run prod:update        # migrate + generate + build (полный перес
   (`scripts/cleanup-deleted-documents.ts`, dry-run по умолчанию), без cron.
 - **Деактивация сотрудника** (`/admin`) — уже выданная JWT-сессия (до 12 ч)
   не инвалидируется немедленно; применяется при следующем логине.
+- **xlsx (SheetJS)** — используется для парсинга Excel при импорте прайс-листов
+  поставщиков (`lib/actions/suppliers.ts`). Добавлен в `serverExternalPackages`
+  в `next.config.ts`. Файл **не сохраняется** на диск — парсинг из буфера в памяти.
 - **Cookie `secure`** — выставляется автоматически когда
   `NODE_ENV=production` (см. `lib/actions/auth.ts`), что требует HTTPS перед
   приложением (reverse proxy с TLS) — без HTTPS браузер будет отвергать

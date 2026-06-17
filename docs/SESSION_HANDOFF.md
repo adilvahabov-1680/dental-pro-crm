@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-17 (после сессии 27: Platform Owner via Env Vars)
+**by AV Systems** · обновлено: 2026-06-17 (после сессии 28: Supplier Catalog / Excel Price Import v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -59,6 +59,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Admin (кадры/роли/врач-ассистент/transfer, v1+password/login+assignment+transfer) | готов | `e2e-admin-check` 36/36, `e2e-doctor-transfer-check` 12/12 |
 | Treatment Protocols & Follow-up | готов | `e2e-treatment-protocols-check` 31/31 |
 | Platform Admin (super_admin, клиники, platform owner) | готов | `e2e-platform-admin-check` 42/42 (+ check 19 conditional) |
+| Supplier Catalog / Excel Import v1 | готов | `e2e-supplier-catalog-check` 23/23 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →

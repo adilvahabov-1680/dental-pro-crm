@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, TriangleAlert, PackageX, Activity, Plus } from "lucide-react";
+import { Package, TriangleAlert, PackageX, Activity, Plus, Building2 } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
@@ -47,14 +47,22 @@ export default async function InventoryPage({
         title={t.modules.inventory.title}
         description={t.modules.inventory.desc}
         actions={
-          canManage ? (
+          <div className="flex items-center gap-2">
             <Link
-              href="/inventory/new"
-              className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              href="/inventory/suppliers"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface/80 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-bg-surface"
             >
-              <Plus className="size-4" /> {ti.new}
+              <Building2 className="size-4" /> {t.suppliers.title}
             </Link>
-          ) : undefined
+            {canManage && (
+              <Link
+                href="/inventory/new"
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              >
+                <Plus className="size-4" /> {ti.new}
+              </Link>
+            )}
+          </div>
         }
       />
 
