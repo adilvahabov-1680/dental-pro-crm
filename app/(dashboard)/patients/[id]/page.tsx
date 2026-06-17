@@ -11,7 +11,7 @@ import {
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
-import { getPatientForUser } from "@/lib/patients";
+import { getPatientForUser, listClinicDoctors } from "@/lib/patients";
 import { listPatientAppointments } from "@/lib/appointments";
 import { listPatientTreatments } from "@/lib/treatments";
 import { listPatientFinance } from "@/lib/finance";
@@ -35,6 +35,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { ChildBadge, AllergyBadge } from "@/components/patients/PatientsTable";
+import { AssignDoctorForm } from "@/components/patients/AssignDoctorForm";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -60,6 +61,8 @@ export default async function PatientDetailPage({
   if (!patient) notFound();
 
   const canManage = hasPermission(user, "patients.manage");
+  const canAssignDoctor = hasPermission(user, "admin.manage");
+  const doctorOptions = canAssignDoctor ? await listClinicDoctors(user) : [];
   const canManageAppointments = hasPermission(user, "appointments.manage");
   const canViewAppointments = hasPermission(user, "appointments.view");
   const appts = canViewAppointments
@@ -167,7 +170,23 @@ export default async function PatientDetailPage({
             />
             <InfoRow label={d.gender} value={patient.gender ? genderLabel[patient.gender] : null} />
             <InfoRow label={d.address} value={patient.address} />
-            <InfoRow label={d.doctor} value={patient.primaryDoctor?.user.fullName} />
+            <div className="flex items-start justify-between gap-4 py-1.5">
+              <span className="text-sm text-text-secondary">{t.admin.assignment.primaryDoctor}</span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-right text-sm text-text-primary">
+                  {patient.primaryDoctor?.user.fullName ?? t.admin.assignment.notAssigned}
+                </span>
+                {canAssignDoctor && (
+                  <AssignDoctorForm
+                    patientId={patient.id}
+                    currentDoctorId={patient.primaryDoctorId ?? null}
+                    doctors={doctorOptions.map((d) => ({ id: d.id, name: d.user.fullName }))}
+                    labels={t.admin.assignment}
+                    errorLabels={t.admin.errors}
+                  />
+                )}
+              </div>
+            </div>
             <InfoRow
               label={d.type}
               value={child ? t.patients.filters.child : t.patients.filters.adult}

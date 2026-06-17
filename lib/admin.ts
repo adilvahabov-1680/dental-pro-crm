@@ -70,3 +70,57 @@ export async function countActiveAdmins(clinicId: string, excludeUserId?: string
     },
   });
 }
+
+// ─── Doctor ↔ Assistant assignment helpers ───────────────────────────────────
+
+export interface DoctorForAdmin {
+  doctorUserId: string;
+  doctorName: string;
+  linkedAssistants: Array<{ assistantUserId: string; fullName: string }>;
+}
+
+export interface AssistantUserForAdmin {
+  userId: string;
+  fullName: string;
+  linkedDoctorUserId: string | null;
+}
+
+/** Активные врачи клиники с их ассистентами (для /admin страницы). */
+export async function listDoctorsForAdmin(clinicId: string): Promise<DoctorForAdmin[]> {
+  const doctors = await prisma.doctor.findMany({
+    where: { clinicId, isActive: true, deletedAt: null },
+    include: {
+      user: { select: { id: true, fullName: true } },
+      assistants: {
+        where: { isActive: true, deletedAt: null },
+        include: { user: { select: { id: true, fullName: true } } },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return doctors.map((d) => ({
+    doctorUserId: d.userId,
+    doctorName: d.user.fullName,
+    linkedAssistants: d.assistants.map((a) => ({
+      assistantUserId: a.userId,
+      fullName: a.user.fullName,
+    })),
+  }));
+}
+
+/** Активные ассистенты клиники с их текущей привязкой к врачу (по userId врача). */
+export async function listAssistantUsersForAdmin(clinicId: string): Promise<AssistantUserForAdmin[]> {
+  const assistants = await prisma.assistant.findMany({
+    where: { clinicId, isActive: true, deletedAt: null },
+    include: {
+      user: { select: { id: true, fullName: true } },
+      assignedDoctor: { select: { userId: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return assistants.map((a) => ({
+    userId: a.userId,
+    fullName: a.user.fullName,
+    linkedDoctorUserId: a.assignedDoctor?.userId ?? null,
+  }));
+}

@@ -19,6 +19,9 @@ import {
   changeLoginSchema,
   roleChangeSchema,
   statusToggleSchema,
+  assignPatientDoctorSchema,
+  assignDoctorAssistantSchema,
+  removeAssistantLinkSchema,
   type AdminFormState,
 } from "@/lib/validation/admin";
 
@@ -65,6 +68,22 @@ export async function changeStaffRole(
   if (!role) return { error: "roleInvalid" };
 
   await prisma.user.update({ where: { id: target.id }, data: { roleId: role.id } });
+
+  // Ensure Doctor/Assistant profile exists when role changes to those roles
+  if (roleKey === "doctor") {
+    await prisma.doctor.upsert({
+      where: { userId: target.id },
+      update: {},
+      create: { clinicId: user.clinicId, userId: target.id },
+    });
+  } else if (roleKey === "assistant") {
+    await prisma.assistant.upsert({
+      where: { userId: target.id },
+      update: {},
+      create: { clinicId: user.clinicId, userId: target.id },
+    });
+  }
+
   await prisma.auditLog.create({
     data: {
       clinicId: user.clinicId,
@@ -162,6 +181,21 @@ export async function createStaffUser(
     },
   });
 
+  // Auto-create Doctor/Assistant profile so assignment features work immediately
+  if (roleKey === "doctor") {
+    await prisma.doctor.upsert({
+      where: { userId: created.id },
+      update: {},
+      create: { clinicId: user.clinicId, userId: created.id },
+    });
+  } else if (roleKey === "assistant") {
+    await prisma.assistant.upsert({
+      where: { userId: created.id },
+      update: {},
+      create: { clinicId: user.clinicId, userId: created.id },
+    });
+  }
+
   await prisma.auditLog.create({
     data: {
       clinicId: user.clinicId,
@@ -242,6 +276,159 @@ export async function changeStaffLogin(
       entityId: target.id,
       before: { email: oldEmail },
       after: { email: newEmail },
+    },
+  });
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+// ─── Doctor & Assistant assignment actions ────────────────────────────────────
+
+/**
+ * Assign (or clear) a patient's primary doctor.
+ * Requires admin.manage. Cross-tenant guard: both patient and doctor must
+ * belong to the caller's clinic.
+ */
+export async function assignPatientDoctor(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = assignPatientDoctorSchema.safeParse({
+    patientId: formData.get("patientId"),
+    doctorId: formData.get("doctorId"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { patientId, doctorId } = parsed.data;
+
+  // Cross-tenant guard: patient must belong to caller's clinic
+  const patient = await prisma.patient.findFirst({
+    where: { id: patientId, clinicId: user.clinicId, deletedAt: null },
+    select: { id: true, primaryDoctorId: true },
+  });
+  if (!patient) return { error: "patientNotFound" };
+
+  // If assigning a doctor, verify they belong to same clinic
+  if (doctorId) {
+    const doctor = await prisma.doctor.findFirst({
+      where: { id: doctorId, clinicId: user.clinicId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!doctor) return { error: "crossTenantDoctor" };
+  }
+
+  const prev = patient.primaryDoctorId;
+  await prisma.patient.update({ where: { id: patientId }, data: { primaryDoctorId: doctorId ?? null } });
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "update",
+      entityType: "patient",
+      entityId: patientId,
+      before: { primaryDoctorId: prev },
+      after: { primaryDoctorId: doctorId ?? null },
+    },
+  });
+
+  revalidatePath(`/patients/${patientId}`);
+  revalidatePath("/patients");
+  return { saved: true };
+}
+
+/**
+ * Link an assistant user to a doctor user.
+ * Requires admin.manage. Both must be in the caller's clinic.
+ */
+export async function assignDoctorAssistant(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = assignDoctorAssistantSchema.safeParse({
+    assistantUserId: formData.get("assistantUserId"),
+    doctorUserId: formData.get("doctorUserId"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { assistantUserId, doctorUserId } = parsed.data;
+
+  // Cross-tenant guard: both users must be in caller's clinic
+  const [assistantUser, doctorUser] = await Promise.all([
+    prisma.user.findFirst({ where: { id: assistantUserId, clinicId: user.clinicId, deletedAt: null }, select: { id: true } }),
+    prisma.user.findFirst({ where: { id: doctorUserId, clinicId: user.clinicId, deletedAt: null }, select: { id: true } }),
+  ]);
+  if (!assistantUser) return { error: "crossTenantAssistant" };
+  if (!doctorUser) return { error: "crossTenantDoctor" };
+
+  const [assistantProfile, doctorProfile] = await Promise.all([
+    prisma.assistant.findFirst({ where: { userId: assistantUserId, clinicId: user.clinicId, deletedAt: null }, select: { id: true, assignedDoctorId: true } }),
+    prisma.doctor.findFirst({ where: { userId: doctorUserId, clinicId: user.clinicId, deletedAt: null }, select: { id: true } }),
+  ]);
+  if (!assistantProfile) return { error: "assistantNotFound" };
+  if (!doctorProfile) return { error: "doctorNotFound" };
+
+  // Idempotent: already linked to same doctor
+  if (assistantProfile.assignedDoctorId === doctorProfile.id) return { saved: true };
+
+  const prevDoctorId = assistantProfile.assignedDoctorId;
+  await prisma.assistant.update({ where: { id: assistantProfile.id }, data: { assignedDoctorId: doctorProfile.id } });
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "update",
+      entityType: "assistant",
+      entityId: assistantProfile.id,
+      before: { assignedDoctorId: prevDoctorId },
+      after: { assignedDoctorId: doctorProfile.id },
+    },
+  });
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+/**
+ * Remove the link between an assistant and their assigned doctor.
+ * Requires admin.manage.
+ */
+export async function removeAssistantLink(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const parsed = removeAssistantLinkSchema.safeParse({
+    assistantUserId: formData.get("assistantUserId"),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { assistantUserId } = parsed.data;
+
+  const assistantProfile = await prisma.assistant.findFirst({
+    where: { userId: assistantUserId, clinicId: user.clinicId, deletedAt: null },
+    select: { id: true, assignedDoctorId: true },
+  });
+  if (!assistantProfile) return { error: "assistantNotFound" };
+
+  if (!assistantProfile.assignedDoctorId) return { saved: true }; // already unlinked — idempotent
+
+  const prevDoctorId = assistantProfile.assignedDoctorId;
+  await prisma.assistant.update({ where: { id: assistantProfile.id }, data: { assignedDoctorId: null } });
+  await prisma.auditLog.create({
+    data: {
+      clinicId: user.clinicId,
+      userId: user.id,
+      action: "update",
+      entityType: "assistant",
+      entityId: assistantProfile.id,
+      before: { assignedDoctorId: prevDoctorId },
+      after: { assignedDoctorId: null },
     },
   });
 

@@ -32,6 +32,23 @@ export const changeLoginSchema = z.object({
     .refine((v) => /^\S+@\S+\.\S+$/.test(v), "invalidEmail"),
 });
 
+export const assignPatientDoctorSchema = z.object({
+  patientId: z.string().uuid("patientNotFound"),
+  doctorId: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : null)),
+});
+
+export const assignDoctorAssistantSchema = z.object({
+  assistantUserId: z.string().uuid("assistantNotFound"),
+  doctorUserId: z.string().uuid("doctorNotFound"),
+});
+
+export const removeAssistantLinkSchema = z.object({
+  assistantUserId: z.string().uuid("assistantNotFound"),
+});
+
 export const createStaffSchema = z.object({
   fullName: z.string().trim().min(1, "nameRequired").max(200),
   email: z

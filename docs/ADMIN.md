@@ -1,4 +1,4 @@
-# Admin v1 (сессия 17, обновлено в сессии 24)
+# Admin v1 (сессия 17, обновлено в сессиях 24, 25)
 
 Клиничный раздел `/admin` — управление кадрами и ролями текущей клиники.
 Заменяет прежний платформенный placeholder (`requireRole("super_admin")`).
@@ -81,6 +81,42 @@ Audit_log: `{ before: { email: old }, after: { email: new } }`.
 - **Деактивация**: аналогичная проверка для последнего активного owner/admin
   (`lastAdmin`). Кроме того, пользователь **не может деактивировать себя**
   (`selfLockout`) — кнопка статуса не отображается в собственной строке.
+
+### 7. Назначение врача–ассистента (`admin.manage`, добавлено в сессии 25)
+
+Карточка «Həkim–Assistent bağlantıları» ниже таблицы сотрудников.
+По каждому активному Doctor-профилю клиники — его ассистенты + dropdown
+свободных ассистентов для привязки.
+
+- `assignDoctorAssistant`: привязывает `Assistant.assignedDoctorId = doctor.id`.
+  Идемпотентно (уже привязан → `{ saved: true }`).
+- `removeAssistantLink`: обнуляет `Assistant.assignedDoctorId`.
+  Идемпотентно (уже null → `{ saved: true }`).
+- Cross-tenant: оба userId обязаны принадлежать текущей клинике.
+- Изменение вступает в силу при **следующем логине** ассистента
+  (assignedDoctorId бекается в JWT, TTL 12 ч).
+
+### 8. Авто-создание Doctor/Assistant профиля (`admin.manage`, добавлено в сессии 25)
+
+До сессии 25: `createStaffUser` и `changeStaffRole` оставляли пользователя
+без Doctor/Assistant профиля при назначении роли `doctor`/`assistant`.
+
+Теперь оба action делают upsert после мутации:
+- `role = "doctor"` → `prisma.doctor.upsert({ where: { userId } })` (цвет `#22d3ee`)
+- `role = "assistant"` → `prisma.assistant.upsert({ where: { userId } })`
+
+Idempotent: повторный вызов не меняет существующий профиль.
+
+### 9. Назначение врача пациенту (`admin.manage`, добавлено в сессии 25)
+
+Карточка пациента `/patients/[id]` → строка «Məsul həkim» → inline select + кнопка.
+
+- `assignPatientDoctor`: обновляет `Patient.primaryDoctorId`.
+  Можно передать doctorId=null для снятия врача.
+- Cross-tenant: пациент и врач обязаны принадлежать клинике текущего пользователя.
+- Колонка врача в `/patients` уже существовала (поле включено в listInclude).
+
+Детали — `docs/DOCTOR_ASSISTANT_ASSIGNMENT.md`.
 
 ## Out of scope (v1)
 

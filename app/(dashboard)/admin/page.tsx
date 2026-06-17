@@ -2,11 +2,18 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
-import { ASSIGNABLE_ROLES, listAssignableRoles, listStaff } from "@/lib/admin";
+import {
+  ASSIGNABLE_ROLES,
+  listAssignableRoles,
+  listStaff,
+  listDoctorsForAdmin,
+  listAssistantUsersForAdmin,
+} from "@/lib/admin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StaffTable, type StaffRowDto } from "@/components/admin/StaffTable";
 import { CreateStaffForm } from "@/components/admin/CreateStaffForm";
+import { DoctorAssistantsCard } from "@/components/admin/DoctorAssistantsCard";
 
 /** Admin v1 — клиничный раздел: кадры и роли (owner/admin). */
 export default async function AdminPage() {
@@ -19,7 +26,12 @@ export default async function AdminPage() {
 
   const canManage = hasPermission(user, "admin.manage");
 
-  const [staff, roles] = await Promise.all([listStaff(user.clinicId), listAssignableRoles()]);
+  const [staff, roles, doctors, assistants] = await Promise.all([
+    listStaff(user.clinicId),
+    listAssignableRoles(),
+    canManage ? listDoctorsForAdmin(user.clinicId) : Promise.resolve([]),
+    canManage ? listAssistantUsersForAdmin(user.clinicId) : Promise.resolve([]),
+  ]);
   const roleKeys = ASSIGNABLE_ROLES.filter((key) => roles.some((r) => r.key === key));
 
   const rows: StaffRowDto[] = staff.map((s) => ({
@@ -38,22 +50,40 @@ export default async function AdminPage() {
       <PageHeader title={t.modules.admin.title} description={t.modules.admin.desc} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <Card className="h-fit p-5">
-          <h2 className="mb-4 text-sm font-semibold text-accent">
-            {ta.staff.title}{" "}
-            <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[11px] tabular-nums text-text-secondary">
-              {rows.length}
-            </span>
-          </h2>
-          <StaffTable
-            rows={rows}
-            roles={roleKeys}
-            dict={ta}
-            rolesDict={t.roles}
-            canManage={canManage}
-            currentUserId={user.id}
-          />
-        </Card>
+        <div className="space-y-4">
+          <Card className="h-fit p-5">
+            <h2 className="mb-4 text-sm font-semibold text-accent">
+              {ta.staff.title}{" "}
+              <span className="rounded-full bg-bg-elevated px-2 py-0.5 text-[11px] tabular-nums text-text-secondary">
+                {rows.length}
+              </span>
+            </h2>
+            <StaffTable
+              rows={rows}
+              roles={roleKeys}
+              dict={ta}
+              rolesDict={t.roles}
+              canManage={canManage}
+              currentUserId={user.id}
+            />
+          </Card>
+
+          {canManage && (
+            <Card className="h-fit p-5">
+              <h2 className="mb-4 text-sm font-semibold text-accent">
+                {ta.assignment.doctorAssistantsTitle}
+              </h2>
+              <p className="mb-3 text-xs text-text-secondary">
+                {ta.assignment.doctorAssistantsDesc}
+              </p>
+              <DoctorAssistantsCard
+                doctors={doctors}
+                allAssistants={assistants}
+                dict={ta}
+              />
+            </Card>
+          )}
+        </div>
 
         {canManage && (
           <Card className="h-fit border-accent/20 bg-accent/5 p-5">
