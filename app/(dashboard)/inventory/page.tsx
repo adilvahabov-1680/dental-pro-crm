@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, TriangleAlert, PackageX, Activity, Plus, Building2 } from "lucide-react";
+import { Package, TriangleAlert, PackageX, Activity, Plus, Building2, ShoppingCart } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
@@ -48,6 +48,12 @@ export default async function InventoryPage({
         description={t.modules.inventory.desc}
         actions={
           <div className="flex items-center gap-2">
+            <Link
+              href="/inventory/supplier-orders"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface/80 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-bg-surface"
+            >
+              <ShoppingCart className="size-4" /> {t.supplierOrders.title}
+            </Link>
             <Link
               href="/inventory/suppliers"
               className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface/80 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-bg-surface"

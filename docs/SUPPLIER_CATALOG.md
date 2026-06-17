@@ -131,7 +131,7 @@ Demo-данные в `prisma/seed.ts` (секция 16):
 ## Out of scope (v1)
 
 - Связь с `InventoryItem` (v2 — «добавить в склад из каталога»).
-- Заказы у поставщика (`SupplierOrder` / `SupplierOrderItem`) — сессия 29.
+- Заказы у поставщика (`SupplierOrder` / `SupplierOrderItem`) — реализовано в сессии 29 (см. SUPPLIER_ORDERS.md).
 - Email / WhatsApp рассылка поставщику.
 - Корзина и финансовый расчёт.
 - OCR / автопарсинг PDF прайс-листов.

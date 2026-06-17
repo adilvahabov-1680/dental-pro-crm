@@ -849,6 +849,53 @@ async function main() {
   }
   console.log("  demo supplier: Demo Dental Təchizat + 4 catalog items");
 
+  // 17. Demo supplier order (sent status, 2 items)
+  const existingOrder = await prisma.supplierOrder.findFirst({
+    where: { clinicId: clinic.id, number: "SO-DEMO-01" },
+  });
+  if (!existingOrder) {
+    const catalogItems = await prisma.supplierCatalogItem.findMany({
+      where: { clinicId: clinic.id, supplierId: demoSupplier.id, isActive: true },
+      take: 2,
+    });
+    const order = await prisma.supplierOrder.create({
+      data: {
+        clinicId: clinic.id,
+        supplierId: demoSupplier.id,
+        number: "SO-DEMO-01",
+        status: "sent",
+        totalCost: 0,
+        sentAt: new Date(),
+        createdById: adminUser.id,
+        notes: "Demo sifarişi",
+      },
+    });
+    let totalCost = 0;
+    for (const ci of catalogItems) {
+      const price = Number(ci.price);
+      const qty = 2;
+      await prisma.supplierOrderItem.create({
+        data: {
+          clinicId: clinic.id,
+          supplierOrderId: order.id,
+          catalogItemId: ci.id,
+          quantity: String(qty),
+          unitCost: Math.round(price * 100),
+          nameSnapshot: ci.name,
+          skuSnapshot: ci.sku ?? null,
+          unitSnapshot: ci.unit ?? null,
+          priceSnapshot: String(price),
+          currencySnapshot: ci.currency,
+        },
+      });
+      totalCost += Math.round(price * 100) * qty;
+    }
+    await prisma.supplierOrder.update({ where: { id: order.id }, data: { totalCost } });
+    console.log("  demo supplier order: SO-DEMO-01 (sent, 2 items)");
+  } else {
+    console.log("  demo supplier order: SO-DEMO-01 already exists");
+  }
+
   // Статусы зубов и приёмов — Postgres enum'ы (ToothStatus, AppointmentStatus),
   // их AZ-метки — в lib/constants.ts (TOOTH_STATUS_META, APPOINTMENT_STATUS_META).
   console.log("✓ Seed finished");

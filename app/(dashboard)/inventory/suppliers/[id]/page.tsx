@@ -16,6 +16,7 @@ import { ImportExcelForm } from "@/components/suppliers/ImportExcelForm";
 import { CatalogTable } from "@/components/suppliers/CatalogTable";
 import { CatalogFilterBar } from "@/components/suppliers/CatalogFilterBar";
 import { DeactivateSupplierButton } from "@/components/suppliers/DeactivateSupplierButton";
+import { CreateOrderButton } from "@/components/supplier-orders/CreateOrderButton";
 
 export default async function SupplierDetailPage({
   params,
@@ -88,6 +89,10 @@ export default async function SupplierDetailPage({
 
           {canManage && (
             <ImportExcelForm supplierId={id} dict={ts} />
+          )}
+
+          {canManage && (
+            <CreateOrderButton supplierId={id} dict={t.supplierOrders} />
           )}
 
           {canManage && (

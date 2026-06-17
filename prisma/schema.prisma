@@ -169,7 +169,7 @@ enum MovementType {
 
 enum SupplierOrderStatus {
   draft
-  ordered
+  sent
   received
   cancelled
 }
@@ -979,8 +979,9 @@ model SupplierCatalogItem {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
 
-  clinic   Clinic   @relation(fields: [clinicId], references: [id])
-  supplier Supplier @relation(fields: [supplierId], references: [id])
+  clinic     Clinic              @relation(fields: [clinicId], references: [id])
+  supplier   Supplier            @relation(fields: [supplierId], references: [id])
+  orderItems SupplierOrderItem[]
 
   @@index([clinicId])
   @@index([supplierId])
@@ -996,10 +997,11 @@ model SupplierOrder {
   number     String
   status      SupplierOrderStatus @default(draft)
   totalCost   Int                 @default(0) @map("total_cost")
+  sentAt      DateTime?           @map("sent_at") @db.Timestamptz()
   orderedAt   DateTime?           @map("ordered_at") @db.Timestamptz()
   receivedAt  DateTime?           @map("received_at") @db.Timestamptz()
-  emailDraft  String?             @map("email_draft") // черновик письма поставщику
-  emailSentAt DateTime?           @map("email_sent_at") @db.Timestamptz() // null = не отправлено
+  emailDraft  String?             @map("email_draft")
+  emailSentAt DateTime?           @map("email_sent_at") @db.Timestamptz()
   createdById String              @map("created_by") @db.Uuid
   notes       String?
 
@@ -1017,18 +1019,26 @@ model SupplierOrder {
 }
 
 model SupplierOrderItem {
-  id              String  @id @default(uuid()) @db.Uuid
-  clinicId        String  @map("clinic_id") @db.Uuid
-  supplierOrderId String  @map("supplier_order_id") @db.Uuid
-  inventoryItemId String  @map("inventory_item_id") @db.Uuid
-  quantity        Decimal @db.Decimal(12, 3)
-  unitCost        Int     @map("unit_cost")
+  id              String   @id @default(uuid()) @db.Uuid
+  clinicId        String   @map("clinic_id") @db.Uuid
+  supplierOrderId String   @map("supplier_order_id") @db.Uuid
+  inventoryItemId String?  @map("inventory_item_id") @db.Uuid
+  catalogItemId   String?  @map("catalog_item_id") @db.Uuid
+  quantity        Decimal  @db.Decimal(12, 3)
+  unitCost        Int      @map("unit_cost")
+  nameSnapshot    String   @map("name_snapshot")
+  skuSnapshot     String?  @map("sku_snapshot")
+  unitSnapshot    String?  @map("unit_snapshot")
+  priceSnapshot   Decimal  @map("price_snapshot") @db.Decimal(12, 2)
+  currencySnapshot String  @default("AZN") @map("currency_snapshot") @db.Char(3)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
-  order         SupplierOrder @relation(fields: [supplierOrderId], references: [id])
-  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  order         SupplierOrder        @relation(fields: [supplierOrderId], references: [id])
+  inventoryItem InventoryItem?       @relation(fields: [inventoryItemId], references: [id])
+  catalogItem   SupplierCatalogItem? @relation(fields: [catalogItemId], references: [id])
 
+  @@index([clinicId])
   @@map("supplier_order_items")
 }
 
