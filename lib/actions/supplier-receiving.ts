@@ -51,6 +51,7 @@ export async function receiveSupplierOrderItem(
         },
       });
       if (!orderItem) throw new ReceivingError("itemNotFound");
+      if (orderItem.order.status === "draft") throw new ReceivingError("orderApprovalRequired");
       if (orderItem.order.status !== "received") throw new ReceivingError("orderNotReceived");
       if (orderItem.stockMovementId) throw new ReceivingError("orderItemAlreadyReceived");
 

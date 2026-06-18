@@ -5,6 +5,7 @@ import type { Dict } from "@/i18n/az";
 
 const statusClass: Record<string, string> = {
   draft: "bg-warning/15 text-warning",
+  approved: "bg-info/15 text-info",
   sent: "bg-accent/15 text-accent",
   received: "bg-success/15 text-success",
   cancelled: "bg-danger/15 text-danger",

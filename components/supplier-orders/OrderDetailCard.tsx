@@ -5,6 +5,7 @@ import type { Dict } from "@/i18n/az";
 
 const statusClass: Record<string, string> = {
   draft: "bg-warning/15 text-warning",
+  approved: "bg-info/15 text-info",
   sent: "bg-accent/15 text-accent",
   received: "bg-success/15 text-success",
   cancelled: "bg-danger/15 text-danger",
@@ -27,10 +28,20 @@ export function OrderDetailCard({
         <h2 className="text-base font-semibold">{order.number}</h2>
         <span
           className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusClass[order.status] ?? ""}`}
+          data-e2e-marker="order-status-badge"
         >
           {statusLabel}
         </span>
       </div>
+
+      {order.status === "draft" && (
+        <p
+          className="rounded-[10px] bg-warning/10 px-3 py-2 text-xs text-warning"
+          data-e2e-marker="draft-note"
+        >
+          {dict.approval.draftNote}
+        </p>
+      )}
 
       <dl className="space-y-2 text-sm">
         <div className="flex items-start gap-2">
@@ -55,6 +66,13 @@ export function OrderDetailCard({
             <dd className="text-text-primary">{fmt(order.createdAt)}</dd>
           </div>
         </div>
+
+        {order.orderedAt && (
+          <div className="pl-6">
+            <dt className="text-xs text-text-secondary">{dict.orderedAt}</dt>
+            <dd className="text-text-primary">{fmt(order.orderedAt)}</dd>
+          </div>
+        )}
 
         {order.sentAt && (
           <div className="pl-6">

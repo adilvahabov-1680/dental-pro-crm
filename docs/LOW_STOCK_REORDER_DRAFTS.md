@@ -1,5 +1,10 @@
 # Supplier Reorder Draft from Low Stock — Session 39
 
+> **Session 40 update**: drafts created here go through the same explicit approval flow as
+> any other supplier order draft — see [SUPPLIER_ORDER_DRAFT_APPROVAL.md](SUPPLIER_ORDER_DRAFT_APPROVAL.md).
+> Nothing below changed; the draft this session creates is just an ordinary `status: "draft"`
+> order.
+
 Lets a user select low-stock items on `/inventory/alerts` and create one or more
 **supplier order drafts** in a single click, pre-filled with the Session 38 reorder
 suggestion. **User-confirmed only** — nothing is sent, received, or paid automatically.

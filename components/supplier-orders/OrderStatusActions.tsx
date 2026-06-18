@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-import { Send, PackageCheck, X } from "lucide-react";
+import { Send, PackageCheck, X, CheckCircle2 } from "lucide-react";
 import {
+  confirmSupplierOrderDraftAction,
   markSupplierOrderSent,
   markSupplierOrderReceived,
   cancelSupplierOrder,
@@ -19,6 +20,10 @@ export function OrderStatusActions({
   order: SupplierOrderFull;
   dict: Dict["supplierOrders"];
 }) {
+  const [confirmState, confirmAction, confirmPending] = useActionState<
+    SupplierOrderActionState | undefined,
+    FormData
+  >(confirmSupplierOrderDraftAction, undefined);
   const [sentState, sentAction, sentPending] = useActionState<SupplierOrderActionState | undefined, FormData>(
     markSupplierOrderSent,
     undefined,
@@ -32,11 +37,46 @@ export function OrderStatusActions({
     undefined,
   );
 
-  const errorState = sentState?.error || recvState?.error || cancelState?.error;
+  const errorState = confirmState?.error || sentState?.error || recvState?.error || cancelState?.error;
 
   return (
     <div className="rounded-2xl border border-border-subtle bg-bg-surface/80 p-5 space-y-3">
       {order.status === "draft" && (
+        <>
+          <form action={confirmAction} data-e2e-marker="confirm-draft">
+            <input type="hidden" name="orderId" value={order.id} />
+            <Button type="submit" disabled={confirmPending} className="w-full justify-center">
+              <CheckCircle2 className="size-4" />
+              {confirmPending ? dict.approval.confirming : dict.approval.confirmDraft}
+            </Button>
+          </form>
+          {confirmState?.success && (
+            <p
+              className="rounded-[10px] border border-success/30 bg-success/10 px-3 py-2 text-sm text-success"
+              data-e2e-marker="confirm-success"
+            >
+              {dict.approval.confirmSuccess}
+            </p>
+          )}
+          <p className="text-center text-xs text-text-secondary">{dict.approval.autoSendNote}</p>
+          <form action={sentAction} data-e2e-marker="mark-sent">
+            <input type="hidden" name="orderId" value={order.id} />
+            <Button type="submit" disabled={sentPending} variant="secondary" className="w-full justify-center">
+              <Send className="size-4" />
+              {sentPending ? dict.markingsSent : dict.markSent}
+            </Button>
+          </form>
+          <form action={cancelAction} data-e2e-marker="cancel-order">
+            <input type="hidden" name="orderId" value={order.id} />
+            <Button type="submit" disabled={cancelPending} variant="secondary" className="w-full justify-center">
+              <X className="size-4" />
+              {cancelPending ? dict.cancellingOrder : dict.cancelOrder}
+            </Button>
+          </form>
+        </>
+      )}
+
+      {order.status === "approved" && (
         <>
           <form action={sentAction} data-e2e-marker="mark-sent">
             <input type="hidden" name="orderId" value={order.id} />

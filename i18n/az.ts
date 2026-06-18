@@ -1003,6 +1003,15 @@ export const az = {
     cancellingOrder: "Ləğv edilir…",
     copyMessage: "Mesajı kopyala",
     messageCopied: "Kopyalandı!",
+    orderedAt: "Təsdiq tarixi",
+    approval: {
+      draftNote: "Bu sifariş hələ təsdiqlənməyib və avtomatik göndərilmir.",
+      confirmDraft: "Sifarişi təsdiqlə",
+      confirmDraftAlt: "Qaralamanı təsdiqlə",
+      confirming: "Təsdiqlənir…",
+      confirmSuccess: "Sifariş təsdiqləndi",
+      autoSendNote: "Avtomatik göndərilmir",
+    },
     itemsTable: {
       name: "Məhsul adı",
       sku: "Kod",
@@ -1014,6 +1023,7 @@ export const az = {
     },
     statuses: {
       draft: "Qaralama",
+      approved: "Təsdiqlənib",
       sent: "Göndərildi",
       received: "Alındı",
       cancelled: "Ləğv edildi",
@@ -1057,6 +1067,8 @@ export const az = {
       orderItemAlreadyReceived: "Bu element artıq anbara qəbul edilib",
       inventoryItemNotFound: "Material tapılmadı",
       mustSelectOrCreate: "Material seçin və ya yeni yarat",
+      confirmEmpty: "Sifarişdə ən azı bir məhsul olmalıdır",
+      orderApprovalRequired: "Qaralama sifariş qəbul edilə bilməz",
     },
   },
   dentalChart: {

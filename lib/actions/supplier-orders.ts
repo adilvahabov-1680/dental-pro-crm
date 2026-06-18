@@ -280,6 +280,61 @@ export async function updateSupplierOrderNotes(
   return { orderId };
 }
 
+// ── Confirm draft (approval flow, Session 40) ──────────────────────────────────
+
+/**
+ * Explicit user confirmation that a draft order is correct and ready to proceed.
+ * draft -> approved only. Does NOT send anything to the supplier, does NOT touch
+ * stock/InventoryMovement, does NOT receive — purely an internal status transition.
+ * Reuses the existing unused SupplierOrder.orderedAt timestamp for "confirmed at".
+ */
+export async function confirmSupplierOrderDraftAction(
+  _prev: SupplierOrderActionState | undefined,
+  formData: FormData,
+): Promise<SupplierOrderActionState> {
+  const user = await requirePermission("inventory.manage");
+  if (!user.clinicId) return { error: "unauthorized" };
+
+  const parsed = orderIdSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: "generic" };
+  const { orderId } = parsed.data;
+
+  const db = tenantClient(user.clinicId);
+  try {
+    const order = await db.supplierOrder.findFirst({
+      where: { id: orderId, deletedAt: null },
+      select: { id: true, status: true, items: { select: { id: true } } },
+    });
+    if (!order) throw new OrderError("orderNotFound");
+    if (order.status !== "draft") throw new OrderError("orderNotDraft");
+    if (order.items.length === 0) throw new OrderError("orderEmpty");
+
+    await db.supplierOrder.update({
+      where: { id: orderId },
+      data: { status: "approved", orderedAt: new Date() } as never,
+    });
+
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "update",
+        entityType: "supplierOrder",
+        entityId: orderId,
+        after: { status: "approved" },
+      },
+    } as never);
+  } catch (e) {
+    if (e instanceof OrderError) return { error: e.key };
+    console.error("confirmSupplierOrderDraftAction failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/inventory/supplier-orders/${orderId}`);
+  revalidatePath("/inventory/supplier-orders");
+  revalidatePath("/inventory/alerts");
+  return { orderId, success: "confirmSuccess" };
+}
+
 // ── Mark sent ─────────────────────────────────────────────────────────────────
 
 export async function markSupplierOrderSent(
@@ -300,7 +355,7 @@ export async function markSupplierOrderSent(
       select: { id: true, status: true, items: { select: { id: true } } },
     });
     if (!order) throw new OrderError("orderNotFound");
-    if (order.status !== "draft") throw new OrderError("orderNotDraft");
+    if (order.status !== "draft" && order.status !== "approved") throw new OrderError("orderNotDraft");
     if (order.items.length === 0) throw new OrderError("orderEmpty");
 
     await db.supplierOrder.update({

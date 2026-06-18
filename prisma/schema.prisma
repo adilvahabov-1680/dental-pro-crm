@@ -172,6 +172,7 @@ enum MovementType {
 
 enum SupplierOrderStatus {
   draft
+  approved
   sent
   received
   cancelled
