@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-18 (после сессии 33: Service Consumable Templates v1)
+**by AV Systems** · обновлено: 2026-06-18 (после сессии 34: Treatment Consumable Usage v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -65,6 +65,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Inventory Stock Corrections v1 (adjustment/adjustment_out/write_off, audit trail, note field) | готов | `e2e-inventory-corrections-check` 34/34 |
 | Inventory Unit Conversions v1 (purchaseUnit, purchaseToBaseFactor, doseToBaseFactor) | готов | `e2e-inventory-units-check` 27/27 |
 | Service Consumable Templates v1 (шаблоны расходников по услуге, template-only, no stock deduction) | готов | `e2e-service-consumable-templates-check` 30/30 |
+| Treatment Consumable Usage v1 (фактическое списание по шаблонам, dose-конвертация, double-apply protection) | готов | `e2e-treatment-consumable-usage-check` |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -562,8 +563,7 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 - **`docs/SERVICE_CONSUMABLE_TEMPLATES.md`**: новый profile-doc.
 
 **Не реализовано (out of scope):**
-- Session 34 — автоматическое списание со склада при лечении
-- Session 34 — treatment consumable checklist (изменение qty per patient)
+- Session 34 — автоматическое списание со склада при лечении ✅ (реализовано в S34)
 - Session 35 — cost reports по расходникам
 
 **E2E (все 10 суит зелёные после сессии):**
@@ -571,6 +571,45 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 `e2e-inventory-corrections-check` 34/34, `e2e-inventory-check` 33/33,
 `e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
 `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
+
+## 7.13. Сессия 34 — итоги (Treatment Consumable Usage v1)
+
+Фактическое списание расходников по шаблонам при лечении.
+
+**Изменения:**
+- **Migration** `20260618120000_add_treatment_consumable_usage`:
+  - Новый enum value `treatment_usage` в `MovementType`
+  - Новая таблица `treatment_consumable_usages` (uuid PK, clinicId FK CASCADE, treatmentItemId FK CASCADE,
+    inventoryItemId FK RESTRICT, templateId FK SET NULL, quantity DECIMAL(12,3), unit TEXT,
+    baseQuantity DECIMAL(12,3), baseUnit TEXT, allowOverride BOOL, isRequired BOOL, wasSkipped BOOL,
+    note TEXT?, inventoryMovementId UNIQUE FK SET NULL, createdById UUID, Timestamptz).
+- **`prisma/schema.prisma`**: `TreatmentConsumableUsage` model + back-relations на `Clinic`,
+  `TreatmentItem`, `InventoryItem`, `ServiceConsumableTemplate`, `InventoryMovement`.
+  `TreatmentConsumableUsage` добавлена в `TENANT_MODELS`.
+- **`lib/validation/treatment-consumables.ts`**: `consumableUsageItemSchema`, `applyConsumablesSchema`, `ConsumableUsageFormState`.
+- **`lib/treatment-consumables.ts`**: `getConsumableTemplatesForService`, `getConsumableUsagesForTreatment`, `calculateBaseQuantity` helper.
+- **`lib/actions/treatment-consumables.ts`**: `applyTreatmentConsumablesAction` — bulk apply с advisory lock, transaction, double-apply protection.
+- **`i18n/az.ts`**: `treatments.consumables.*` + error keys в `treatments.errors`.
+- **`components/treatments/TreatmentConsumableChecklist.tsx`**: client component, checklist форм с qty override, skip optional, stock warning.
+- **`app/(dashboard)/treatments/[id]/consumables/page.tsx`**: новая RSC-страница, route `/treatments/[id]/consumables`.
+- **`components/treatments/TreatmentItemCard.tsx`**: иконка `FlaskConical` → consumables link.
+- **`components/treatments/TreatmentItemsList.tsx`**: добавлен `consumablesLabel` prop.
+- **`app/(dashboard)/treatments/page.tsx`** + **`patients/[id]/treatments/page.tsx`**: передают `consumablesLabel`.
+- **`scripts/e2e-treatment-consumable-usage-check.ts`**: E2E чек-скрипт.
+- **`package.json`**: добавлен `e2e-treatment-consumable-usage-check`.
+- **`docs/TREATMENT_CONSUMABLE_USAGE.md`**: новый profile-doc.
+
+**Не реализовано (out of scope):**
+- Session 35 — cost reports по расходникам
+- Session 35 — profitability analytics per doctor
+- Автоматический reorder поставщику при low-stock
+
+**E2E (все 11 суит после сессии — run после dev server start):**
+`e2e-treatment-consumable-usage-check`, `e2e-service-consumable-templates-check` 30/30,
+`e2e-inventory-units-check` 27/27, `e2e-inventory-corrections-check` 34/34,
+`e2e-inventory-check` 33/33, `e2e-supplier-receiving-check` 27/27,
+`e2e-supplier-orders-check` 38/38, `e2e-admin-check` 36/36,
+`e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
 ---
 

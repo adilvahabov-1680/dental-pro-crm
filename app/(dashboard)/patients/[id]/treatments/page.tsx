@@ -137,6 +137,7 @@ export default async function PatientTreatmentsPage({
         labels={{ tooth: tt.card.tooth }}
         empty={tt.empty}
         materialsLabel={canManage ? t.inventory.materials.addTitle : undefined}
+        consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
         followUpLabel={canManage ? t.settings.protocols.followUpTitle : undefined}
       />
     </>

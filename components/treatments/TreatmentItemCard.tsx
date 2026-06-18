@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Receipt, Package, CalendarPlus } from "lucide-react";
+import { User, Receipt, Package, CalendarPlus, FlaskConical } from "lucide-react";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { TreatmentStatusBadge } from "@/components/treatments/TreatmentStatusBadge";
 import { TreatmentStatusControl } from "@/components/treatments/TreatmentStatusControl";
@@ -14,6 +14,7 @@ export function TreatmentItemCard({
   labels,
   showPatient = false,
   materialsLabel,
+  consumablesLabel,
   followUpLabel,
 }: {
   item: TreatmentItemFull;
@@ -23,6 +24,8 @@ export function TreatmentItemCard({
   showPatient?: boolean;
   /** метка «Material əlavə et» — ссылка на /treatments/[id]/materials (done/in_progress) */
   materialsLabel?: string;
+  /** метка «Sərfiyyatlar» — ссылка на /treatments/[id]/consumables */
+  consumablesLabel?: string;
   /** метка «Növbəti qəbul planla» — ссылка на /treatments/[id]/followup (planned/in_progress, без appointmentId) */
   followUpLabel?: string;
 }) {
@@ -111,6 +114,16 @@ export function TreatmentItemCard({
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             <Package className="size-4" />
+          </Link>
+        )}
+        {consumablesLabel && !cancelled && (
+          <Link
+            href={`/treatments/${item.id}/consumables`}
+            title={consumablesLabel}
+            data-e2e-marker={`consumables-link-${item.id}`}
+            className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
+          >
+            <FlaskConical className="size-4" />
           </Link>
         )}
         <span

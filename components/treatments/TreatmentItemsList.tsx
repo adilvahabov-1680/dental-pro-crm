@@ -12,6 +12,7 @@ export function TreatmentItemsList({
   empty,
   showPatient = false,
   materialsLabel,
+  consumablesLabel,
   followUpLabel,
 }: {
   items: TreatmentItemFull[];
@@ -21,6 +22,7 @@ export function TreatmentItemsList({
   empty: { title: string; desc: string };
   showPatient?: boolean;
   materialsLabel?: string;
+  consumablesLabel?: string;
   followUpLabel?: string;
 }) {
   if (items.length === 0) {
@@ -41,6 +43,7 @@ export function TreatmentItemsList({
           labels={labels}
           showPatient={showPatient}
           materialsLabel={materialsLabel}
+          consumablesLabel={consumablesLabel}
           followUpLabel={followUpLabel}
         />
       ))}

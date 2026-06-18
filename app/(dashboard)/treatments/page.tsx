@@ -75,6 +75,7 @@ export default async function TreatmentsPage({
         empty={tt.empty}
         showPatient
         materialsLabel={canManage ? t.inventory.materials.addTitle : undefined}
+        consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
       />
       {items.length > 0 && (
         <p className="mt-3 text-sm tabular-nums text-text-secondary">
