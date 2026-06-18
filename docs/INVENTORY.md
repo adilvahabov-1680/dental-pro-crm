@@ -7,6 +7,7 @@
 | Маршрут | Содержимое |
 |---|---|
 | `/inventory` | summary (Ümumi / Az qalanlar / Bitmiş / Bu ay istifadə) + LowStockPanel + фильтры (поиск, категория, «yalnız az qalanlar») + список |
+| `/inventory/alerts` | Stok xəbərdarlıqları (Session 38) — out/low/warning статусы + reorder-тövsiyə, см. [LOW_STOCK_ALERTS.md](LOW_STOCK_ALERTS.md) |
 | `/inventory/new` | создание материала (initialQuantity > 0 → автоматическое движение «Mədaxil: İlkin qalıq») |
 | `/inventory/[id]` | карточка: остаток, минимум, цена, поставщик, срок годности; форма движения (Mədaxil/Məxaric/Silinmə); история 20 движений |
 | `/treatments/[id]/materials` | материалы процедуры: список использованных + себестоимость + форма списания |
