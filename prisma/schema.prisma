@@ -161,12 +161,13 @@ enum DebtStatus {
 }
 
 enum MovementType {
-  in_stock        @map("in")
-  out_stock       @map("out")
+  in_stock                  @map("in")
+  out_stock                 @map("out")
   adjustment
   adjustment_out
   write_off
-  treatment_usage @map("treatment_usage")
+  treatment_usage           @map("treatment_usage")
+  treatment_usage_reversal  @map("treatment_usage_reversal")
 }
 
 enum SupplierOrderStatus {
@@ -819,6 +820,13 @@ model TreatmentConsumableUsage {
   inventoryMovementId String? @unique @map("inventory_movement_id") @db.Uuid
   createdById         String  @map("created_by_id") @db.Uuid
 
+  // Reversal audit (Session 36) — all nullable; set atomically when reversed
+  isReversed         Boolean   @default(false) @map("is_reversed")
+  reversedAt         DateTime? @map("reversed_at") @db.Timestamptz()
+  reversedById       String?   @map("reversed_by_id") @db.Uuid
+  reversalReason     String?   @map("reversal_reason")
+  reversalMovementId String?   @map("reversal_movement_id") @db.Uuid
+
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -827,6 +835,8 @@ model TreatmentConsumableUsage {
   inventoryItem     InventoryItem              @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
   template          ServiceConsumableTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   inventoryMovement InventoryMovement?         @relation(fields: [inventoryMovementId], references: [id], onDelete: SetNull)
+
+  @@index([isReversed])
 
   @@index([clinicId])
   @@index([treatmentItemId])

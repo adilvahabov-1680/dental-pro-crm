@@ -15,6 +15,7 @@
     "prod:migrate": "npx prisma migrate deploy",
     "prod:update": "npx prisma migrate deploy && npx prisma generate && npm run build",
     "demo:deploy:init": "npx prisma migrate deploy && npx prisma generate && npm run db:seed",
+    "e2e-treatment-consumable-reversal-check": "tsx scripts/e2e-treatment-consumable-reversal-check.ts",
     "e2e-consumable-cost-reports-check": "tsx scripts/e2e-consumable-cost-reports-check.ts",
     "e2e-treatment-consumable-usage-check": "tsx scripts/e2e-treatment-consumable-usage-check.ts",
     "e2e-service-consumable-templates-check": "tsx scripts/e2e-service-consumable-templates-check.ts",

@@ -51,9 +51,10 @@ All writes happen inside a single PostgreSQL transaction with per-item advisory 
 
 ## Double-apply protection
 
-If a `TreatmentConsumableUsage` with `wasSkipped = false` and a non-null `inventoryMovementId`
-already exists for the `treatmentItemId`, the action returns `{ error: "alreadyApplied" }`.
-No partial re-apply is possible in v1.
+If a `TreatmentConsumableUsage` with `wasSkipped = false`, non-null `inventoryMovementId`,
+and `isReversed = false` already exists for the `treatmentItemId`, the action returns
+`{ error: "alreadyApplied" }`. After a full reversal (all active usages reversed), the guard
+clears and the apply form becomes available for re-apply.
 
 ## Required vs optional items
 
@@ -85,6 +86,7 @@ Detail page layout:
 
 ## NOT implemented (future sessions)
 
-- **Session 35** — Cost reports per service / per period
-- **Session 35** — Profitability analytics per doctor
+- ~~**Session 35** — Cost reports per service / per period~~ ✅ done
+- Partial reversal of individual usage lines (Session 36 = full reversal only)
+- Profitability analytics per doctor
 - Automatic supplier reorder on low-stock

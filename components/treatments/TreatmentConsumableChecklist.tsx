@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { applyTreatmentConsumablesAction } from "@/lib/actions/treatment-consumables";
+import { TreatmentConsumableReversalForm } from "@/components/treatments/TreatmentConsumableReversalForm";
 import type { TreatmentConsumableTemplate, TreatmentConsumableUsageRow } from "@/lib/treatment-consumables";
 import type { ConsumableUsageFormState } from "@/lib/validation/treatment-consumables";
 import type { Dict } from "@/i18n/az";
@@ -141,9 +142,18 @@ export function TreatmentConsumableChecklist({
   );
 
   const alreadyApplied = existingUsages.length > 0;
-  const hasNonSkipped = existingUsages.some((u) => !u.wasSkipped && u.inventoryMovementId);
+  const hasActiveUsages = existingUsages.some((u) => !u.wasSkipped && u.inventoryMovementId && !u.isReversed);
+  const hasNonSkipped = hasActiveUsages; // kept for form visibility logic
+  const allReversed =
+    existingUsages.some((u) => !u.wasSkipped && u.inventoryMovementId) &&
+    existingUsages.filter((u) => !u.wasSkipped && u.inventoryMovementId).every((u) => u.isReversed);
+  const reversalInfo = allReversed
+    ? existingUsages.find((u) => u.isReversed && u.reversedAt)
+    : null;
 
-  if (templates.length === 0) {
+  // Only show "no templates" when nothing has been applied yet — if usages exist
+  // (active or reversed), always render them regardless of current template count.
+  if (!alreadyApplied && templates.length === 0) {
     return (
       <p className="rounded-[10px] border border-border-subtle bg-bg-base/50 px-4 py-4 text-center text-sm text-text-secondary">
         {labels.noTemplates}
@@ -162,27 +172,63 @@ export function TreatmentConsumableChecklist({
           {existingUsages.map((u) => (
             <div
               key={u.id}
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border-subtle/50 bg-bg-base/30 px-3 py-2 text-sm ${u.wasSkipped ? "opacity-50" : ""}`}
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border-subtle/50 bg-bg-base/30 px-3 py-2 text-sm ${u.wasSkipped || u.isReversed ? "opacity-50 line-through" : ""}`}
               data-e2e-marker={`usage-row-${u.inventoryItemId}`}
             >
               <span className="text-text-primary">{u.itemName}</span>
               <span className="tabular-nums text-text-secondary">
                 {u.wasSkipped
                   ? labels.skipped
+                  : u.isReversed
+                  ? labels.reversal.reversedTitle
                   : `${u.quantity} ${u.unit} → ${u.baseQuantity} ${u.baseUnit}`}
               </span>
             </div>
           ))}
-          {hasNonSkipped && (
-            <p className="rounded-[10px] border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-accent">
-              {labels.alreadyApplied}
-            </p>
+
+          {/* active usages: show "applied" notice + reversal button */}
+          {hasActiveUsages && (
+            <div className="space-y-2">
+              <p className="rounded-[10px] border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-accent">
+                {labels.alreadyApplied}
+              </p>
+              {canManage && (
+                <TreatmentConsumableReversalForm
+                  treatmentItemId={treatmentItemId}
+                  dict={dict}
+                />
+              )}
+            </div>
+          )}
+
+          {/* fully reversed: show reversal info */}
+          {allReversed && reversalInfo && (
+            <div
+              className="rounded-[10px] border border-warning/30 bg-warning/5 px-3 py-2 space-y-1"
+              data-e2e-marker="reversal-info-panel"
+            >
+              <p className="text-sm font-medium text-warning">{labels.reversal.reversedTitle}</p>
+              {reversalInfo.reversedAt && (
+                <p className="text-xs text-text-secondary">
+                  {labels.reversal.reversedAt}:{" "}
+                  {new Date(reversalInfo.reversedAt).toLocaleString("az-AZ")}
+                </p>
+              )}
+              {reversalInfo.reversalReason && (
+                <p className="text-xs text-text-secondary">
+                  {labels.reversal.reversedReason}: {reversalInfo.reversalReason}
+                </p>
+              )}
+              {canManage && (
+                <p className="text-xs text-text-secondary">{labels.reversal.reapplyHint}</p>
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* apply form — only if canManage and not yet applied */}
-      {canManage && !hasNonSkipped && (
+      {/* apply form — only if canManage, not yet applied, and templates exist */}
+      {canManage && !hasNonSkipped && templates.length > 0 && (
         <form action={formAction} data-e2e-marker="consumable-apply-form">
           <input type="hidden" name="treatmentItemId" value={treatmentItemId} />
           <div className="space-y-2">

@@ -46,3 +46,11 @@ export const applyConsumablesSchema = z.object({
 });
 
 export type ApplyConsumablesInput = z.output<typeof applyConsumablesSchema>;
+
+/** Reversal payload — treatmentItemId + mandatory reason. */
+export const reverseConsumablesSchema = z.object({
+  treatmentItemId: z.string().uuid(),
+  reason: z.string().trim().min(3, "reasonTooShort").max(500),
+});
+
+export type ReverseConsumablesInput = z.output<typeof reverseConsumablesSchema>;

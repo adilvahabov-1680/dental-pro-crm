@@ -16,7 +16,7 @@ import { requirePermission } from "@/lib/auth";
 import { tenantClient } from "@/lib/tenant";
 import { getTreatmentItemForUser } from "@/lib/treatments";
 import { calculateBaseQuantity } from "@/lib/treatment-consumables";
-import { consumableUsageItemSchema, type ConsumableUsageFormState } from "@/lib/validation/treatment-consumables";
+import { consumableUsageItemSchema, reverseConsumablesSchema, type ConsumableUsageFormState } from "@/lib/validation/treatment-consumables";
 
 class ConsumableError extends Error {
   constructor(public key: string) {
@@ -77,12 +77,13 @@ export async function applyTreatmentConsumablesAction(
 
   const db = tenantClient(clinicId);
 
-  // double-apply protection: check if any non-skipped usage with movement already exists
+  // double-apply protection: active (non-reversed) non-skipped usage with movement blocks re-apply
   const existingCount = await db.treatmentConsumableUsage.count({
     where: {
       treatmentItemId,
       wasSkipped: false,
       inventoryMovementId: { not: null },
+      isReversed: false,
     },
   });
   if (existingCount > 0) return { error: "alreadyApplied" };
@@ -253,6 +254,114 @@ export async function applyTreatmentConsumablesAction(
   } catch (e) {
     if (e instanceof ConsumableError) return { error: e.key };
     console.error("applyTreatmentConsumablesAction failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/treatments/${treatmentItemId}/consumables`);
+  revalidatePath(`/patients/${treatment.patientId}/treatments`);
+  revalidatePath("/inventory");
+  return { saved: true };
+}
+
+/**
+ * Reverse all active consumable usages for a treatment item.
+ * Creates treatment_usage_reversal movements and returns stock atomically.
+ * Original usages and movements are preserved for audit.
+ * After full reversal, re-apply is allowed (double-apply guard checks isReversed=false).
+ */
+export async function reverseTreatmentConsumablesAction(
+  _prev: ConsumableUsageFormState | undefined,
+  formData: FormData,
+): Promise<ConsumableUsageFormState> {
+  const user = await requirePermission("treatments.manage");
+  if (!user.clinicId) return { error: "unauthorized" };
+  const clinicId = user.clinicId;
+
+  const raw = {
+    treatmentItemId: formData.get("treatmentItemId")?.toString() ?? "",
+    reason: formData.get("reason")?.toString() ?? "",
+  };
+  const parsed = reverseConsumablesSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.message === "reasonTooShort") return { error: "reasonTooShort" };
+    return { error: "generic" };
+  }
+  const { treatmentItemId, reason } = parsed.data;
+
+  const treatment = await getTreatmentItemForUser(user, treatmentItemId);
+  if (!treatment) return { error: "treatmentNotFound" };
+
+  const db = tenantClient(clinicId);
+
+  // find active (non-reversed, non-skipped, with movement) usages to reverse
+  const activeUsages = await db.treatmentConsumableUsage.findMany({
+    where: {
+      treatmentItemId,
+      wasSkipped: false,
+      inventoryMovementId: { not: null },
+      isReversed: false,
+    },
+    select: {
+      id: true,
+      inventoryItemId: true,
+      baseQuantity: true,
+    },
+  });
+
+  if (activeUsages.length === 0) return { error: "noConsumablesToReverse" };
+
+  const now = new Date();
+
+  try {
+    await prisma.$transaction(async (tx: Tx) => {
+      for (const usage of activeUsages) {
+        // advisory lock per inventory item (same pattern as apply)
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"inv:" + usage.inventoryItemId}))::text`;
+
+        const stockItem = await tx.inventoryItem.findFirst({
+          where: { id: usage.inventoryItemId, clinicId, deletedAt: null },
+          select: { id: true, quantity: true, unitCost: true },
+        });
+        if (!stockItem) throw new ConsumableError("itemNotFound");
+
+        const prev = Number(stockItem.quantity);
+        const next = Math.round((prev + Number(usage.baseQuantity)) * 1000) / 1000;
+
+        const reversalMovement = await tx.inventoryMovement.create({
+          data: {
+            clinicId,
+            inventoryItemId: usage.inventoryItemId,
+            type: "treatment_usage_reversal",
+            quantity: Number(usage.baseQuantity),
+            unitCost: stockItem.unitCost,
+            reason,
+            treatmentItemId,
+            performedById: user.id,
+          },
+          select: { id: true },
+        });
+
+        await tx.inventoryItem.update({
+          where: { id: usage.inventoryItemId },
+          data: { quantity: next },
+        });
+
+        await tx.treatmentConsumableUsage.update({
+          where: { id: usage.id },
+          data: {
+            isReversed: true,
+            reversedAt: now,
+            reversedById: user.id,
+            reversalReason: reason,
+            reversalMovementId: reversalMovement.id,
+          },
+        });
+      }
+    });
+  } catch (e) {
+    if (e instanceof ConsumableError) return { error: e.key };
+    console.error("reverseTreatmentConsumablesAction failed:", e);
     return { error: "generic" };
   }
 

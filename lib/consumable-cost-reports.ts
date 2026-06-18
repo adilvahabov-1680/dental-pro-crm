@@ -75,6 +75,7 @@ function buildWhere(clinicId: string, f: ConsumableCostFilters) {
     clinicId,
     wasSkipped: false,
     inventoryMovementId: { not: null as string | null },
+    isReversed: false,
     ...(f.dateFrom || f.dateTo
       ? {
           createdAt: {

@@ -32,8 +32,11 @@ lineCostGapik = round(baseQuantity × InventoryItem.unitCost)
 Only `TreatmentConsumableUsage` rows where:
 - `wasSkipped = false`
 - `inventoryMovementId IS NOT NULL`
+- `isReversed = false`
 
-are counted in the report. Skipped rows (no stock deduction) are excluded.
+are counted in the report. Skipped rows and reversed rows are excluded.
+Reversal movements (`treatment_usage_reversal`) are preserved for audit but do not
+appear in cost totals.
 
 ## Report sections
 

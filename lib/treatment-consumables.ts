@@ -30,6 +30,11 @@ export interface TreatmentConsumableUsageRow {
   wasSkipped: boolean;
   note: string | null;
   inventoryMovementId: string | null;
+  isReversed: boolean;
+  reversedAt: Date | null;
+  reversedById: string | null;
+  reversalReason: string | null;
+  reversalMovementId: string | null;
 }
 
 /** Шаблоны расходников для услуги (для формы checklist на странице лечения). */
@@ -88,6 +93,11 @@ export async function getConsumableUsagesForTreatment(
     wasSkipped: r.wasSkipped,
     note: r.note,
     inventoryMovementId: r.inventoryMovementId,
+    isReversed: r.isReversed,
+    reversedAt: r.reversedAt,
+    reversedById: r.reversedById,
+    reversalReason: r.reversalReason,
+    reversalMovementId: r.reversalMovementId,
   }));
 }
 

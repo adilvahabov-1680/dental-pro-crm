@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-18 (после сессии 35: Consumable Cost Reports v1)
+**by AV Systems** · обновлено: 2026-06-18 (после сессии 36: Treatment Consumable Reversal v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -66,7 +66,8 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Inventory Unit Conversions v1 (purchaseUnit, purchaseToBaseFactor, doseToBaseFactor) | готов | `e2e-inventory-units-check` 27/27 |
 | Service Consumable Templates v1 (шаблоны расходников по услуге, template-only, no stock deduction) | готов | `e2e-service-consumable-templates-check` 30/30 |
 | Treatment Consumable Usage v1 (фактическое списание по шаблонам, dose-конвертация, double-apply protection) | готов | `e2e-treatment-consumable-usage-check` 38/38 |
-| Consumable Cost Reports v1 (отчёт по фактическим расходам, /reports/consumables, cost=baseQty×unitCost) | готов | `e2e-consumable-cost-reports-check` |
+| Consumable Cost Reports v1 (отчёт по фактическим расходам, /reports/consumables, cost=baseQty×unitCost) | готов | `e2e-consumable-cost-reports-check` 30/30 |
+| Treatment Consumable Reversal v1 (полный возврат списания, audit trail, reversal movement, re-apply после reversal) | готов | `e2e-treatment-consumable-reversal-check` 29/29 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -652,6 +653,66 @@ Read-only отчёт по фактически использованным ра
 `e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
 `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
+## 7.15. Сессия 36 — итоги (Treatment Consumable Reversal v1)
+
+Полный возврат (reversal) применённых расходников на лечение. Частичный reversal — out of scope v1.
+
+**Изменения:**
+- **Migration** `20260618100805_add_consumable_reversal`:
+  - Новый enum value `treatment_usage_reversal` в `MovementType`
+  - 5 новых колонок в `treatment_consumable_usages`: `is_reversed BOOL @default(false)`,
+    `reversed_at TIMESTAMPTZ?`, `reversed_by_id UUID?`, `reversal_reason TEXT?`,
+    `reversal_movement_id UUID? UNIQUE FK SET NULL InventoryMovement`
+  - Индекс `@@index([isReversed])` для фильтрации
+- **`prisma/schema.prisma`**: 5 полей + new index + new enum value
+- **`lib/validation/treatment-consumables.ts`**: добавлен `reverseConsumablesSchema`
+  (`treatmentItemId: uuid`, `reason: string min 3 max 500`)
+- **`lib/treatment-consumables.ts`**: `TreatmentConsumableUsageRow` расширен 5 reversal-полями;
+  `getConsumableUsagesForTreatment` возвращает все новые поля
+- **`lib/actions/treatment-consumables.ts`**:
+  - `applyTreatmentConsumablesAction`: guard обновлён — теперь проверяет `isReversed: false`,
+    чтобы re-apply был разрешён после полного reversal
+  - `reverseTreatmentConsumablesAction`: находит все active usages (wasSkipped=false,
+    movementId≠null, isReversed=false), в транзакции с per-item advisory locks:
+    создаёт `treatment_usage_reversal` movement, возвращает stock, помечает usage
+    `isReversed=true` + audit fields. clinicId только из session.
+- **`lib/consumable-cost-reports.ts`**: `buildWhere` добавлен `isReversed: false`
+  (reversed usages исключены из cost totals)
+- **`i18n/az.ts`**: секция `treatments.consumables.reversal.*` + error keys
+  `noConsumablesToReverse`, `reasonTooShort`
+- **`components/treatments/TreatmentConsumableReversalForm.tsx`** (новый):
+  `useActionState` форма, всегда в DOM (нет expand/collapse), `data-e2e-marker="reversal-form"`,
+  textarea reason (min 3, max 500), submit button
+- **`components/treatments/TreatmentConsumableChecklist.tsx`**:
+  - Ключевое исправление: early-return `templates.length === 0` теперь только при
+    `!alreadyApplied` — если usages уже существуют, форма reversal всегда рендерится
+    независимо от наличия шаблонов
+  - Apply form guard добавлен `templates.length > 0` — не рендерит пустую форму
+    после reversal при отсутствии шаблонов
+  - `hasActiveUsages` / `allReversed` / `reversalInfo` логика для показа
+    reversal form vs reversed info panel
+- **`scripts/e2e-treatment-consumable-reversal-check.ts`**: 29/29 проверок (секции A–O)
+- **`package.json`**: добавлен `e2e-treatment-consumable-reversal-check`
+- **`docs/TREATMENT_CONSUMABLE_REVERSAL.md`**: новый profile-doc
+- **`docs/TREATMENT_CONSUMABLE_USAGE.md`**: обновлён раздел double-apply protection
+- **`docs/CONSUMABLE_COST_REPORTS.md`**: обновлён раздел "Only factual records"
+
+**Не реализовано (out of scope):**
+- Частичный reversal отдельных строк (v1 = только полный reversal всего TreatmentItem)
+- Profitability analytics per doctor
+- Payroll / salary reports
+- Historical unit cost snapshot
+
+**E2E (все 12 суит после сессии):**
+`e2e-treatment-consumable-reversal-check` 29/29, `e2e-consumable-cost-reports-check` 30/30,
+`e2e-treatment-consumable-usage-check` 38/38, `e2e-service-consumable-templates-check` 30/30,
+`e2e-inventory-units-check` 27/27, `e2e-inventory-corrections-check` 34/34,
+`e2e-inventory-check` 33/33, `e2e-supplier-receiving-check` 27/27,
+`e2e-supplier-orders-check` 38/38, `e2e-admin-check` 36/36,
+`e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
+
+`npx tsc --noEmit` → 0 ошибок. `npm run build` → чистый (40 routes).
+
 ---
 
 ## 7.6. Сессия 23 — итоги (Production Health & UX Polish)
@@ -681,20 +742,23 @@ Read-only отчёт по фактически использованным ра
 ## 8. Следующая сессия (рекомендация)
 
 Варианты по приоритету:
-1. **Запустить demo-деплой** — выполнить инструкцию FREE_DEMO_DEPLOY.md
+1. **Consumable Partial Reversal v2** — reversal отдельных строк (сейчас только
+   полный reversal всего TreatmentItem). Требует UI выбора строк + partial guard.
+2. **Consumable Cost Snapshot** — сохранять `unitCost` в момент списания в
+   `TreatmentConsumableUsage`, чтобы cost reports не зависели от изменений цен.
+3. **Profitability Analytics** — выручка (invoice) − себестоимость расходников
+   per doctor / per service / per period.
+4. **Запустить demo-деплой** — выполнить инструкцию FREE_DEMO_DEPLOY.md
    (Neon → `demo:deploy:init` → Vercel env vars → deploy).
-2. **S3-совместимый storage** (MinIO / R2 / Supabase Storage) — необходим
+5. **S3-совместимый storage** (MinIO / R2 / Supabase Storage) — необходим
    для надёжной работы uploads/PDF на Vercel, предпосылка для multi-instance;
    см. DEPLOYMENT.md §1. Единственная точка замены — `lib/storage.ts`.
-3. Реальная отправка WhatsApp (Business API / провайдер) на основе
+6. Реальная отправка WhatsApp (Business API / провайдер) на основе
    подготовленных в v1 сообщений.
-4. **Admin v2**: per-permission overrides UI (таблица `UserPermission`),
+7. **Admin v2**: per-permission overrides UI (таблица `UserPermission`),
    email-инвайты, doctor transfer workflow.
-5. **Platform billing**: подписки, квоты, ограничение числа пользователей/пациентов.
-6. Автоматизация cleanup файлов (cron на базе `cleanup-deleted-documents.ts`).
-7. **Protocol follow-up automation**: использовать `intervalDays` для предложения
-   конкретной даты follow-up (сейчас предложения — только по свободным слотам, без учёта интервала).
-8. **Session invalidation**: при смене assignedDoctorId, пароля, логина или
+8. **Platform billing**: подписки, квоты, ограничение числа пользователей/пациентов.
+9. **Session invalidation**: при смене assignedDoctorId, пароля, логина или
    suspended-статусе инвалидировать JWT (server-side session store / revision field).
 
 ## 9. Чек-лист конца сессии
