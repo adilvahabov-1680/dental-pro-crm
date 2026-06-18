@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 /** Объединение css-классов без лишних зависимостей. */
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -9,6 +11,11 @@ export function formatMoney(qepik: number, currency = "₼"): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })} ${currency}`;
+}
+
+/** Остатки склада (Decimal 12,3) — без хвостовых нулей. Client-safe (без server-импортов). */
+export function formatQty(q: Prisma.Decimal | number): string {
+  return Number(q).toLocaleString("az-AZ", { maximumFractionDigits: 3 });
 }
 
 export function formatDate(date: Date | string, locale = "az-AZ"): string {

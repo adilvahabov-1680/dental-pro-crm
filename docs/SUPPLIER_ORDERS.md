@@ -129,6 +129,7 @@ enum SupplierOrderStatus {
 | `markSupplierOrderReceived` | manage | sent → received |
 | `cancelSupplierOrder` | manage | draft/sent → cancelled |
 | `addCatalogItemToOrderFromSupplierPage` | manage | Со страницы поставщика: найти/создать черновик + добавить позицию → redirect |
+| `createSupplierOrderDraftsFromLowStockAction` (Session 39, `lib/actions/low-stock-reorder.ts`) | manage | С `/inventory/alerts`: выбранные low-stock материалы → группировка по supplierId → черновик(и) с позициями `inventoryItemId` (без catalogItemId). См. LOW_STOCK_REORDER_DRAFTS.md |
 
 **clinicId всегда берётся из сессии, никогда из формы.**
 
@@ -171,3 +172,13 @@ Demo-данные в `prisma/seed.ts` (секция 17):
 - Один черновик на поставщика одновременно (`getOrCreateDraftSupplierOrder`).
 - При добавлении из страницы поставщика количество фиксировано = 1 (изменяется в детальной странице заказа).
 - Нет пагинации списка заказов (лимит 200).
+
+## Reorder draft из Low Stock Alerts (сессия 39)
+
+`SupplierOrderItem.inventoryItemId` (nullable FK, существовал с сессии 30 для receiving)
+теперь может заполняться **на этапе создания** позиции, не только при оприходовании —
+`createSupplierOrderDraftsFromLowStockAction` создаёт позиции напрямую из `InventoryItem`
+(snapshot-поля копируются оттуда, `catalogItemId = null`). `OrderItemsTable` и
+`ReceiveOrderItemForm` рендерятся по snapshot-полям и не зависят от того, как позиция была
+создана — полная совместимость без изменений в этих компонентах. Подробности —
+LOW_STOCK_REORDER_DRAFTS.md.

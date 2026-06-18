@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft, PackageX, TriangleAlert, AlertTriangle, ListChecks } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
-import { formatQty, listInventoryCategories } from "@/lib/inventory";
+import { listInventoryCategories } from "@/lib/inventory";
 import {
   listLowStockAlerts,
   getLowStockAlertSummary,
@@ -11,7 +12,7 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { LowStockAlertBadge } from "@/components/inventory/LowStockAlertBadge";
+import { ReorderDraftForm } from "@/components/inventory/ReorderDraftForm";
 
 const STATUS_VALUES = ["all", "attention", "out_of_stock", "low_stock", "warning"] as const;
 
@@ -21,6 +22,7 @@ export default async function LowStockAlertsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requirePermission("inventory.view");
+  const canManage = hasPermission(user, "inventory.manage");
   const t = getDict(user.locale);
   const ta = t.inventory.alerts;
   const sp = await searchParams;
@@ -150,79 +152,7 @@ export default async function LowStockAlertsPage({
             {ta.empty}
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" data-e2e-marker="alerts-table">
-              <thead>
-                <tr className="border-b border-border-subtle text-left text-xs text-text-secondary">
-                  <th className="pb-2 pr-3 font-medium">{ta.table.material}</th>
-                  <th className="pb-2 pr-3 font-medium text-right">{ta.table.currentQty}</th>
-                  <th className="pb-2 pr-3 font-medium text-right">{ta.table.minQty}</th>
-                  <th className="pb-2 pr-3 font-medium">{ta.table.status}</th>
-                  <th className="pb-2 pr-3 font-medium text-right">{ta.table.suggestedReorder}</th>
-                  <th className="pb-2 pr-3 font-medium">{ta.table.supplier}</th>
-                  <th className="pb-2 font-medium"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-border-subtle/50 last:border-0"
-                    data-e2e-marker={`alert-row-${r.id}`}
-                  >
-                    <td className="py-2 pr-3 text-text-primary">
-                      {r.name}
-                      {r.categoryName && (
-                        <span className="ml-1 text-xs text-text-secondary">· {r.categoryName}</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-text-secondary">
-                      {`${formatQty(r.quantity)} ${r.unit}`}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-text-secondary">
-                      {`${formatQty(r.minQuantity)} ${r.unit}`}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <LowStockAlertBadge status={r.status} label={ta.status[r.status]} />
-                    </td>
-                    <td
-                      className="py-2 pr-3 text-right tabular-nums text-text-primary"
-                      data-e2e-marker={`alert-suggested-${r.id}`}
-                    >
-                      {`${formatQty(r.suggestedBaseQuantity)} ${r.unit}`}
-                      {r.suggestedPurchaseUnits !== null && (
-                        <span className="ml-1 text-xs text-text-secondary">
-                          {`(~${r.suggestedPurchaseUnits} ${r.purchaseUnit})`}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {r.supplierId ? (
-                        <Link
-                          href={`/inventory/suppliers/${r.supplierId}`}
-                          className="text-[11px] text-accent transition-opacity hover:opacity-70"
-                          data-e2e-marker={`alert-supplier-${r.id}`}
-                        >
-                          {r.supplierName}
-                        </Link>
-                      ) : (
-                        <span className="text-[11px] text-text-secondary">{ta.table.noSupplier}</span>
-                      )}
-                    </td>
-                    <td className="py-2 whitespace-nowrap">
-                      <Link
-                        href={`/inventory/${r.id}`}
-                        className="text-[11px] text-accent transition-opacity hover:opacity-70"
-                        data-e2e-marker={`alert-go-to-item-${r.id}`}
-                      >
-                        {ta.table.goToItem}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ReorderDraftForm rows={rows} canManage={canManage} labels={ta} />
         )}
       </Card>
 

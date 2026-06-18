@@ -1,5 +1,10 @@
 # Low Stock Alerts / Reorder Suggestions — Session 38
 
+> **Session 39 update**: `/inventory/alerts` now also lets users (with `inventory.manage`)
+> select eligible rows and create supplier order drafts directly from this page. See
+> [LOW_STOCK_REORDER_DRAFTS.md](LOW_STOCK_REORDER_DRAFTS.md). The read-only model described
+> below (statuses, formula, summary, filters) is unchanged.
+
 Read-only visibility module poverh mövcud `InventoryItem.quantity`/`minQuantity`/`purchaseUnit`
 sahələri. **No DB migration. No stock mutation. No automatic supplier order creation.**
 
@@ -72,6 +77,10 @@ relation in the schema, so catalog info is **not applicable** here (not invented
 - Existing `LowStockPanel` (sidebar on `/inventory` + dashboard) is untouched — it still shows
   the original `normal/low/out/expiring` status for its top-6 preview; this page is the
   dedicated, filterable, reorder-aware view.
+- **Session 39**: the table is now rendered by `components/inventory/ReorderDraftForm.tsx`
+  (a client component) instead of inline in the RSC page, so it can host the
+  selection/quantity/submit controls — see LOW_STOCK_REORDER_DRAFTS.md. All
+  `data-e2e-marker` values from this session are unchanged.
 
 ## Library layer
 
@@ -105,8 +114,9 @@ No changes to `lib/notifications.ts` or the existing `inventory_low_stock` notif
 
 ## Not implemented by design (future sessions)
 
-- Automatic supplier order creation from a suggestion (would need explicit user action +
-  review step — out of scope for v1).
+- ~~Automatic supplier order creation from a suggestion~~ ✅ user-confirmed draft creation
+  done in Session 39 (LOW_STOCK_REORDER_DRAFTS.md) — still no *automatic* (unconfirmed) order
+  creation, no auto-send.
 - Background/cron low-stock digest.
 - AI-based demand forecasting.
 - Editing `minQuantity`/stock from this page (read-only; edit via `/inventory/[id]`).

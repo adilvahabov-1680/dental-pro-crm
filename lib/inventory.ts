@@ -10,6 +10,8 @@ import { prisma } from "@/lib/prisma";
 import { tenantClient } from "@/lib/tenant";
 import type { SessionUser } from "@/types/auth";
 
+export { formatQty } from "@/lib/utils";
+
 export type InventoryStatus = "normal" | "low" | "out" | "expiring";
 
 export const EXPIRING_SOON_DAYS = 30;
@@ -30,10 +32,6 @@ export function inventoryStatus(item: {
     if (item.expiresAt <= soon) return "expiring";
   }
   return "normal";
-}
-
-export function formatQty(q: Prisma.Decimal | number): string {
-  return Number(q).toLocaleString("az-AZ", { maximumFractionDigits: 3 });
 }
 
 const itemInclude = {
