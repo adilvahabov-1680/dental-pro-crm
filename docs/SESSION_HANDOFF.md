@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-18 (после сессии 34: Treatment Consumable Usage v1)
+**by AV Systems** · обновлено: 2026-06-18 (после сессии 35: Consumable Cost Reports v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -65,7 +65,8 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Inventory Stock Corrections v1 (adjustment/adjustment_out/write_off, audit trail, note field) | готов | `e2e-inventory-corrections-check` 34/34 |
 | Inventory Unit Conversions v1 (purchaseUnit, purchaseToBaseFactor, doseToBaseFactor) | готов | `e2e-inventory-units-check` 27/27 |
 | Service Consumable Templates v1 (шаблоны расходников по услуге, template-only, no stock deduction) | готов | `e2e-service-consumable-templates-check` 30/30 |
-| Treatment Consumable Usage v1 (фактическое списание по шаблонам, dose-конвертация, double-apply protection) | готов | `e2e-treatment-consumable-usage-check` |
+| Treatment Consumable Usage v1 (фактическое списание по шаблонам, dose-конвертация, double-apply protection) | готов | `e2e-treatment-consumable-usage-check` 38/38 |
+| Consumable Cost Reports v1 (отчёт по фактическим расходам, /reports/consumables, cost=baseQty×unitCost) | готов | `e2e-consumable-cost-reports-check` |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -600,16 +601,56 @@ Schema изменилась (новая миграция `20260616201010_add_cli
 - **`docs/TREATMENT_CONSUMABLE_USAGE.md`**: новый profile-doc.
 
 **Не реализовано (out of scope):**
-- Session 35 — cost reports по расходникам
-- Session 35 — profitability analytics per doctor
+- Session 35 — cost reports по расходникам ✅ (реализовано в S35)
+- Session 36 — profitability analytics per doctor
 - Автоматический reorder поставщику при low-stock
 
 **E2E (все 11 суит после сессии — run после dev server start):**
-`e2e-treatment-consumable-usage-check`, `e2e-service-consumable-templates-check` 30/30,
+`e2e-treatment-consumable-usage-check` 38/38, `e2e-service-consumable-templates-check` 30/30,
 `e2e-inventory-units-check` 27/27, `e2e-inventory-corrections-check` 34/34,
 `e2e-inventory-check` 33/33, `e2e-supplier-receiving-check` 27/27,
 `e2e-supplier-orders-check` 38/38, `e2e-admin-check` 36/36,
 `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
+
+## 7.14. Сессия 35 — итоги (Consumable Cost Reports v1)
+
+Read-only отчёт по фактически использованным расходникам и базовой себестоимости.
+
+**Изменения:**
+- **Нет migration** (чистый read-only модуль поверх Session 34 данных).
+- **`lib/consumable-cost-reports.ts`**: `getConsumableCostSummary`, `getConsumableCostByInventoryItem`,
+  `getConsumableCostByService`, `getConsumableCostByDoctor`, `getRecentConsumableUsages`.
+  Правило: `cost = round(baseQuantity × InventoryItem.unitCost)`; null unitCost → 0 + флаг.
+  Фильтры: dateFrom/dateTo/doctorId/serviceId/inventoryItemId/patientId. clinicId из сессии.
+- **`app/(dashboard)/reports/consumables/page.tsx`**: RSC-страница `/reports/consumables`.
+  Permission: `inventory.view`. Фильтр-форма (HTML GET, без JS). Секции: summary cards,
+  by item, by service, by doctor, recent usages (50 строк).
+- **`i18n/az.ts`**: новая top-level секция `reports.consumables.*` (50+ ключей AZ).
+- **`app/(dashboard)/inventory/page.tsx`**: добавлена ссылка «Sərfiyyat hesabatı» (BarChart3 icon)
+  в header actions, `data-e2e-marker="consumable-report-link"`.
+- **`scripts/e2e-consumable-cost-reports-check.ts`**: E2E чек-скрипт (секции A–L).
+- **`package.json`**: добавлен `e2e-consumable-cost-reports-check`.
+- **`docs/CONSUMABLE_COST_REPORTS.md`**: новый profile-doc.
+
+**Cost rules:**
+- Источник: `TreatmentConsumableUsage` (wasSkipped=false, inventoryMovementId IS NOT NULL)
+- cost = `round(baseQuantity × InventoryItem.unitCost)` гяпики
+- null unitCost → cost=0, UI показывает "Qiymət yoxdur"
+- v1 использует текущий `unitCost` — исторический снимок на момент списания не реализован (future)
+
+**Не реализовано (out of scope):**
+- Session 36 — profitability analytics per doctor
+- Payroll / зарплаты врачей
+- Excel/PDF экспорт
+- Исторический снимок unitCost на момент списания
+- Автоматический reorder поставщику при low-stock
+
+**E2E (все 12 суит после сессии — run после dev server start):**
+`e2e-consumable-cost-reports-check`, `e2e-treatment-consumable-usage-check` 38/38,
+`e2e-service-consumable-templates-check` 30/30, `e2e-inventory-units-check` 27/27,
+`e2e-inventory-corrections-check` 34/34, `e2e-inventory-check` 33/33,
+`e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
+`e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
 ---
 
