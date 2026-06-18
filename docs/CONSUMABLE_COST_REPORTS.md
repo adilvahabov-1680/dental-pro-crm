@@ -58,6 +58,11 @@ Filter form uses HTML `<form method="GET">` — no JS required.
 
 Link available from `/inventory` page header (BarChart3 icon, "Sərfiyyat hesabatı").
 
+**"Müalicəyə keç" link** (Session 37): each row in the recent usages table has a link
+to `/treatments/{treatmentItemId}/consumables` so the user can navigate directly from
+the cost report to the specific treatment's consumables page.
+`data-e2e-marker="report-go-to-treatment-{usageId}"` on the link cell.
+
 ## Tenant isolation
 
 - `clinicId` injected from session via `requirePermission("inventory.view")`

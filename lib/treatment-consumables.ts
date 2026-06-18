@@ -1,7 +1,8 @@
 /**
- * Данные и helper для TreatmentConsumableUsage (Session 34).
+ * Данные и helper для TreatmentConsumableUsage (Session 34–37).
  * Фактическое списание расходников по шаблонам ServiceConsumableTemplate.
  */
+import { prisma } from "@/lib/prisma";
 import { tenantClient } from "@/lib/tenant";
 import type { SessionUser } from "@/types/auth";
 
@@ -30,12 +31,18 @@ export interface TreatmentConsumableUsageRow {
   wasSkipped: boolean;
   note: string | null;
   inventoryMovementId: string | null;
+  createdAt: Date;
+  createdByName: string | null;
   isReversed: boolean;
   reversedAt: Date | null;
   reversedById: string | null;
+  reversedByName: string | null;
   reversalReason: string | null;
   reversalMovementId: string | null;
 }
+
+/** Consumable status for a treatment item based on its usage rows. */
+export type ConsumableStatus = "none" | "applied" | "reversed" | "reapplied";
 
 /** Шаблоны расходников для услуги (для формы checklist на странице лечения). */
 export async function getConsumableTemplatesForService(
@@ -70,7 +77,7 @@ export async function getConsumableTemplatesForService(
   }));
 }
 
-/** Уже применённые usage для treatmentItem. */
+/** Уже применённые usage для treatmentItem, с именами пользователей для аудита. */
 export async function getConsumableUsagesForTreatment(
   user: SessionUser,
   treatmentItemId: string,
@@ -82,6 +89,22 @@ export async function getConsumableUsagesForTreatment(
     include: { inventoryItem: { select: { name: true } } },
     orderBy: { createdAt: "asc" },
   });
+
+  // Collect unique user IDs for a single display-name lookup
+  const userIds = new Set<string>();
+  for (const r of rows) {
+    if (r.createdById) userIds.add(r.createdById);
+    if (r.reversedById) userIds.add(r.reversedById);
+  }
+  const userNames = new Map<string, string>();
+  if (userIds.size > 0) {
+    const users = await prisma.user.findMany({
+      where: { id: { in: [...userIds] }, clinicId: user.clinicId },
+      select: { id: true, fullName: true },
+    });
+    for (const u of users) userNames.set(u.id, u.fullName);
+  }
+
   return rows.map((r) => ({
     id: r.id,
     inventoryItemId: r.inventoryItemId,
@@ -93,12 +116,58 @@ export async function getConsumableUsagesForTreatment(
     wasSkipped: r.wasSkipped,
     note: r.note,
     inventoryMovementId: r.inventoryMovementId,
+    createdAt: r.createdAt,
+    createdByName: r.createdById ? (userNames.get(r.createdById) ?? null) : null,
     isReversed: r.isReversed,
     reversedAt: r.reversedAt,
     reversedById: r.reversedById,
+    reversedByName: r.reversedById ? (userNames.get(r.reversedById) ?? null) : null,
     reversalReason: r.reversalReason,
     reversalMovementId: r.reversalMovementId,
   }));
+}
+
+/**
+ * Bulk consumable status per treatment item — one query for all IDs.
+ * Used by treatment list pages to show per-card status badges without N+1.
+ */
+export async function getConsumableStatusMap(
+  user: SessionUser,
+  treatmentItemIds: string[],
+): Promise<Record<string, ConsumableStatus>> {
+  if (!user.clinicId || treatmentItemIds.length === 0) return {};
+  const db = tenantClient(user.clinicId);
+  const usages = await db.treatmentConsumableUsage.findMany({
+    where: {
+      treatmentItemId: { in: treatmentItemIds },
+      wasSkipped: false,
+      inventoryMovementId: { not: null as string | null },
+    },
+    select: { treatmentItemId: true, isReversed: true },
+  });
+
+  const grouped = new Map<string, { active: number; reversed: number }>();
+  for (const u of usages) {
+    const g = grouped.get(u.treatmentItemId) ?? { active: 0, reversed: 0 };
+    if (u.isReversed) g.reversed++;
+    else g.active++;
+    grouped.set(u.treatmentItemId, g);
+  }
+
+  const result: Record<string, ConsumableStatus> = {};
+  for (const tid of treatmentItemIds) {
+    const g = grouped.get(tid);
+    if (!g || (g.active === 0 && g.reversed === 0)) {
+      result[tid] = "none";
+    } else if (g.active > 0 && g.reversed === 0) {
+      result[tid] = "applied";
+    } else if (g.active === 0 && g.reversed > 0) {
+      result[tid] = "reversed";
+    } else {
+      result[tid] = "reapplied"; // active + reversed → re-applied after reversal
+    }
+  }
+  return result;
 }
 
 /** Конвертация quantity/unit → base quantity/unit по InventoryItem. */

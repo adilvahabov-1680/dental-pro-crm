@@ -15,6 +15,7 @@ export function TreatmentItemCard({
   showPatient = false,
   materialsLabel,
   consumablesLabel,
+  consumableStatusBadge,
   followUpLabel,
 }: {
   item: TreatmentItemFull;
@@ -26,6 +27,8 @@ export function TreatmentItemCard({
   materialsLabel?: string;
   /** метка «Sərfiyyatlar» — ссылка на /treatments/[id]/consumables */
   consumablesLabel?: string;
+  /** read-only badge showing consumable status (applied/reversed/reapplied) */
+  consumableStatusBadge?: { label: string; tone: "applied" | "reversed" | "reapplied" };
   /** метка «Növbəti qəbul planla» — ссылка на /treatments/[id]/followup (planned/in_progress, без appointmentId) */
   followUpLabel?: string;
 }) {
@@ -68,6 +71,20 @@ export function TreatmentItemCard({
             >
               <Receipt className="size-3" /> {formatInvoiceNumber(item.invoice.number)}
             </Link>
+          )}
+          {consumableStatusBadge && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                consumableStatusBadge.tone === "applied" && "bg-success/10 text-success",
+                consumableStatusBadge.tone === "reversed" && "bg-warning/10 text-warning",
+                consumableStatusBadge.tone === "reapplied" && "bg-accent/10 text-accent",
+              )}
+              data-e2e-marker={`consumable-status-badge-${item.id}`}
+            >
+              <FlaskConical className="size-3" />
+              {consumableStatusBadge.label}
+            </span>
           )}
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-text-secondary">

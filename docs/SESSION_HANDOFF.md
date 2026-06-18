@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-18 (после сессии 36: Treatment Consumable Reversal v1)
+**by AV Systems** · обновлено: 2026-06-18 (после сессии 37: Consumables Audit Visibility v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -68,6 +68,7 @@ Demo-логины (пароль задаётся через `SEED_DEMO_PASSWORD`
 | Treatment Consumable Usage v1 (фактическое списание по шаблонам, dose-конвертация, double-apply protection) | готов | `e2e-treatment-consumable-usage-check` 38/38 |
 | Consumable Cost Reports v1 (отчёт по фактическим расходам, /reports/consumables, cost=baseQty×unitCost) | готов | `e2e-consumable-cost-reports-check` 30/30 |
 | Treatment Consumable Reversal v1 (полный возврат списания, audit trail, reversal movement, re-apply после reversal) | готов | `e2e-treatment-consumable-reversal-check` 29/29 |
+| Consumables Audit Visibility v1 (treatment card badges none/applied/reversed/reapplied, usage detail rows, audit trail section, movement labels, cost report link) | готов | `e2e-consumables-audit-visibility-check` 28/28 |
 
 Запуск e2e: `npx tsx scripts/e2e-<module>-check.ts` (нужен dev server + seed).
 MVP-цикл закрыт: Pasiyent → Qəbul → Diş xəritəsi → Müalicə → Hesab/Ödəniş →
@@ -653,6 +654,64 @@ Read-only отчёт по фактически использованным ра
 `e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
 `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
+## 7.16. Сессия 37 — итоги (Consumables Audit Visibility v1)
+
+Polish-сессия без новых модулей, без DB migration, без бизнес-логики.
+
+**Изменения:**
+- **`lib/constants.ts`**: добавлены `treatment_usage` и `treatment_usage_reversal` в `MOVEMENT_TYPE_META`
+  (AZ метки + sign), а также `supplier_receiving`.
+- **`lib/treatment-consumables.ts`**:
+  - `TreatmentConsumableUsageRow` расширен: `createdAt`, `createdByName`, `reversedByName`
+  - Добавлена функция `getConsumableStatusMap(user, itemIds)` — единый bulk-запрос
+    для вычисления статуса `"none" | "applied" | "reversed" | "reapplied"` по списку TreatmentItem
+  - Добавлена функция `prisma.user.findMany` для получения displayName (secondary lookup)
+- **`i18n/az.ts`**: добавлены `treatments.consumables.statusNone/statusApplied/statusReversed/statusReapplied`,
+  `auditTitle`, `auditApplied/auditReversed/auditReapplied`, `stockDeducted/stockReturned`,
+  `reversalReasonLabel`, `movementMarker`, `activeLabel/reversedLabel/skippedLabel`;
+  `reports.consumables.recent.goToTreatment`
+- **`components/treatments/TreatmentItemCard.tsx`**: новый проп `consumableStatusBadge?`
+  (label + tone applied/reversed/reapplied), badge рендерится рядом с именем услуги
+- **`components/treatments/TreatmentItemsList.tsx`**: новый проп `consumableStatusBadges?`
+  (Record по id → badge), передаётся каждой карточке
+- **`app/(dashboard)/treatments/page.tsx`** + **`patients/[id]/treatments/page.tsx`**:
+  вызывают `getConsumableStatusMap`, строят `consumableStatusBadges`, передают в `TreatmentItemsList`
+- **`components/treatments/TreatmentConsumableChecklist.tsx`**:
+  - Расширены строки usage: qty с конвертацией дозы, status label, movement marker,
+    createdByName, reversal details (причина, reversed by, reversal movement marker)
+  - Добавлена секция «Sərfiyyat tarixçəsi» (`data-e2e-marker="audit-trail-section"`)
+    со Step 1 (apply), Step 2 (reversal, `audit-reversal-step`), Step 3 (re-apply, `audit-reapply-step`)
+- **`app/(dashboard)/reports/consumables/page.tsx`**: добавлена колонка «Müalicəyə keç»
+  с Link → `/treatments/{treatmentItemId}/consumables` (`data-e2e-marker="report-go-to-treatment-{id}"`)
+- **`scripts/e2e-consumables-audit-visibility-check.ts`**: 28 проверок (секции A–H)
+- **`package.json`**: добавлен `e2e-consumables-audit-visibility-check`
+- **docs**: обновлены `TREATMENT_CONSUMABLE_USAGE.md`, `TREATMENT_CONSUMABLE_REVERSAL.md`,
+  `CONSUMABLE_COST_REPORTS.md`, `SESSION_HANDOFF.md`
+
+**Не реализовано (out of scope по заданию сессии):**
+- Частичный reversal отдельных строк
+- Финансовая аналитика / cost snapshot
+- Мутация склада
+
+**E2E (все 13 суит после сессии):**
+`e2e-consumables-audit-visibility-check` 28/28,
+`e2e-treatment-consumable-reversal-check` 29/29,
+`e2e-consumable-cost-reports-check` 30/30,
+`e2e-treatment-consumable-usage-check` 38/38,
+`e2e-service-consumable-templates-check` 30/30,
+`e2e-inventory-units-check` 27/27,
+`e2e-inventory-corrections-check` 34/34,
+`e2e-inventory-check` 33/33,
+`e2e-supplier-receiving-check` 27/27,
+`e2e-supplier-orders-check` 38/38,
+`e2e-admin-check` 36/36,
+`e2e-platform-admin-check` 42/42,
+`e2e-demo-flow-check` 11/11.
+
+`npx tsc --noEmit` → 0 ошибок. `npm run build` → чистый (47 routes).
+
+---
+
 ## 7.15. Сессия 36 — итоги (Treatment Consumable Reversal v1)
 
 Полный возврат (reversal) применённых расходников на лечение. Частичный reversal — out of scope v1.
@@ -760,6 +819,8 @@ Read-only отчёт по фактически использованным ра
 8. **Platform billing**: подписки, квоты, ограничение числа пользователей/пациентов.
 9. **Session invalidation**: при смене assignedDoctorId, пароля, логина или
    suspended-статусе инвалидировать JWT (server-side session store / revision field).
+
+Завершено в Сессии 37 (Session 38 НЕ начинать в этой сессии).
 
 ## 9. Чек-лист конца сессии
 

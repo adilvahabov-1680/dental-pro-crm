@@ -72,6 +72,22 @@ New fields on `TreatmentConsumableUsage`:
 
 New `MovementType` enum value: `treatment_usage_reversal`
 
+## UI visibility (Session 37)
+
+Reversal details are displayed in `TreatmentConsumableChecklist` (client component):
+
+- Each reversed usage row shows: `reversedAt`, `reversedByName`, `reversalReason`,
+  reversal movement marker (`id.slice(-8)`) — `data-e2e-marker="reversal-detail-{itemId}"`
+- Audit trail section `data-e2e-marker="audit-trail-section"` shows:
+  - Step 2 reversal block: `data-e2e-marker="audit-reversal-step"` — lists reversed rows
+    with `labels.stockReturned`, reason, reversedByName
+  - Step 3 re-apply block: `data-e2e-marker="audit-reapply-step"` — if active rows exist
+    after reversal (re-applied case)
+- Treatment card badges (`none` / `applied` / `reversed` / `reapplied`) visible on
+  `/treatments` and `/patients/[id]/treatments`
+- `treatment_usage_reversal` movement type shows as "Sərfiyyat geri qaytarma" on
+  `/inventory/[id]` page via `MOVEMENT_TYPE_META`
+
 ## NOT implemented by design (future sessions)
 
 - Partial reversal of a single usage line

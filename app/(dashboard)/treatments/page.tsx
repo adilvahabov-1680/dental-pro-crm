@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { listTreatmentItems, type TreatmentFilters } from "@/lib/treatments";
+import { getConsumableStatusMap } from "@/lib/treatment-consumables";
 import { listClinicDoctors } from "@/lib/patients";
 import { TREATMENT_ITEM_STATUS_META } from "@/lib/constants";
 import { TREATMENT_ITEM_STATUSES } from "@/lib/validation/treatments";
@@ -37,6 +38,14 @@ export default async function TreatmentsPage({
     listTreatmentItems(user, filters),
     showDoctorFilter ? listClinicDoctors(user) : Promise.resolve([]),
   ]);
+
+  const statusMap = await getConsumableStatusMap(user, items.map((i) => i.id));
+  const consumableStatusBadges: Record<string, { label: string; tone: "applied" | "reversed" | "reapplied" }> = {};
+  for (const [id, st] of Object.entries(statusMap)) {
+    if (st === "applied") consumableStatusBadges[id] = { label: t.treatments.consumables.statusApplied, tone: "applied" };
+    else if (st === "reversed") consumableStatusBadges[id] = { label: t.treatments.consumables.statusReversed, tone: "reversed" };
+    else if (st === "reapplied") consumableStatusBadges[id] = { label: t.treatments.consumables.statusReapplied, tone: "reapplied" };
+  }
 
   const statusOptions = TREATMENT_ITEM_STATUSES.map((v) => ({
     value: v,
@@ -76,6 +85,7 @@ export default async function TreatmentsPage({
         showPatient
         materialsLabel={canManage ? t.inventory.materials.addTitle : undefined}
         consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
+        consumableStatusBadges={consumableStatusBadges}
       />
       {items.length > 0 && (
         <p className="mt-3 text-sm tabular-nums text-text-secondary">

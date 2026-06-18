@@ -13,6 +13,7 @@ export function TreatmentItemsList({
   showPatient = false,
   materialsLabel,
   consumablesLabel,
+  consumableStatusBadges,
   followUpLabel,
 }: {
   items: TreatmentItemFull[];
@@ -23,6 +24,8 @@ export function TreatmentItemsList({
   showPatient?: boolean;
   materialsLabel?: string;
   consumablesLabel?: string;
+  /** per-item consumable status badge keyed by treatmentItemId */
+  consumableStatusBadges?: Record<string, { label: string; tone: "applied" | "reversed" | "reapplied" }>;
   followUpLabel?: string;
 }) {
   if (items.length === 0) {
@@ -44,6 +47,7 @@ export function TreatmentItemsList({
           showPatient={showPatient}
           materialsLabel={materialsLabel}
           consumablesLabel={consumablesLabel}
+          consumableStatusBadge={consumableStatusBadges?.[item.id]}
           followUpLabel={followUpLabel}
         />
       ))}

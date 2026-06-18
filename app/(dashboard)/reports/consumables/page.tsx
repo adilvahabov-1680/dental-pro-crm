@@ -342,7 +342,8 @@ export default async function ConsumableCostReportPage({
                   <th className="pb-2 pr-3 font-medium">{tr.recent.material}</th>
                   <th className="pb-2 pr-3 font-medium text-right">{tr.recent.qty}</th>
                   <th className="pb-2 pr-3 font-medium text-right">{tr.recent.unitCost}</th>
-                  <th className="pb-2 font-medium text-right">{tr.recent.lineCost}</th>
+                  <th className="pb-2 pr-3 font-medium text-right">{tr.recent.lineCost}</th>
+                  <th className="pb-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -350,6 +351,7 @@ export default async function ConsumableCostReportPage({
                   <tr
                     key={r.id}
                     className="border-b border-border-subtle/50 last:border-0"
+                    data-e2e-marker={`recent-usage-row-${r.id}`}
                   >
                     <td className="py-2 pr-3 whitespace-nowrap text-text-secondary">
                       {formatDate(r.createdAt)}
@@ -370,8 +372,17 @@ export default async function ConsumableCostReportPage({
                         </span>
                       )}
                     </td>
-                    <td className="py-2 text-right tabular-nums font-medium">
+                    <td className="py-2 pr-3 text-right tabular-nums font-medium">
                       {r.unitCostGapik !== null ? formatMoney(r.lineCostGapik) : "—"}
+                    </td>
+                    <td className="py-2 whitespace-nowrap">
+                      <Link
+                        href={`/treatments/${r.treatmentItemId}/consumables`}
+                        className="text-[11px] text-accent transition-opacity hover:opacity-70"
+                        data-e2e-marker={`report-go-to-treatment-${r.id}`}
+                      >
+                        {tr.recent.goToTreatment}
+                      </Link>
                     </td>
                   </tr>
                 ))}

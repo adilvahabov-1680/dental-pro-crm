@@ -26,7 +26,8 @@
     "e2e-supplier-orders-check": "tsx scripts/e2e-supplier-orders-check.ts",
     "e2e-admin-check": "tsx scripts/e2e-admin-check.ts",
     "e2e-platform-admin-check": "tsx scripts/e2e-platform-admin-check.ts",
-    "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts"
+    "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts",
+    "e2e-consumables-audit-visibility-check": "tsx scripts/e2e-consumables-audit-visibility-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,4 +1,4 @@
-# Treatment Consumable Usage — Session 34
+# Treatment Consumable Usage — Sessions 34 + 37
 
 ## What it is
 
@@ -31,6 +31,8 @@ Key fields per usage row:
 | `wasSkipped` | true = no stock deduction, no movement |
 | `inventoryMovementId` | Unique FK — links to the movement that deducted stock |
 | `createdById` | User who applied |
+| `isReversed` | true = reversed (Session 36) |
+| `reversedAt` / `reversedById` / `reversalReason` / `reversalMovementId` | Reversal audit fields (Session 36) |
 
 ## Dose conversion
 
@@ -80,13 +82,31 @@ clears and the apply form becomes available for re-apply.
 Template checklist at `/treatments/[id]/consumables`.
 Link (`FlaskConical` icon) shown in `TreatmentItemCard` for all non-cancelled items when `canManage`.
 
-Detail page layout:
-- If usages exist: shows applied list + "already applied" notice
-- If not yet applied (canManage): shows template checklist with qty/unit/skip controls
+**Treatment card status badges** (Session 37 — `getConsumableStatusMap` in `lib/treatment-consumables.ts`):
+- `applied` — at least one active non-reversed usage
+- `reversed` — all usages reversed, no active ones
+- `reapplied` — some reversed + some active (after re-apply)
+- `none` — no non-skipped usages with movement
+
+Badge computed by `getConsumableStatusMap(user, itemIds)` — single bulk query, not N+1.
+Shown on `/treatments` and `/patients/[id]/treatments` pages via `consumableStatusBadges` prop on `TreatmentItemsList`.
+
+**Consumables page detail** (Session 37):
+Each usage row shows:
+- Material name, qty in prescribed unit → base qty in base unit (if unit ≠ baseUnit)
+- Status label: active / reversed / skipped (`data-e2e-marker="usage-status-{itemId}"`)
+- Movement marker (last 8 chars of movementId), createdAt, createdByName (`data-e2e-marker="usage-audit-{itemId}"`)
+- For reversed usages: reversedAt, reversedByName, reversalReason, reversal movement marker
+
+**"Sərfiyyat tarixçəsi" audit trail section** (`data-e2e-marker="audit-trail-section"`):
+Timeline showing Step 1 (first apply), Step 2 (reversal, if any), Step 3 (re-apply, if any).
+Built from `existingUsages` data in the client component — no extra query.
 
 ## NOT implemented (future sessions)
 
 - ~~**Session 35** — Cost reports per service / per period~~ ✅ done
-- Partial reversal of individual usage lines (Session 36 = full reversal only)
+- ~~**Session 36** — Full reversal of all usages~~ ✅ done
+- ~~**Session 37** — Audit visibility: badges, detail rows, audit trail, movement labels~~ ✅ done
+- Partial reversal of individual usage lines (v1 = full reversal only)
 - Profitability analytics per doctor
 - Automatic supplier reorder on low-stock
