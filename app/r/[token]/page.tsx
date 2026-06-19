@@ -2,6 +2,7 @@ import { CalendarClock, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { PatientResponseForm } from "@/components/patient-response/PatientResponseForm";
+import { RescheduleOptionsSelectionForm } from "@/components/patient-response/RescheduleOptionsSelectionForm";
 import { getPublicResponseLinkState } from "@/lib/patient-response";
 import { getDict } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
@@ -18,6 +19,7 @@ export default async function PatientResponsePage({
 }) {
   const { token } = await params;
   const t = getDict().patientResponse;
+  const tr = getDict().rescheduleOptions.public;
   const state = await getPublicResponseLinkState(token);
 
   return (
@@ -30,7 +32,9 @@ export default async function PatientResponsePage({
           <div className="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-accent to-accent-deep text-bg-base shadow-[0_8px_32px_rgb(34_211_238/0.35)]">
             <ToothIcon className="size-8" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">{t.title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            {state.kind === "active" && state.purpose === "reschedule_offer" ? tr.title : t.title}
+          </h1>
         </div>
 
         <Card className="p-6" data-e2e-marker="patient-response-card">
@@ -58,19 +62,34 @@ export default async function PatientResponsePage({
               </div>
               <p className="mb-3 text-xs text-text-secondary">{state.clinicName}</p>
 
-              <PatientResponseForm
-                token={state.token}
-                labels={{
-                  chooseAnswer: t.chooseAnswer,
-                  options: t.options,
-                  lateWarning: t.lateWarning,
-                  commentLabel: t.commentLabel,
-                  commentPlaceholder: t.commentPlaceholder,
-                  submitting: t.submitting,
-                  thankYou: t.thankYou,
-                  errors: t.errors,
-                }}
-              />
+              {state.purpose === "reschedule_offer" ? (
+                <RescheduleOptionsSelectionForm
+                  token={state.token}
+                  options={state.options ?? []}
+                  labels={{
+                    chooseOption: tr.chooseOption,
+                    note: tr.note,
+                    select: tr.select,
+                    submitting: tr.submitting,
+                    thankYou: tr.thankYou,
+                    errors: t.errors,
+                  }}
+                />
+              ) : (
+                <PatientResponseForm
+                  token={state.token}
+                  labels={{
+                    chooseAnswer: t.chooseAnswer,
+                    options: t.options,
+                    lateWarning: t.lateWarning,
+                    commentLabel: t.commentLabel,
+                    commentPlaceholder: t.commentPlaceholder,
+                    submitting: t.submitting,
+                    thankYou: t.thankYou,
+                    errors: t.errors,
+                  }}
+                />
+              )}
             </>
           )}
 

@@ -118,6 +118,20 @@ export function paymentReminderMessage(opts: {
   );
 }
 
+/** Сообщение со ссылкой на выбор предложенного варианта времени (сессия 43). */
+export function rescheduleOptionsMessage(opts: {
+  patientName: string;
+  clinicName: string;
+  optionsUrl: string;
+}): string {
+  return (
+    `Hörmətli ${opts.patientName},\n` +
+    `${opts.clinicName} qəbul vaxtınızı dəyişmək üçün aşağıdakı linkdən sizə uyğun vaxtı seçin:\n\n` +
+    `${opts.optionsUrl}\n\n` +
+    `Qeyd: yalnız klinikanın təklif etdiyi vaxtlardan birini seçə bilərsiniz.`
+  );
+}
+
 export function documentMessage(opts: {
   patientName: string;
   clinicName: string;
@@ -177,6 +191,8 @@ export interface ReminderCandidate {
   startsAt: Date;
   doctorName: string;
   status: ReminderStatus;
+  /** true, если для responded_reschedule приёма уже подготовлена reschedule_offer-ссылка (сессия 43). */
+  rescheduleOptionsSent: boolean;
 }
 
 export interface ReminderQueue {
@@ -246,13 +262,24 @@ export async function listReminderCandidates(user: SessionUser): Promise<Reminde
   const pendingIds = appts
     .filter((a) => (PENDING_RESPONSE_STATUSES as readonly string[]).includes(a.status))
     .map((a) => a.id);
-  const prepared = pendingIds.length
-    ? await db.notification.findMany({
-        where: { appointmentId: { in: pendingIds }, type: "appointment_reminder" },
-        select: { appointmentId: true },
-      })
-    : [];
+  const rescheduleIds = appts.filter((a) => a.status === "reschedule_requested").map((a) => a.id);
+
+  const [prepared, rescheduleOffers] = await Promise.all([
+    pendingIds.length
+      ? db.notification.findMany({
+          where: { appointmentId: { in: pendingIds }, type: "appointment_reminder" },
+          select: { appointmentId: true },
+        })
+      : Promise.resolve([]),
+    rescheduleIds.length
+      ? db.notification.findMany({
+          where: { appointmentId: { in: rescheduleIds }, type: "reschedule_offer" },
+          select: { appointmentId: true },
+        })
+      : Promise.resolve([]),
+  ]);
   const preparedSet = new Set(prepared.map((p) => p.appointmentId));
+  const rescheduleOffersSet = new Set(rescheduleOffers.map((p) => p.appointmentId));
 
   const candidates = appts.map((a) => ({
     appointmentId: a.id,
@@ -262,6 +289,7 @@ export async function listReminderCandidates(user: SessionUser): Promise<Reminde
     startsAt: a.startsAt,
     doctorName: a.doctor.user.fullName,
     status: STATUS_TO_REMINDER[a.status] ?? (preparedSet.has(a.id) ? "prepared" : "due"),
+    rescheduleOptionsSent: rescheduleOffersSet.has(a.id),
   }));
 
   return { candidates, reminderHoursBefore, notDueCount };

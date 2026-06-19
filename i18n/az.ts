@@ -747,6 +747,36 @@ export const az = {
       generic: "Xəta baş verdi. Yenidən cəhd edin.",
     },
   },
+  rescheduleOptions: {
+    staff: {
+      title: "Pasiyent vaxt dəyişmək istəyir",
+      desc: "Pasiyentə təklif etmək üçün 2–3 uyğun vaxt seçin",
+      option1: "Variant 1",
+      option2: "Variant 2",
+      option3: "Variant 3 (istəyə görə)",
+      submit: "Variant linki hazırla",
+      prepared: "Link hazırlandı",
+      alreadySent: "Vaxt variantları göndərilib",
+      errors: {
+        notFound: "Tapılmadı",
+        noPhone: "Telefon nömrəsi yoxdur",
+        notRescheduleRequested: "Bu əməliyyat yalnız \"Vaxt dəyişmə sorğusu\" statusunda mövcuddur",
+        optionsInvalid: "Vaxtları düzgün doldurun",
+        optionsPast: "Seçilmiş vaxtlar gələcəkdə olmalıdır",
+        optionsDuplicate: "Variantlar təkrarlanmamalıdır",
+        optionsTooFew: "Ən azı 2 variant lazımdır",
+        generic: "Xəta baş verdi. Yenidən cəhd edin.",
+      },
+    },
+    public: {
+      title: "Yeni qəbul vaxtı",
+      chooseOption: "Sizə uyğun vaxtı seçin",
+      note: "Yalnız klinikanın təklif etdiyi vaxtlardan birini seçə bilərsiniz.",
+      select: "Bu vaxtı seçirəm",
+      submitting: "Göndərilir…",
+      thankYou: "Yeni qəbul vaxtı təsdiqləndi",
+    },
+  },
   inventory: {
     new: "Yeni material",
     summary: {

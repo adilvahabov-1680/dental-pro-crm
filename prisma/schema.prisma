@@ -216,6 +216,7 @@ enum NotificationType {
   document_message // сессия 15: подготовленное сообщение о документе
   payment_reminder // сессия 15: напоминание об оплате (WhatsApp click-to-chat)
   manual_note // сессия 15: ручная запись в истории коммуникации
+  reschedule_offer // сессия 43: предложенные варианты времени / выбор пациента
 }
 
 enum NotificationStatus {
@@ -231,6 +232,7 @@ enum LinkPurpose {
   confirm_appointment
   feedback
   document_sign
+  reschedule_offer // сессия 43: ссылка с предложенными вариантами времени
 }
 
 enum LinkStatus {

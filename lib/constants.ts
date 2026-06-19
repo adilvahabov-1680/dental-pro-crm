@@ -110,6 +110,7 @@ export const COMMUNICATION_TYPE_META: Record<string, { az: string; color: string
   document_message: { az: "Sənəd mesajı", color: "info" },
   payment_reminder: { az: "Ödəniş xatırlatması", color: "warning" },
   manual_note: { az: "Qeyd", color: "text-secondary" },
+  reschedule_offer: { az: "Vaxt variantı təklifi", color: "info" },
 };
 
 /**

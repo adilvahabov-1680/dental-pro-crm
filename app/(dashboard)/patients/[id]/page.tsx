@@ -24,6 +24,7 @@ import { PatientDocumentsBlock } from "@/components/documents/PatientDocumentsBl
 import { CommunicationHistoryBlock } from "@/components/communications/CommunicationHistoryBlock";
 import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
+import { RescheduleOptionsForm } from "@/components/appointments/RescheduleOptionsForm";
 import { PatientTreatmentBlock } from "@/components/treatments/PatientTreatmentBlock";
 import { PatientFinanceBlock } from "@/components/finance/PatientFinanceBlock";
 import { formatInvoiceNumber } from "@/lib/constants";
@@ -317,6 +318,13 @@ export default async function PatientDetailPage({
                           small
                         />
                       </div>
+                    )}
+                    {canManageAppointments && appts.upcoming.status === "reschedule_requested" && (
+                      <RescheduleOptionsForm
+                        appointmentId={appts.upcoming.id}
+                        alreadySent={appts.rescheduleOptionsSent}
+                        labels={t.rescheduleOptions.staff}
+                      />
                     )}
                   </div>
                 ) : (

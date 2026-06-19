@@ -117,7 +117,9 @@ export async function getAppointmentForUser(
 
 /** Блок «Qəbullar» на карточке пациента: ближайший + последние 3. */
 export async function listPatientAppointments(user: SessionUser, patientId: string) {
-  if (!user.clinicId) return { upcoming: null, recent: [] as AppointmentListItem[], total: 0 };
+  if (!user.clinicId) {
+    return { upcoming: null, recent: [] as AppointmentListItem[], total: 0, rescheduleOptionsSent: false };
+  }
   const db = tenantClient(user.clinicId);
   const scope = appointmentScopeWhere(user);
   const now = new Date();
@@ -141,10 +143,21 @@ export async function listPatientAppointments(user: SessionUser, patientId: stri
     }),
     db.appointment.count({ where: { AND: [{ patientId, deletedAt: null }, scope] } }),
   ]);
+
+  // сессия 43: уже есть подготовленная reschedule_offer-ссылка для этого приёма?
+  let rescheduleOptionsSent = false;
+  if (upcoming?.status === "reschedule_requested") {
+    rescheduleOptionsSent =
+      (await db.notification.count({
+        where: { appointmentId: upcoming.id, type: "reschedule_offer" },
+      })) > 0;
+  }
+
   return {
     upcoming: upcoming as AppointmentListItem | null,
     recent: recent as AppointmentListItem[],
     total,
+    rescheduleOptionsSent,
   };
 }
 

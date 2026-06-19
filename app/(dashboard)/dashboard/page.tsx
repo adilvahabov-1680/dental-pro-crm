@@ -183,6 +183,7 @@ export default async function DashboardPage() {
               action: t.communications.reminders.action,
               prepared: t.communications.whatsapp.prepared,
               noPhone: t.communications.errors.noPhone,
+              rescheduleOptionsSent: t.rescheduleOptions.staff.alreadySent,
             }}
             errors={t.communications.errors}
           />

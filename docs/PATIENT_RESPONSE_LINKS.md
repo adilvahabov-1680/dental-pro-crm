@@ -32,7 +32,7 @@ Session 41 ничего не добавляла в схему — использ
 |---|---|
 | `token` | crypto-random, `randomBytes(32).toString("base64url")` (256 бит), unique |
 | `clinicId` / `patientId` / `appointmentId` | tenant + связи (FK) |
-| `purpose` (`LinkPurpose`) | всегда `confirm_appointment` (значения `feedback`/`document_sign` пока не используются) |
+| `purpose` (`LinkPurpose`) | `confirm_appointment` (этот файл) либо `reschedule_offer` (Session 43, см. ниже); `feedback`/`document_sign` пока не используются |
 | `status` (`LinkStatus`) | `active` → `used`. `expired`/`revoked` поддержаны при чтении, но фоновой джобы нет — «просрочено» вычисляется из `expiresAt` на лету |
 | `expiresAt` | now + 48ч (`RESPONSE_LINK_TTL_HOURS`) |
 | `respondedAt` | момент ответа |
@@ -116,7 +116,8 @@ dev/prod без настройки; явный `NEXT_PUBLIC_APP_URL` нужен 
 ## Не входит в v1 (future)
 
 - WhatsApp Business API / реальная автоматическая отправка.
-- Выбор пациентом нового слота при reschedule (staff предлагает 2-3 времени) — Session 43.
+- ~~Выбор пациентом нового слота при reschedule (staff предлагает 2-3 времени)~~ ✅ сделано в
+  Session 43, см. ниже и **[PATIENT_RESCHEDULE_OPTIONS.md](PATIENT_RESCHEDULE_OPTIONS.md)**.
 - Reason-форма для отмены сверх простого опционального комментария.
 - Feedback/review flow (`LinkPurpose.feedback` зарезервирован, не используется).
 - 6-month recall, scheduler/cron, rate limiting публичного роута.
@@ -143,3 +144,24 @@ Dashboard-панель «Qəbul xatırlatmaları» (бывшая «Bugünkü xat
 переиспользуют ту же модель, что и `APPOINTMENT_STATUS_META`. Ничего в этом файле
 (`lib/patient-response.ts`, `lib/actions/patient-response.ts`, `/r/[token]`) не менялось.
 Детали окна/группировки — **[APPOINTMENT_REMINDER_SCHEDULING.md](APPOINTMENT_REMINDER_SCHEDULING.md)**.
+
+## Дополнение (Session 43): вторая purpose — reschedule_offer
+
+`PatientResponseLink` теперь обслуживает два разных публичных потока через
+`purpose`: `confirm_appointment` (этот файл, Session 41, 4 кнопки ответа) и
+`reschedule_offer` (Session 43, 2–3 кнопки-варианта времени). Это **additive**
+изменение enum'а (`LinkPurpose`/`NotificationType` + значение
+`reschedule_offer`, миграция `20260620000000_add_reschedule_offer`) —
+ничего из описанного выше не меняется для `confirm_appointment`-ссылок.
+
+`response` (Json) для `reschedule_offer` хранит то, что в этом файле
+называется «значения после выбора пациента»: до выбора —
+`{ kind: "options", options: [...] }` (предложено сотрудником), после —
+`{ kind: "selected", selectedOptionId, previousStartsAt/EndsAt,
+newStartsAt/EndsAt }`. `getPublicResponseLinkState` теперь возвращает
+`purpose` и (только для `reschedule_offer`) `options` в `kind: "active"` —
+`used`/`expired`/`not_found` остаются общими для обоих purpose без какой-либо
+утечки информации о том, какой именно поток это был.
+
+Полная схема (staff-форма, валидация, перенос приёма, безопасность) —
+**[PATIENT_RESCHEDULE_OPTIONS.md](PATIENT_RESCHEDULE_OPTIONS.md)**.

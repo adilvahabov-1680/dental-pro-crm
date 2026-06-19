@@ -48,6 +48,8 @@ interface ReminderLabels {
   action: string;
   prepared: string;
   noPhone: string;
+  /** сессия 43: индикатор для responded_reschedule, если reschedule_offer-ссылка уже готовилась. */
+  rescheduleOptionsSent: string;
 }
 
 /** Панель «Qəbul xatırlatmaları» на dashboard (сессия 15, v2 — сессия 42). */
@@ -88,6 +90,9 @@ export function TodayRemindersPanel({
         <span className="hidden text-xs text-text-secondary sm:inline">{c.doctorName}</span>
       </Link>
       <Badge tone={STATUS_TONE[c.status]}>{badgeText(c.status)}</Badge>
+      {c.status === "responded_reschedule" && c.rescheduleOptionsSent && (
+        <span className="text-[11px] text-success">{labels.rescheduleOptionsSent}</span>
+      )}
       {groupOf(c.status) !== "responded" && (
         <WhatsAppActionButton
           action={prepareAppointmentReminder}

@@ -11,7 +11,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { tenantClient } from "@/lib/tenant";
+import { formatDate } from "@/lib/utils";
+import { parseRescheduleOptions } from "@/lib/patient-response";
 import { submitPatientResponseSchema, type PatientResponseFormState } from "@/lib/validation/patient-response";
+import { selectRescheduleOptionSchema } from "@/lib/validation/reschedule-options";
 
 const RESPONSE_TO_STATUS: Record<string, string> = {
   confirm: "confirmed",
@@ -130,4 +133,123 @@ export async function submitPatientResponseAction(
   revalidatePath("/notifications");
 
   return { success: true, responseType };
+}
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${formatDate(d)} ${d.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+/**
+ * Public (no-login) выбор одного из предложенных клиникой вариантов времени
+ * (сессия 43). Безопасность — тот же принцип, что и в submitPatientResponseAction:
+ * все scoping-данные берутся ТОЛЬКО из записи, найденной по token; single-use
+ * через атомарный updateMany(status: active -> used).
+ */
+export async function selectRescheduleOptionAction(
+  _prev: PatientResponseFormState | undefined,
+  formData: FormData,
+): Promise<PatientResponseFormState> {
+  const parsed = selectRescheduleOptionSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: "generic" };
+  const { token, optionId } = parsed.data;
+
+  const link = await prisma.patientResponseLink.findUnique({
+    where: { token },
+    select: {
+      id: true,
+      clinicId: true,
+      patientId: true,
+      appointmentId: true,
+      purpose: true,
+      status: true,
+      expiresAt: true,
+      response: true,
+      patient: { select: { firstName: true, lastName: true } },
+      appointment: { select: { startsAt: true, endsAt: true } },
+    },
+  });
+  if (!link || !link.appointmentId || !link.appointment || link.purpose !== "reschedule_offer") {
+    return { error: "notFound" };
+  }
+  if (link.expiresAt.getTime() < Date.now()) return { error: "expired" };
+  if (link.status !== "active") return { error: "alreadyUsed" };
+
+  const options = parseRescheduleOptions(link.response);
+  const chosen = options.find((o) => o.id === optionId);
+  if (!chosen) return { error: "notFound" };
+
+  const previousStartsAt = link.appointment.startsAt.toISOString();
+  const previousEndsAt = link.appointment.endsAt.toISOString();
+
+  // Атомарный compare-and-swap: только ОДИН конкурентный запрос пройдёт это условие.
+  const claimed = await prisma.patientResponseLink.updateMany({
+    where: { id: link.id, status: "active" },
+    data: {
+      status: "used",
+      respondedAt: new Date(),
+      response: {
+        kind: "selected",
+        selectedOptionId: optionId,
+        previousStartsAt,
+        previousEndsAt,
+        newStartsAt: chosen.startsAt,
+        newEndsAt: chosen.endsAt,
+      },
+    },
+  });
+  if (claimed.count === 0) return { error: "alreadyUsed" };
+
+  const db = tenantClient(link.clinicId);
+  const patientName = `${link.patient.lastName} ${link.patient.firstName}`;
+  const now = new Date();
+
+  try {
+    // appointmentId принадлежит этой клинике по построению (создан только через
+    // tenantClient(link.clinicId) в createOrReplaceRescheduleOptionsLink) — тот же
+    // принцип точечного update по id, что и выше в submitPatientResponseAction.
+    await db.appointment.update({
+      where: { id: link.appointmentId },
+      data: {
+        startsAt: new Date(chosen.startsAt),
+        endsAt: new Date(chosen.endsAt),
+        status: "scheduled",
+        patientResponseStatus: "pending",
+      } as never,
+    });
+
+    await db.notification.create({
+      data: {
+        patientId: link.patientId,
+        appointmentId: link.appointmentId,
+        channel: "other",
+        type: "reschedule_offer",
+        body: `Pasiyent cavab linki vasitəsilə yeni qəbul vaxtını seçdi: ${fmtDateTime(previousStartsAt)} → ${fmtDateTime(chosen.startsAt)}.`,
+        status: "prepared",
+        scheduledAt: now,
+        sentAt: now,
+      } as never,
+    });
+
+    await db.notification.create({
+      data: {
+        appointmentId: link.appointmentId,
+        channel: "in_app",
+        type: "reschedule_offer",
+        body: `${patientName} yeni qəbul vaxtını seçdi: ${fmtDateTime(chosen.startsAt)}.`,
+        status: "pending",
+        scheduledAt: now,
+      } as never,
+    });
+  } catch (e) {
+    console.error("selectRescheduleOptionAction failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath("/appointments");
+  revalidatePath(`/patients/${link.patientId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
+
+  return { success: true };
 }

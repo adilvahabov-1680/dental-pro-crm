@@ -36,6 +36,32 @@ export async function buildPatientResponseUrl(token: string): Promise<string> {
   return `${base}/r/${token}`;
 }
 
+/** Один предложенный клиникой вариант времени (сессия 43). */
+export interface RescheduleOption {
+  /** стабильный в рамках ссылки id ("1"/"2"/"3"), а не appointment/db id. */
+  id: string;
+  startsAt: string; // ISO
+  endsAt: string; // ISO
+}
+
+function isRescheduleOption(v: unknown): v is RescheduleOption {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    typeof (v as Record<string, unknown>).id === "string" &&
+    typeof (v as Record<string, unknown>).startsAt === "string" &&
+    typeof (v as Record<string, unknown>).endsAt === "string"
+  );
+}
+
+/** Защитный парсинг response-json ссылки purpose=reschedule_offer (см. createOrReplaceRescheduleOptionsLink). */
+export function parseRescheduleOptions(response: unknown): RescheduleOption[] {
+  if (!response || typeof response !== "object") return [];
+  const obj = response as Record<string, unknown>;
+  if (obj.kind !== "options" || !Array.isArray(obj.options)) return [];
+  return obj.options.filter(isRescheduleOption);
+}
+
 /**
  * Активная ссылка-ответ для приёма: переиспользует pending-ссылку (не истёкшую),
  * иначе создаёт новую. Один активный токен на appointment — без дублирования.
@@ -72,6 +98,41 @@ export async function getOrCreateAppointmentResponseLink(
   });
 }
 
+/**
+ * Ссылка с предложенными вариантами времени (сессия 43). В отличие от
+ * getOrCreateAppointmentResponseLink — не переиспользует существующую активную
+ * ссылку (варианты у каждого предложения свои), а отзывает (status=revoked)
+ * прошлые активные reschedule_offer-ссылки этого приёма и создаёт новую —
+ * чтобы у пациента не оставалось двух одновременно валидных наборов вариантов.
+ * options хранятся в response (Json) как { kind: "options", options }: до
+ * выбора пациента это единственное использование поля для purpose=reschedule_offer;
+ * после выбора response перезаписывается итогом (см. selectRescheduleOptionAction).
+ */
+export async function createOrReplaceRescheduleOptionsLink(
+  db: TenantClient,
+  params: { patientId: string; appointmentId: string; options: RescheduleOption[] },
+): Promise<{ id: string; token: string }> {
+  await db.patientResponseLink.updateMany({
+    where: { appointmentId: params.appointmentId, purpose: "reschedule_offer", status: "active" },
+    data: { status: "revoked" },
+  });
+
+  const token = generateResponseToken();
+  const expiresAt = new Date(Date.now() + RESPONSE_LINK_TTL_HOURS * 60 * 60 * 1000);
+  return db.patientResponseLink.create({
+    data: {
+      patientId: params.patientId,
+      appointmentId: params.appointmentId,
+      token,
+      purpose: "reschedule_offer",
+      status: "active",
+      expiresAt,
+      response: { kind: "options", options: params.options },
+    } as never,
+    select: { id: true, token: true },
+  });
+}
+
 export type PublicResponseLinkState =
   | { kind: "not_found" }
   | { kind: "expired" }
@@ -79,16 +140,21 @@ export type PublicResponseLinkState =
   | {
       kind: "active";
       token: string;
+      purpose: "confirm_appointment" | "reschedule_offer";
       clinicName: string;
       patientName: string;
       doctorName: string;
       startsAt: Date;
+      /** только для purpose === "reschedule_offer". */
+      options?: RescheduleOption[];
     };
 
 /**
  * Публичное (без сессии) чтение по токену. Минимум данных, никаких internal id,
  * никакой медицинской/финансовой информации. clinicId/patientId/appointmentId
  * берутся ТОЛЬКО из найденной по token записи — без поиска по другим id.
+ * purpose=reschedule_offer дополнительно возвращает options (сессия 43) —
+ * остальные kind ("used"/"expired"/"not_found") универсальны для обоих purpose.
  */
 export async function getPublicResponseLinkState(token: string): Promise<PublicResponseLinkState> {
   if (!TOKEN_FORMAT.test(token)) return { kind: "not_found" };
@@ -100,6 +166,8 @@ export async function getPublicResponseLinkState(token: string): Promise<PublicR
       expiresAt: true,
       responseType: true,
       appointmentId: true,
+      purpose: true,
+      response: true,
       clinic: { select: { name: true } },
       patient: { select: { firstName: true, lastName: true } },
       appointment: {
@@ -119,9 +187,11 @@ export async function getPublicResponseLinkState(token: string): Promise<PublicR
   return {
     kind: "active",
     token,
+    purpose: link.purpose === "reschedule_offer" ? "reschedule_offer" : "confirm_appointment",
     clinicName: link.clinic.name,
     patientName: `${link.patient.lastName} ${link.patient.firstName}`,
     doctorName: link.appointment.doctor.user.fullName,
     startsAt: link.appointment.startsAt,
+    ...(link.purpose === "reschedule_offer" ? { options: parseRescheduleOptions(link.response) } : {}),
   };
 }
