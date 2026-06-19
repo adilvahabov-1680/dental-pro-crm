@@ -51,15 +51,18 @@ export function ClinicParamsForm({
             defaultValue={String(params.defaultAppointmentMinutes)}
             error={err("defaultAppointmentMinutes")}
           />
-          <Input
-            id="reminderHoursBefore"
-            name="reminderHoursBefore"
-            label={f.reminderHours}
-            inputMode="numeric"
-            required
-            defaultValue={String(params.reminderHoursBefore)}
-            error={err("reminderHoursBefore")}
-          />
+          <div className="space-y-1.5">
+            <Input
+              id="reminderHoursBefore"
+              name="reminderHoursBefore"
+              label={f.reminderHours}
+              inputMode="numeric"
+              required
+              defaultValue={String(params.reminderHoursBefore)}
+              error={err("reminderHoursBefore")}
+            />
+            <p className="text-xs text-text-secondary">{f.reminderHoursHint}</p>
+          </div>
         </div>
 
         <div className="rounded-[10px] border border-border-subtle bg-bg-base/40 p-3">

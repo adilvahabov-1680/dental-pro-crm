@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import { tenantClient } from "@/lib/tenant";
 import { hasPermission } from "@/lib/permissions";
 import { appointmentScopeWhere } from "@/lib/appointments";
+import { getClinicParams } from "@/lib/settings";
 import type { SessionUser } from "@/types/auth";
 
 export const COMMUNICATION_CHANNELS = ["whatsapp", "sms", "phone", "other"] as const;
@@ -19,8 +20,36 @@ export type CommunicationChannel = (typeof COMMUNICATION_CHANNELS)[number];
 /** Каналы, которые относятся к коммуникации с пациентом (не in_app для сотрудников). */
 const PATIENT_CHANNELS = ["whatsapp", "sms", "phone", "other"] as const;
 
-/** Статусы приёма, для которых имеет смысл напоминание. */
-const REMINDER_STATUSES = ["scheduled", "notified", "confirmed"] as const;
+/**
+ * Статусы приёма, попадающие в очередь напоминаний (сессия 42). scheduled/notified
+ * — обычный due/prepared поток; confirmed/running_late/reschedule_requested/cancelled
+ * — уже есть ответ пациента (или ручной статус), показываются как "responded_*", а не
+ * "due". completed/no_show/late_cancelled — вне очереди, напоминание не имеет смысла.
+ */
+const REMINDER_QUEUE_STATUSES = [
+  "scheduled",
+  "notified",
+  "confirmed",
+  "running_late",
+  "reschedule_requested",
+  "cancelled",
+] as const;
+
+/** Эти статусы ещё не получили ответ — кандидат due/prepared (по наличию подготовленного лога). */
+const PENDING_RESPONSE_STATUSES = ["scheduled", "notified"] as const;
+
+/**
+ * status приёма → reminder-классификация. Появление "responded_*" завязано не на
+ * patientResponseStatus, а прямо на Appointment.status — submitPatientResponseAction
+ * (сессия 41) пишет одно и то же значение в оба поля, так что отдельное чтение
+ * patientResponseStatus здесь избыточно.
+ */
+const STATUS_TO_REMINDER: Record<string, ReminderStatus> = {
+  confirmed: "responded_confirmed",
+  running_late: "responded_late",
+  reschedule_requested: "responded_reschedule",
+  cancelled: "responded_cancelled",
+};
 
 /**
  * Нормализация азербайджанского номера телефона для wa.me-ссылки.
@@ -126,6 +155,20 @@ export async function listPatientCommunications(
   })) as CommunicationRow[];
 }
 
+/**
+ * due — внутри окна, напоминание ещё не готовилось.
+ * prepared — внутри окна, напоминание уже готовилось (но пациент не ответил).
+ * responded_* — пациент ответил по ссылке (или сотрудник вручную поставил тот же статус);
+ * WhatsApp-действие для таких приёмов больше не предлагается как основное.
+ */
+export type ReminderStatus =
+  | "due"
+  | "prepared"
+  | "responded_confirmed"
+  | "responded_late"
+  | "responded_reschedule"
+  | "responded_cancelled";
+
 export interface ReminderCandidate {
   appointmentId: string;
   patientId: string;
@@ -133,67 +176,93 @@ export interface ReminderCandidate {
   phone: string | null;
   startsAt: Date;
   doctorName: string;
-  alreadyPrepared: boolean;
+  status: ReminderStatus;
+}
+
+export interface ReminderQueue {
+  candidates: ReminderCandidate[];
+  /** часы окна из clinic settings (reminder_hours_before) — для подсказки в панели. */
+  reminderHoursBefore: number;
+  /** приёмы scheduled/notified, которые наступят позже окна (за пределами due-списка). */
+  notDueCount: number;
 }
 
 /**
- * Кандидаты на напоминание о приёме (Bugünkü xatırlatmalar): приёмы на
- * сегодня/завтра, статус scheduled/notified/confirmed, телефон есть.
- * alreadyPrepared = напоминание этому приёму уже подготовлено сегодня.
+ * Очередь напоминаний о приёме (сессия 42 — v2 на основе reminder_hours_before).
+ * Кандидат = приём в окне [сейчас, сейчас + reminderHoursBefore] со статусом из
+ * REMINDER_QUEUE_STATUSES, отфильтрованный через appointmentScopeWhere(user).
+ * Классификация (due/prepared/responded_*) — см. STATUS_TO_REMINDER и PENDING_RESPONSE_STATUSES.
+ * Телефон НЕ фильтрует приём из очереди — отсутствие телефона просто отключает
+ * WhatsApp-кнопку (UI), чтобы такие приёмы оставались видимы сотруднику.
  */
-export async function listReminderCandidates(user: SessionUser): Promise<ReminderCandidate[]> {
-  if (!user.clinicId || !hasPermission(user, "appointments.view")) return [];
+export async function listReminderCandidates(user: SessionUser): Promise<ReminderQueue> {
+  const empty: ReminderQueue = { candidates: [], reminderHoursBefore: 24, notDueCount: 0 };
+  if (!user.clinicId || !hasPermission(user, "appointments.view")) return empty;
   const db = tenantClient(user.clinicId);
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const tomorrowEnd = new Date(todayStart);
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 2);
+  const { reminderHoursBefore } = await getClinicParams(user);
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + reminderHoursBefore * 60 * 60 * 1000);
+  const scope = appointmentScopeWhere(user);
 
   const appts = await db.appointment.findMany({
     where: {
       AND: [
         {
           deletedAt: null,
-          startsAt: { gte: todayStart, lt: tomorrowEnd },
-          status: { in: [...REMINDER_STATUSES] },
+          startsAt: { gte: now, lte: windowEnd },
+          status: { in: [...REMINDER_QUEUE_STATUSES] },
         },
-        appointmentScopeWhere(user),
+        scope,
       ],
     },
     select: {
       id: true,
+      status: true,
       startsAt: true,
       patientId: true,
       patient: { select: { firstName: true, lastName: true, phone: true } },
       doctor: { select: { user: { select: { fullName: true } } } },
     },
     orderBy: { startsAt: "asc" },
-    take: 20,
+    take: 50,
   });
-  if (appts.length === 0) return [];
 
-  const todayEnd = new Date(todayStart);
-  todayEnd.setDate(todayEnd.getDate() + 1);
-  const prepared = await db.notification.findMany({
+  const notDueCount = await db.appointment.count({
     where: {
-      appointmentId: { in: appts.map((a) => a.id) },
-      type: "appointment_reminder",
-      createdAt: { gte: todayStart, lt: todayEnd },
+      AND: [
+        {
+          deletedAt: null,
+          startsAt: { gt: windowEnd },
+          status: { in: [...PENDING_RESPONSE_STATUSES] },
+        },
+        scope,
+      ],
     },
-    select: { appointmentId: true },
   });
+
+  if (appts.length === 0) return { candidates: [], reminderHoursBefore, notDueCount };
+
+  const pendingIds = appts
+    .filter((a) => (PENDING_RESPONSE_STATUSES as readonly string[]).includes(a.status))
+    .map((a) => a.id);
+  const prepared = pendingIds.length
+    ? await db.notification.findMany({
+        where: { appointmentId: { in: pendingIds }, type: "appointment_reminder" },
+        select: { appointmentId: true },
+      })
+    : [];
   const preparedSet = new Set(prepared.map((p) => p.appointmentId));
 
-  return appts
-    .filter((a) => a.patient.phone)
-    .map((a) => ({
-      appointmentId: a.id,
-      patientId: a.patientId,
-      patientName: `${a.patient.lastName} ${a.patient.firstName}`,
-      phone: a.patient.phone,
-      startsAt: a.startsAt,
-      doctorName: a.doctor.user.fullName,
-      alreadyPrepared: preparedSet.has(a.id),
-    }));
+  const candidates = appts.map((a) => ({
+    appointmentId: a.id,
+    patientId: a.patientId,
+    patientName: `${a.patient.lastName} ${a.patient.firstName}`,
+    phone: a.patient.phone,
+    startsAt: a.startsAt,
+    doctorName: a.doctor.user.fullName,
+    status: STATUS_TO_REMINDER[a.status] ?? (preparedSet.has(a.id) ? "prepared" : "due"),
+  }));
+
+  return { candidates, reminderHoursBefore, notDueCount };
 }

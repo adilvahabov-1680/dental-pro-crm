@@ -691,9 +691,24 @@ export const az = {
       opening: "Açılır…",
     },
     reminders: {
-      title: "Bugünkü xatırlatmalar",
-      empty: "Bugün/sabah üçün xatırlatma tələb edən qəbul yoxdur",
-      alreadyPrepared: "Hazırlanıb",
+      title: "Qəbul xatırlatmaları",
+      empty: "Hazırda xatırlatma pəncərəsində qəbul yoxdur",
+      windowLabel: "Xatırlatma pəncərəsi",
+      noAutoSend: "Avtomatik göndərilmir",
+      notDue: "Hələ vaxtı deyil",
+      groups: {
+        due: "Göndərilməlidir",
+        prepared: "Hazırlanıb",
+        responded: "Pasiyent cavab verib",
+      },
+      badges: {
+        due: "Xatırlatma vaxtı çatıb",
+        prepared: "Mesaj hazırlanıb",
+        confirmed: "Təsdiqləyib",
+        late: "Gecikə bilər",
+        reschedule: "Vaxt dəyişmək istəyir",
+        cancelled: "Ləğv edib",
+      },
       action: "WhatsApp xatırlatma",
     },
     errors: {
@@ -1172,7 +1187,9 @@ export const az = {
       title: "Qəbul parametrləri",
       desc: "Qəbulların standart müddəti və xatırlatma vaxtı",
       defaultMinutes: "Standart qəbul müddəti (dəqiqə)",
-      reminderHours: "Xatırlatma (qəbuldan neçə saat əvvəl)",
+      reminderHours: "Qəbuldan neçə saat əvvəl xatırlatma siyahısına düşsün",
+      reminderHoursHint:
+        "Bu ayar avtomatik WhatsApp göndərmir; sadəcə dashboard siyahısını idarə edir.",
       visibilityTitle: "Pasiyent görünürlüyü",
       doctorSeesAll: "Həkim klinikanın bütün pasiyentlərini görür",
       doctorSeesAllHint:

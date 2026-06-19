@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   const t = getDict(user.locale);
   const d = t.dashboard;
 
-  const [summary, todayAppts, openInvoices, lowStockItems, activity, reminderCandidates] =
+  const [summary, todayAppts, openInvoices, lowStockItems, activity, reminderQueue] =
     await Promise.all([
       dashboardSummary(user),
       listTodayAppointments(user),
@@ -171,11 +171,15 @@ export default async function DashboardPage() {
         )}
         {showAppointments && (
           <TodayRemindersPanel
-            candidates={reminderCandidates}
+            queue={reminderQueue}
             labels={{
               title: t.communications.reminders.title,
               empty: t.communications.reminders.empty,
-              alreadyPrepared: t.communications.reminders.alreadyPrepared,
+              windowLabel: t.communications.reminders.windowLabel,
+              noAutoSend: t.communications.reminders.noAutoSend,
+              notDue: t.communications.reminders.notDue,
+              groups: t.communications.reminders.groups,
+              badges: t.communications.reminders.badges,
               action: t.communications.reminders.action,
               prepared: t.communications.whatsapp.prepared,
               noPhone: t.communications.errors.noPhone,

@@ -213,7 +213,7 @@ async function main() {
 
     const resadAppt = await prisma.appointment.findFirstOrThrow({ where: { clinicId: clinic.id, patientId: resad.id, notes: "demo-seed:Diş ağrısı (16)" } });
     const dashBefore = await owner.get("/dashboard");
-    check("dashboard: панель Bugünkü xatırlatmalar видна", dashBefore.html.includes("Bugünkü xatırlatmalar"));
+    check("dashboard: панель Qəbul xatırlatmaları видна", dashBefore.html.includes("Qəbul xatırlatmaları"));
     const reminderForm = formContaining(dashBefore.html, 'name="appointmentId"', `value="${resadAppt.id}"`);
     check("форма WhatsApp xatırlatma найдена для приёма Resad (dashboard)", !!reminderForm);
 
@@ -298,12 +298,12 @@ async function main() {
       !!docMsgRecord && docMsgRecord.body.includes("klinikada hazırdır") && docMsgRecord.body.includes("E2E Arayış.pdf"));
     if (docMsgRecord) cleanupNotificationIds.push(docMsgRecord.id);
 
-    // ── 8. Dashboard: Bugünkü xatırlatmalar ───────────────────────────
+    // ── 8. Dashboard: Qəbul xatırlatmaları (Session 42 v2) ─────────────
     const dash = await owner.get("/dashboard");
-    check("dashboard: панель Bugünkü xatırlatmalar видна", dash.html.includes("Bugünkü xatırlatmalar"));
+    check("dashboard: панель Qəbul xatırlatmaları видна", dash.html.includes("Qəbul xatırlatmaları"));
     check("dashboard: пациент Resad (alreadyPrepared) виден", dash.html.includes("Həsənov Rəşad"));
     check("dashboard: пациент Leyla (today appt) виден", dash.html.includes("Quliyeva Leyla"));
-    check("dashboard: бейдж 'Hazırlanıb' у уже подготовленного", dash.html.includes("Hazırlanıb"));
+    check("dashboard: бейдж 'Mesaj hazırlanıb' у уже подготовленного", dash.html.includes("Mesaj hazırlanıb"));
 
     // ── 9. Doctor: cross-patient-scope denial ─────────────────────────
     const hekim = new Session();
