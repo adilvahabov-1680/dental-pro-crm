@@ -126,3 +126,21 @@ scope-изоляция для doctor (cross-patient) и cross-tenant.
   клик создаёт новую запись лога (намеренно, для истории попыток связаться).
 - Текст сообщений — фиксированные AZ-шаблоны, без редактора и без
   персонализации сверх имени/даты/суммы.
+
+## Дополнение (Session 41): ссылка ответа пациента в напоминании
+
+`prepareAppointmentReminder` теперь вставляет в текст напоминания о приёме
+безопасную ссылку `/r/<token>`, по которой пациент **без логина** выбирает
+ответ (gələcəyəm / gecikə bilərəm / vaxtı dəyişmək / ləğv etmək). Ответ
+обновляет статус приёма, пишет запись в «Əlaqə tarixçəsi» (`channel="other"`,
+`type="appointment_reminder"`) и создаёт staff-уведомление. **WhatsApp
+по-прежнему только click-to-chat — ссылка лишь добавлена в текст, сервер
+ничего не отправляет.** Детали, безопасность и формат токена —
+**[PATIENT_RESPONSE_LINKS.md](PATIENT_RESPONSE_LINKS.md)**.
+
+`appointmentReminderMessage` получил опциональные `doctorName`/`responseUrl`
+(старые 4-аргументные вызовы не сломаны). Локальная standalone-копия этой
+функции в `scripts/e2e-communications-check.ts` намеренно оставлена
+4-аргументной — её unit-level assert по подстроке «qəbulunuz … planlaşdırılıb»
+по-прежнему валиден, а проверка вставки ссылки покрыта отдельным
+`e2e-patient-response-links-check`.

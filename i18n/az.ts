@@ -705,6 +705,33 @@ export const az = {
       generic: "Xəta baş verdi. Yenidən cəhd edin.",
     },
   },
+  patientResponse: {
+    title: "Qəbul təsdiqi",
+    greeting: "Hörmətli",
+    appointmentTime: "Qəbul vaxtınız",
+    doctor: "Həkim",
+    chooseAnswer: "Zəhmət olmasa cavabınızı seçin",
+    options: {
+      confirm: "Gələcəyəm",
+      running_late: "Gecikə bilərəm",
+      reschedule_request: "Vaxtı dəyişmək istəyirəm",
+      cancel: "Ləğv etmək istəyirəm",
+    },
+    lateWarning: "15 dəqiqədən çox gecikmə qəbulun yenidən planlaşdırılmasını tələb edə bilər.",
+    commentLabel: "Qeyd (istəyə görə)",
+    commentPlaceholder: "Əlavə qeyd…",
+    submitting: "Göndərilir…",
+    thankYou: "Cavabınız qeydə alındı",
+    linkExpired: "Linkin müddəti bitib",
+    linkUsed: "Bu link artıq istifadə olunub",
+    errors: {
+      notFound: "Linkin müddəti bitib",
+      expired: "Linkin müddəti bitib",
+      alreadyUsed: "Bu link artıq istifadə olunub",
+      responseRequired: "Cavab seçin",
+      generic: "Xəta baş verdi. Yenidən cəhd edin.",
+    },
+  },
   inventory: {
     new: "Yeni material",
     summary: {

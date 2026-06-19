@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-19 (после сессии 40: Supplier Order Draft Approval Flow v1)
+**by AV Systems** · обновлено: 2026-06-19 (после сессии 41: Patient Response Link Foundation v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -657,6 +657,62 @@ Read-only отчёт по фактически использованным ра
 `e2e-supplier-receiving-check` 27/27, `e2e-supplier-orders-check` 38/38,
 `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42, `e2e-demo-flow-check` 11/11.
 
+## 7.20. Сессия 41 — итоги (Patient Response Link Foundation v1)
+
+Foundation для безлогинного ответа пациента на напоминание о приёме. **Без миграции**
+(`PatientResponseLink` существовал в схеме с `init`, не использовался). **WhatsApp остаётся
+только click-to-chat — без API, без автоотправки.**
+
+**Изменения:**
+- **`lib/patient-response.ts`** (new): `generateResponseToken` (256-бит crypto-random,
+  base64url), `buildPatientResponseUrl` (NEXT_PUBLIC_APP_URL → иначе request headers),
+  `getOrCreateAppointmentResponseLink` (reuse активной непросроченной ссылки / создать новую,
+  TTL 48ч), `getPublicResponseLinkState` (публичное чтение по токену, минимум данных).
+- **`lib/validation/patient-response.ts`** (new): `submitPatientResponseSchema`,
+  `RESPONSE_TYPES`, `PatientResponseFormState`.
+- **`lib/actions/patient-response.ts`** (new): `submitPatientResponseAction` — public, без
+  сессии; scoping только из записи по token; single-use через атомарный
+  `updateMany(status active→used)`; обновляет приём (`RESPONSE_TO_STATUS`: confirm→confirmed,
+  running_late→running_late, reschedule_request→reschedule_requested, cancel→cancelled),
+  пишет историю пациента (`channel=other`) + staff-уведомление (`channel=in_app`,
+  `userId=null`, `status=pending`).
+- **`app/r/[token]/page.tsx`** (new) + **`components/patient-response/PatientResponseForm.tsx`**
+  (new): публичная страница вне `(dashboard)`-группы, 4 кнопки-ответа, предупреждение про 15
+  минут, опциональный комментарий, состояния active/used/expired.
+- **`middleware.ts`**: bypass для `/r` и `/r/...` (не через `PUBLIC_PATHS`, чтобы не
+  редиректить залогиненного сотрудника на /dashboard).
+- **`lib/communications.ts`**: `appointmentReminderMessage` + опциональные
+  `doctorName`/`responseUrl` (старые вызовы не сломаны).
+- **`lib/actions/communications.ts`**: `prepareAppointmentReminder` создаёт/переиспользует
+  ссылку и вставляет её в текст напоминания.
+- **`i18n/az.ts`**: секция `patientResponse.*`.
+- **`.env.example`**: опциональный `NEXT_PUBLIC_APP_URL` (документирован как fallback).
+- **docs**: new `PATIENT_RESPONSE_LINKS.md`; обновлены `COMMUNICATIONS.md`,
+  `NOTIFICATIONS.md`, этот файл.
+- **`scripts/e2e-patient-response-links-check.ts`** (new, 42 проверки) + npm-скрипт.
+
+**Соответствие статусов:** `ResponseType` (confirm/cancel) ≠ `AppointmentStatus`
+(confirmed/cancelled) — маппинг `RESPONSE_TO_STATUS`; `Appointment.status` и кэш
+`patientResponseStatus` получают одно и то же знач-статус. UI приёмов отражает это через
+существующие `APPOINTMENT_STATUS_META` + `AppointmentStatusBadge` (новый «response badge» не
+вводился — статусы уже были в enum).
+
+**Замечание по тесту:** `e2e-communications-check.ts` держит локальную standalone-копию
+`appointmentReminderMessage` (4-арг) для unit-level assert — намеренно не синхронизирована
+с расширенной версией (проверка вставки ссылки покрыта новым `e2e-patient-response-links-check`).
+При прогоне 7 «падений» communications оказались **seed-staleness** (demo-приёмы устарели из
+окна today/tomorrow панели напоминаний) — после `npm run db:seed` → 40/40 зелёные, не
+регрессия Session 41.
+
+**E2E (после сессии):** `e2e-patient-response-links-check` 42/42, `e2e-communications-check`
+40/40, `e2e-appointments-check` 28/28, `e2e-notifications-check` 17/17, `e2e-demo-flow-check`
+11/11, `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42.
+
+`npx tsc --noEmit` → 0 ошибок. `npm run build` → чистый (`/r/[token]` присутствует).
+
+**Не реализовано (по scope):** WhatsApp Business API, автоотправка, выбор слота пациентом
+(Session 43), feedback flow, 6-month recall, scheduler/cron, rate limiting публичного роута.
+
 ## 7.19. Сессия 40 — итоги (Supplier Order Draft Approval Flow v1)
 
 Добавлен явный approval flow для черновиков supplier order. Минимальная additive миграция
@@ -1085,4 +1141,5 @@ FINANCE, INVENTORY, DASHBOARD, NOTIFICATIONS, DOCUMENTS, SETTINGS,
 COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
 **DOCTOR_ASSISTANT_ASSIGNMENT**, **DOCTOR_TRANSFER**, **INVENTORY_CORRECTIONS**,
 **INVENTORY_UNITS**, **SERVICE_CONSUMABLE_TEMPLATES**, **LOW_STOCK_ALERTS**,
-**LOW_STOCK_REORDER_DRAFTS**, **SUPPLIER_ORDER_DRAFT_APPROVAL**.
+**LOW_STOCK_REORDER_DRAFTS**, **SUPPLIER_ORDER_DRAFT_APPROVAL**,
+**PATIENT_RESPONSE_LINKS**.

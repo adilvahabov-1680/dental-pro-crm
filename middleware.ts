@@ -15,6 +15,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Patient response links (сессия 41) — публичный, без логина, доступ только
+  // по уникальному token. Намеренно не через PUBLIC_PATHS: та логика также
+  // редиректит залогиненных пользователей на /dashboard, что здесь не нужно
+  // (staff должен мочь открыть/проверить ссылку, не выходя из сессии).
+  if (pathname === "/r" || pathname.startsWith("/r/")) {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const user = token ? await verifySessionToken(token) : null;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

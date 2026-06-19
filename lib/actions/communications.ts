@@ -23,6 +23,7 @@ import {
   paymentReminderMessage,
   documentMessage,
 } from "@/lib/communications";
+import { getOrCreateAppointmentResponseLink, buildPatientResponseUrl } from "@/lib/patient-response";
 import { DOCUMENT_TYPE_META } from "@/lib/constants";
 import {
   logCommunicationSchema,
@@ -123,11 +124,18 @@ export async function prepareAppointmentReminder(
     const db = tenantClient(clinicId);
     const name = await clinicName(clinicId);
     const dt = new Date(appointment.startsAt);
+    const link = await getOrCreateAppointmentResponseLink(db, {
+      patientId: appointment.patient.id,
+      appointmentId: appointment.id,
+    });
+    const responseUrl = await buildPatientResponseUrl(link.token);
     const text = appointmentReminderMessage({
       patientName: `${appointment.patient.lastName} ${appointment.patient.firstName}`,
       clinicName: name,
       date: formatDate(dt),
       time: dt.toLocaleTimeString("az-AZ", { hour: "2-digit", minute: "2-digit" }),
+      doctorName: appointment.doctor.user.fullName,
+      responseUrl,
     });
     const waUrl = buildWhatsAppUrl(phone, text);
     const now = new Date();

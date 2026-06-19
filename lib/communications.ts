@@ -49,17 +49,32 @@ export function buildWhatsAppUrl(phone: string, text: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
 
+/**
+ * doctorName/responseUrl — опциональны (сессия 41), чтобы существующий
+ * unit-level вызов в e2e-communications-check.ts (4 поля) продолжал
+ * компилироваться и проходить без изменений.
+ */
 export function appointmentReminderMessage(opts: {
   patientName: string;
   clinicName: string;
   date: string;
   time: string;
+  doctorName?: string;
+  responseUrl?: string;
 }): string {
-  return (
+  let text =
     `Salam, ${opts.patientName}. ${opts.clinicName} tərəfindən xatırlatma: ` +
-    `qəbulunuz ${opts.date} saat ${opts.time}-da planlaşdırılıb. ` +
-    `Zəhmət olmasa vaxtında gələsiniz.`
-  );
+    `qəbulunuz ${opts.date} saat ${opts.time}-da planlaşdırılıb` +
+    (opts.doctorName ? ` (həkim: ${opts.doctorName})` : "") +
+    `. Zəhmət olmasa vaxtında gələsiniz.`;
+
+  if (opts.responseUrl) {
+    text +=
+      `\n\nZəhmət olmasa cavabınızı bu linkdən seçin:\n${opts.responseUrl}\n\n` +
+      `Cavab variantları: gələcəyəm, gecikə bilərəm, vaxtı dəyişmək istəyirəm, ləğv etmək istəyirəm.`;
+  }
+
+  return text;
 }
 
 export function paymentReminderMessage(opts: {

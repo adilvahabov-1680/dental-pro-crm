@@ -30,7 +30,8 @@
     "e2e-consumables-audit-visibility-check": "tsx scripts/e2e-consumables-audit-visibility-check.ts",
     "e2e-low-stock-alerts-check": "tsx scripts/e2e-low-stock-alerts-check.ts",
     "e2e-low-stock-reorder-drafts-check": "tsx scripts/e2e-low-stock-reorder-drafts-check.ts",
-    "e2e-supplier-order-draft-approval-check": "tsx scripts/e2e-supplier-order-draft-approval-check.ts"
+    "e2e-supplier-order-draft-approval-check": "tsx scripts/e2e-supplier-order-draft-approval-check.ts",
+    "e2e-patient-response-links-check": "tsx scripts/e2e-patient-response-links-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
