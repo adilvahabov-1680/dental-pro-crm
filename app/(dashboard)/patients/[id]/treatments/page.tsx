@@ -149,6 +149,7 @@ export default async function PatientTreatmentsPage({
         consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
         consumableStatusBadges={consumableStatusBadges}
         followUpLabel={canManage ? t.settings.protocols.followUpTitle : undefined}
+        recallLabel={canManage ? tt.recall.createLabel : undefined}
       />
     </>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Receipt, Package, CalendarPlus, FlaskConical } from "lucide-react";
+import { User, Receipt, Package, CalendarPlus, FlaskConical, BellPlus } from "lucide-react";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { TreatmentStatusBadge } from "@/components/treatments/TreatmentStatusBadge";
 import { TreatmentStatusControl } from "@/components/treatments/TreatmentStatusControl";
@@ -17,6 +17,7 @@ export function TreatmentItemCard({
   consumablesLabel,
   consumableStatusBadge,
   followUpLabel,
+  recallLabel,
 }: {
   item: TreatmentItemFull;
   canManage: boolean;
@@ -31,6 +32,8 @@ export function TreatmentItemCard({
   consumableStatusBadge?: { label: string; tone: "applied" | "reversed" | "reapplied" };
   /** метка «Növbəti qəbul planla» — ссылка на /treatments/[id]/followup (planned/in_progress, без appointmentId) */
   followUpLabel?: string;
+  /** метка «Kontrol xatırlatması yarat» — ссылка на /treatments/[id]/recall (только done, сессия 44) */
+  recallLabel?: string;
 }) {
   const cancelled = item.status === "cancelled";
   const date = item.performedAt ?? item.createdAt;
@@ -141,6 +144,16 @@ export function TreatmentItemCard({
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             <FlaskConical className="size-4" />
+          </Link>
+        )}
+        {recallLabel && item.status === "done" && (
+          <Link
+            href={`/treatments/${item.id}/recall`}
+            title={recallLabel}
+            data-e2e-marker={`recall-link-${item.id}`}
+            className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
+          >
+            <BellPlus className="size-4" />
           </Link>
         )}
         <span

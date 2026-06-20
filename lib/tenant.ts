@@ -79,6 +79,7 @@ const TENANT_MODELS = new Set<string>([
   "PdfRecord",
   "Notification",
   "PatientResponseLink",
+  "RecallTask",
   "Setting",
   "Translation",
   "AuditLog",

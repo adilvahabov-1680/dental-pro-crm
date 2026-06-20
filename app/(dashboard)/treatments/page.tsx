@@ -86,6 +86,7 @@ export default async function TreatmentsPage({
         materialsLabel={canManage ? t.inventory.materials.addTitle : undefined}
         consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
         consumableStatusBadges={consumableStatusBadges}
+        recallLabel={canManage ? tt.recall.createLabel : undefined}
       />
       {items.length > 0 && (
         <p className="mt-3 text-sm tabular-nums text-text-secondary">

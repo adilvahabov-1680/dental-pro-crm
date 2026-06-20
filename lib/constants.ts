@@ -111,6 +111,15 @@ export const COMMUNICATION_TYPE_META: Record<string, { az: string; color: string
   payment_reminder: { az: "Ödəniş xatırlatması", color: "warning" },
   manual_note: { az: "Qeyd", color: "text-secondary" },
   reschedule_offer: { az: "Vaxt variantı təklifi", color: "info" },
+  repeat_visit_reminder: { az: "Kontrol xatırlatması", color: "info" },
+};
+
+/** AZ-метки статусов recall-задачи (enum RecallStatus, сессия 44). */
+export const RECALL_STATUS_META: Record<string, { az: string; color: string }> = {
+  pending: { az: "Gözləyir", color: "secondary" },
+  prepared: { az: "Hazırlanıb", color: "success" },
+  scheduled: { az: "Planlaşdırılıb", color: "accent" },
+  dismissed: { az: "Bağlanıb", color: "text-secondary" },
 };
 
 /**

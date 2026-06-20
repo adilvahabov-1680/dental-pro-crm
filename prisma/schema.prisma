@@ -309,6 +309,7 @@ model Clinic {
   pdfRecords           PdfRecord[]
   notifications        Notification[]
   patientResponseLinks PatientResponseLink[]
+  recallTasks          RecallTask[]
   settings             Setting[]
   translations         Translation[]
   auditLogs            AuditLog[]
@@ -427,6 +428,7 @@ model Doctor {
   treatmentPlans  TreatmentPlan[]
   treatmentItems  TreatmentItem[]
   invoices        Invoice[]
+  recallTasks     RecallTask[]
 
   @@index([clinicId])
   @@map("doctors")
@@ -495,6 +497,7 @@ model Patient {
   pdfRecords           PdfRecord[]
   notifications        Notification[]
   patientResponseLinks PatientResponseLink[]
+  recallTasks          RecallTask[]
 
   @@index([clinicId, phone])
   @@index([clinicId, lastName])
@@ -535,6 +538,7 @@ model Appointment {
   invoices       Invoice[]
   notifications  Notification[]
   responseLinks  PatientResponseLink[]
+  recallTasks    RecallTask[]
 
   @@index([clinicId, doctorId, startsAt])
   @@index([clinicId, patientId])
@@ -686,6 +690,7 @@ model TreatmentItem {
   documents          Document[]
   movements          InventoryMovement[]
   consumableUsages   TreatmentConsumableUsage[]
+  recallTasks        RecallTask[]
 
   @@index([clinicId, patientId, toothNumber])
   @@map("treatment_items")
@@ -748,6 +753,7 @@ model Service {
   appointments          Appointment[]
   protocolSteps         TreatmentProtocolStep[]
   consumableTemplates   ServiceConsumableTemplate[]
+  recallTasks           RecallTask[]
 
   @@index([clinicId])
   @@map("services")
@@ -1245,6 +1251,47 @@ model PatientResponseLink {
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
 
   @@map("patient_response_links")
+}
+
+/// Recall / 6-month checkup task (сессия 44). НЕ приём — отдельная задача
+/// контроля после завершённого лечения; appointment создаётся только вручную
+/// через существующий /appointments/new (scheduledAppointmentId — опциональная
+/// ссылка после факта, не авто-создание).
+model RecallTask {
+  id                     String       @id @default(uuid()) @db.Uuid
+  clinicId               String       @map("clinic_id") @db.Uuid
+  patientId              String       @map("patient_id") @db.Uuid
+  doctorId               String?      @map("doctor_id") @db.Uuid
+  treatmentItemId        String?      @map("treatment_item_id") @db.Uuid
+  serviceId              String?      @map("service_id") @db.Uuid
+  dueDate                DateTime     @map("due_date") @db.Date
+  title                  String
+  note                   String?
+  status                 RecallStatus @default(pending)
+  preparedAt             DateTime?    @map("prepared_at") @db.Timestamptz()
+  scheduledAppointmentId String?      @map("scheduled_appointment_id") @db.Uuid
+  createdById            String       @map("created_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  clinic               Clinic         @relation(fields: [clinicId], references: [id])
+  patient              Patient        @relation(fields: [patientId], references: [id])
+  doctor               Doctor?        @relation(fields: [doctorId], references: [id])
+  treatmentItem        TreatmentItem? @relation(fields: [treatmentItemId], references: [id])
+  service              Service?       @relation(fields: [serviceId], references: [id])
+  scheduledAppointment Appointment?   @relation(fields: [scheduledAppointmentId], references: [id])
+
+  @@index([clinicId, status, dueDate])
+  @@map("recall_tasks")
+}
+
+enum RecallStatus {
+  pending
+  prepared
+  scheduled
+  dismissed
 }
 
 // ─────────────── H2. Settings & i18n ───────────────

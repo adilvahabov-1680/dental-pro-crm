@@ -118,6 +118,26 @@ export function paymentReminderMessage(opts: {
   );
 }
 
+/** Recall / kontrol müayinə mesajı (сессия 44). doctorName опциональн — известен, если recall привязан к врачу. */
+export function recallMessage(opts: {
+  patientName: string;
+  clinicName: string;
+  doctorName?: string | null;
+}): string {
+  const lines = [
+    `Hörmətli ${opts.patientName},`,
+    `klinikamızda aparılan müalicədən sonra kontrol müayinə vaxtınız çatıb.`,
+  ];
+  if (opts.doctorName) lines.push(`${opts.doctorName} həkim üzrə kontrol müayinə.`);
+  lines.push(
+    "",
+    `Zəhmət olmasa uyğun vaxt üçün klinika ilə əlaqə saxlayın və ya qəbul üçün müraciət edin.`,
+    "",
+    opts.clinicName,
+  );
+  return lines.join("\n");
+}
+
 /** Сообщение со ссылкой на выбор предложенного варианта времени (сессия 43). */
 export function rescheduleOptionsMessage(opts: {
   patientName: string;

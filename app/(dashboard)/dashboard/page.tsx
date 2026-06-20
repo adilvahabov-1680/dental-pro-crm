@@ -17,6 +17,7 @@ import {
 } from "@/lib/dashboard";
 import { listLowStockItems } from "@/lib/inventory";
 import { listReminderCandidates } from "@/lib/communications";
+import { countDueRecalls } from "@/lib/recall-tasks";
 import { hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -25,13 +26,15 @@ import { FinanceOverviewPanel } from "@/components/dashboard/FinanceOverviewPane
 import { RecentActivityPanel } from "@/components/dashboard/RecentActivityPanel";
 import { LowStockPanel } from "@/components/inventory/LowStockPanel";
 import { TodayRemindersPanel } from "@/components/dashboard/TodayRemindersPanel";
+import { RecallSummaryPanel } from "@/components/dashboard/RecallSummaryPanel";
 
 export default async function DashboardPage() {
   const user = await requireAuth();
   const t = getDict(user.locale);
   const d = t.dashboard;
+  const showTreatments = hasPermission(user, "treatments.view");
 
-  const [summary, todayAppts, openInvoices, lowStockItems, activity, reminderQueue] =
+  const [summary, todayAppts, openInvoices, lowStockItems, activity, reminderQueue, recallCounts] =
     await Promise.all([
       dashboardSummary(user),
       listTodayAppointments(user),
@@ -39,6 +42,7 @@ export default async function DashboardPage() {
       hasPermission(user, "inventory.view") ? listLowStockItems(user) : Promise.resolve([]),
       listRecentActivity(user),
       listReminderCandidates(user),
+      showTreatments ? countDueRecalls(user) : Promise.resolve({ overdue: 0, dueSoon: 0 }),
     ]);
 
   const fmtTime = (dt: Date) =>
@@ -186,6 +190,19 @@ export default async function DashboardPage() {
               rescheduleOptionsSent: t.rescheduleOptions.staff.alreadySent,
             }}
             errors={t.communications.errors}
+          />
+        )}
+        {showTreatments && (
+          <RecallSummaryPanel
+            overdue={recallCounts.overdue}
+            dueSoon={recallCounts.dueSoon}
+            labels={{
+              title: t.treatments.recall.dashboardTitle,
+              overdue: t.treatments.recall.overdue,
+              dueSoon: t.treatments.recall.dueSoon,
+              empty: t.treatments.recall.dashboardEmpty,
+              viewAll: t.treatments.recall.viewAll,
+            }}
           />
         )}
       </div>
