@@ -79,15 +79,42 @@ function notificationFragment(html: string, id: string): string {
   return html.slice(start, end < 0 ? undefined : end);
 }
 
+/**
+ * Unread-счётчик из bell в topbar (data-testid="topbar-bell") — 0, если
+ * самого bell нет (нет notifications.view) или badge не отрендерился (unread=0,
+ * span условно не рендерится вовсе, см. Topbar.tsx). "99+" не встречается в
+ * e2e-объёмах, поэтому маппится в 100 — только для относительных delta-сравнений.
+ */
+function scrapeUnreadCount(html: string): number {
+  const bellIdx = html.indexOf('data-testid="topbar-bell"');
+  if (bellIdx < 0) return 0;
+  const linkEnd = html.indexOf("</a>", bellIdx);
+  const fragment = html.slice(bellIdx, linkEnd < 0 ? bellIdx + 500 : linkEnd);
+  const m = fragment.match(/>(\d+|99\+)<\/span>/);
+  if (!m) return 0;
+  return m[1] === "99+" ? 100 : Number(m[1]);
+}
+
+/** Фрагмент формы «Hamısını oxundu et» (для повторного использования $ACTION). */
+function markAllFragment(html: string): string {
+  const btnIdx = html.indexOf("Hamısını oxundu et");
+  if (btnIdx < 0) return "";
+  const start = html.lastIndexOf("<form", btnIdx);
+  const end = html.indexOf("</form>", btnIdx);
+  return start < 0 || end < 0 ? "" : html.slice(start, end);
+}
+
 async function main() {
   console.log(`E2E notifications check → ${BASE}\n`);
 
   const clinic = await prisma.clinic.findUniqueOrThrow({ where: { slug: "demo-klinika" } });
+  const adminUser = await prisma.user.findFirstOrThrow({ where: { email: "admin@demo.dentalpro.az" } });
 
   // сброс артефактов прошлых прогонов
   await prisma.notification.deleteMany({
     where: { body: { startsWith: "e2e-notif" } },
   });
+  await prisma.user.deleteMany({ where: { email: "e2e-notif-restricted@e2e.local" } });
 
   // тестовые notifications: 2 непрочитанных tenant-level low_stock в клинике A
   const n1 = await prisma.notification.create({
@@ -192,8 +219,102 @@ async function main() {
     check("login doctor", await hekim.login("hekim@demo.dentalpro.az"));
     const hekimPage = await hekim.get("/notifications");
     check("doctor: видит low-stock notifications", hekimPage.html.includes("E2E Material 2"));
+
+    // ── Permission map coverage (Session 46): reschedule_offer / feedback_received / repeat_visit_reminder ──
+    console.log("\nPermission map coverage (Session 46)");
+
+    // restricted: role=reception (по умолчанию есть appointments.view + patients.view +
+    // notifications.view), затем personal-deny именно на appointments.view/patients.view —
+    // даёт пользователя, который МОЖЕТ открыть /notifications (notifications.view остался),
+    // но не должен видеть типы, завязанные на appointments.view/patients.view. Так
+    // изолированно проверяется именно TYPE_PERMISSION-фильтрация, а не внешний page-gate
+    // (assistant/accountant не имеют notifications.view вовсе и были бы редиректнуты раньше,
+    // не дойдя до этой логики — это другой, уже покрытый кейс, см. выше).
+    const receptionRole = await prisma.role.findFirstOrThrow({ where: { key: "reception", clinicId: null } });
+    const apptViewPerm = await prisma.permission.findFirstOrThrow({ where: { key: "appointments.view" } });
+    const patientsViewPerm = await prisma.permission.findFirstOrThrow({ where: { key: "patients.view" } });
+    const restrictedUser = await prisma.user.create({
+      data: {
+        email: "e2e-notif-restricted@e2e.local",
+        fullName: "E2E Notif Restricted",
+        clinicId: clinic.id,
+        roleId: receptionRole.id,
+        passwordHash: adminUser.passwordHash,
+      },
+    });
+    await prisma.userPermission.createMany({
+      data: [
+        { userId: restrictedUser.id, permissionId: apptViewPerm.id, allowed: false },
+        { userId: restrictedUser.id, permissionId: patientsViewPerm.id, allowed: false },
+      ],
+    });
+    const restricted = new Session();
+    check("perm0: restricted user login", await restricted.login("e2e-notif-restricted@e2e.local"));
+    const restrictedPageBefore = await restricted.get("/notifications");
+    check("perm1: restricted user CAN open /notifications (keeps notifications.view)", restrictedPageBefore.status === 200);
+    const restrictedUnreadBefore = scrapeUnreadCount(restrictedPageBefore.html);
+
+    const ownerPageBefore = await owner.get("/notifications");
+    const ownerUnreadBefore = scrapeUnreadCount(ownerPageBefore.html);
+
+    const nReschedule = await prisma.notification.create({
+      data: { clinicId: clinic.id, channel: "in_app", type: "reschedule_offer", body: "e2e-notif: reschedule_offer test", scheduledAt: new Date() },
+    });
+    const nFeedback = await prisma.notification.create({
+      data: { clinicId: clinic.id, channel: "in_app", type: "feedback_received", body: "e2e-notif: feedback_received test", scheduledAt: new Date() },
+    });
+    const nRepeatVisit = await prisma.notification.create({
+      data: { clinicId: clinic.id, channel: "in_app", type: "repeat_visit_reminder", body: "e2e-notif: repeat_visit_reminder test", scheduledAt: new Date() },
+    });
+
+    // A/B/C — owner (appointments.view + patients.view) видит все три
+    const ownerPageAfter = await owner.get("/notifications");
+    check("A1: owner (appointments.view) видит reschedule_offer", ownerPageAfter.html.includes("e2e-notif: reschedule_offer test"));
+    check("A2: метка типа reschedule_offer отрендерена", ownerPageAfter.html.includes("Vaxt variantı təklifi"));
+    check("B1: owner (patients.view) видит feedback_received", ownerPageAfter.html.includes("e2e-notif: feedback_received test"));
+    check("C1: owner (appointments.view) видит repeat_visit_reminder", ownerPageAfter.html.includes("e2e-notif: repeat_visit_reminder test"));
+
+    // D — unread-счётчик владельца увеличился ровно на 3 (видны все три типа)
+    const ownerUnreadAfter = scrapeUnreadCount(ownerPageAfter.html);
+    check("D1: unread-счётчик owner увеличился ровно на 3", ownerUnreadAfter === ownerUnreadBefore + 3,
+      `before=${ownerUnreadBefore} after=${ownerUnreadAfter}`);
+
+    // A/B/C (negative) — restricted (без appointments.view/patients.view) не видит ни один из трёх
+    const restrictedPageAfter = await restricted.get("/notifications");
+    check("A3: restricted (без appointments.view) НЕ видит reschedule_offer", !restrictedPageAfter.html.includes("e2e-notif: reschedule_offer test"));
+    check("B2: restricted (без patients.view) НЕ видит feedback_received", !restrictedPageAfter.html.includes("e2e-notif: feedback_received test"));
+    check("C2: restricted (без appointments.view) НЕ видит repeat_visit_reminder", !restrictedPageAfter.html.includes("e2e-notif: repeat_visit_reminder test"));
+
+    // D (negative) — unread-счётчик restricted не изменился (все три вне его scope)
+    const restrictedUnreadAfter = scrapeUnreadCount(restrictedPageAfter.html);
+    check("D2: unread-счётчик restricted не изменился (delta 0)", restrictedUnreadAfter === restrictedUnreadBefore,
+      `before=${restrictedUnreadBefore} after=${restrictedUnreadAfter}`);
+
+    // E — mark-all-read от restricted не трогает уведомления вне его scope (architecture уже
+    // корректна: markAllNotificationsRead применяет notificationScopeWhere(user) в updateMany —
+    // никакого редизайна не требуется, проверяем существующее поведение).
+    const markAllFrag = markAllFragment(ownerPageAfter.html);
+    check("E0: форма «Hamısını oxundu et» найдена (harvested у owner)", !!markAllFrag);
+    await restricted.postForm("/notifications", markAllFrag, {});
+    const [nRescheduleMid, nFeedbackMid, nRepeatVisitMid] = await Promise.all([
+      prisma.notification.findUniqueOrThrow({ where: { id: nReschedule.id } }),
+      prisma.notification.findUniqueOrThrow({ where: { id: nFeedback.id } }),
+      prisma.notification.findUniqueOrThrow({ where: { id: nRepeatVisit.id } }),
+    ]);
+    check("E1: restricted mark-all-read не трогает reschedule_offer (вне scope)", nRescheduleMid.status !== "read");
+    check("E2: restricted mark-all-read не трогает feedback_received (вне scope)", nFeedbackMid.status !== "read");
+    check("E3: restricted mark-all-read не трогает repeat_visit_reminder (вне scope)", nRepeatVisitMid.status !== "read");
+
+    // F — owner всё ещё может пометить их прочитанными по отдельности (не повреждены)
+    const ownerPageForMarkRead = await owner.get("/notifications");
+    const rescheduleFrag = notificationFragment(ownerPageForMarkRead.html, nReschedule.id);
+    check("F0: форма mark-read для reschedule_offer найдена у owner", rescheduleFrag.includes(`value="${nReschedule.id}"`));
+    await owner.postForm("/notifications", rescheduleFrag, { id: nReschedule.id });
+    const nRescheduleFinal = await prisma.notification.findUniqueOrThrow({ where: { id: nReschedule.id } });
+    check("F1: owner может пометить reschedule_offer прочитанным", nRescheduleFinal.status === "read");
   } finally {
     await prisma.notification.deleteMany({ where: { body: { startsWith: "e2e-notif" } } });
+    await prisma.user.deleteMany({ where: { email: "e2e-notif-restricted@e2e.local" } });
     await prisma.clinic.delete({ where: { id: clinicB.id } });
     console.log("\n  (временные данные e2e удалены)");
   }

@@ -197,10 +197,11 @@ generic-сообщению (`{error: "generic"}`) — без точечной р
 только типы из этой карты). AZ-метка — в `COMMUNICATION_TYPE_META`
 («Rəy») и в иконке `NotificationsList` (`Star`).
 
-**Найдено по ходу, не исправлено в этой сессии**: `reschedule_offer`
+~~**Найдено по ходу, не исправлено в этой сессии**: `reschedule_offer`
 (Session 43) тоже создаёт tenant-level staff-уведомление, но никогда не
 был добавлен в `TYPE_PERMISSION` — он невидим в bell уже две сессии. Вне
-scope Session 45 (чужой код, отдельная задача).
+scope Session 45 (чужой код, отдельная задача).~~ ✅ исправлено в Session 46
+— см. **[NOTIFICATIONS.md](NOTIFICATIONS.md)**, раздел «Дополнение (Session 46)».
 
 ## Не входит в v1 (future)
 

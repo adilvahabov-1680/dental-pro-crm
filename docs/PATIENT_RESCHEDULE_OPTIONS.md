@@ -105,6 +105,14 @@ ALTER TYPE "LinkPurpose" ADD VALUE 'reschedule_offer';
 пишет 2 записи в `Notification` (история пациента `channel="other"`,
 staff-задача `channel="in_app"`), формат идентичен Session 41.
 
+**Fix (Session 46)**: staff-задача (`type="reschedule_offer"`) создавалась
+корректно с самой Session 43, но запись для неё никогда не была добавлена в
+`lib/notifications.ts:TYPE_PERMISSION` — уведомление было невидимо в
+bell/`/notifications` для всех, независимо от прав (баг видимости, не баг
+данных). Исправлено добавлением одной строки (`appointments.view`, тот же
+домен, что у `appointment_reminder`). Подробности и полный аудит карты —
+**[NOTIFICATIONS.md](NOTIFICATIONS.md)**, раздел «Дополнение (Session 46)».
+
 ## Почему `status = "scheduled"`, а не `"confirmed"`
 
 ТЗ Session 43 оставляло выбор. v1: **`scheduled`** — пациент выбрал новое
@@ -150,20 +158,23 @@ göndərilib» рядом с бейджем «Vaxt dəyişmək istəyir» (`list
 
 ## E2E
 
-`npx tsx scripts/e2e-patient-reschedule-options-check.ts` — 39 проверок:
+`npx tsx scripts/e2e-patient-reschedule-options-check.ts` — 40 проверок:
 initial reschedule request, staff создаёт 2 варианта (форма видна только
 при `reschedule_requested` + `appointments.manage`), валидация (< 2 / past
 / duplicate отклоняются, 4-й вариант структурно игнорируется), публичная
 страница (без логина, только варианты, без утечки id, expired/invalid
 generic-сообщения), выбор пациентом (время/статус приёма обновлены,
-respondedAt/response с old→new, история + staff-уведомление), token safety
-(single-use replay, invalid token, cross-tenant — чужая клиника не может
-создать варианты для приёма другой клиники), permission (assistant без
-`appointments.manage` не видит форму и не может её вызвать).
+respondedAt/response с old→new, история + staff-уведомление, **и (Session
+46) что staff-уведомление реально видно на `/notifications`** — не только
+что запись есть в БД), token safety (single-use replay, invalid token,
+cross-tenant — чужая клиника не может создать варианты для приёма другой
+клиники), permission (assistant без `appointments.manage` не видит форму и
+не может её вызвать).
 
 Регрессия: `e2e-patient-response-links-check` 42/42,
 `e2e-appointment-reminder-scheduling-check` 28/28, `e2e-communications-check`
 40/40 (бейдж/панель из Session 42 без изменений), `e2e-notifications-check`
-17/17, `e2e-appointments-check` 28/28, `e2e-demo-flow-check` 11/11,
+34/34 (Session 46 — добавлена проверка видимости/permission-карты),
+`e2e-appointments-check` 28/28, `e2e-demo-flow-check` 11/11,
 `e2e-admin-check` 36/36, `e2e-platform-admin-check` 42/42,
 `e2e-dashboard-check` 20/20.

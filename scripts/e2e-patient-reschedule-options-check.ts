@@ -348,6 +348,10 @@ async function main() {
     });
     check("E8: staff notification created", !!staffNotifE && staffNotifE.body.includes("E2E-PRO-Main"));
 
+    const ownerNotifPage = await owner.get("/notifications");
+    check("E9: staff notification visible in bell/notifications UI",
+      !!staffNotifE && ownerNotifPage.html.includes(staffNotifE.body));
+
     // ── F: Token safety ───────────────────────────────────────────────────
     console.log("\nF — token safety");
     const replayRes = await anon.postForm(`/r/${offerLink.token}`, selectForm, { token: offerLink.token, optionId: "2" });

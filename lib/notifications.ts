@@ -18,6 +18,7 @@ const TYPE_PERMISSION: Record<string, PermissionKey> = {
   appointment_reminder: "appointments.view",
   followup: "appointments.view",
   repeat_visit_reminder: "appointments.view",
+  reschedule_offer: "appointments.view",
   treatment_pdf: "documents.view",
   custom: "notifications.view",
   feedback_received: "patients.view",

@@ -622,6 +622,8 @@ export const az = {
       treatment_pdf: "Müalicə sənədi",
       debt_reminder: "Borc xatırlatması",
       custom: "Bildiriş",
+      reschedule_offer: "Vaxt variantı təklifi",
+      feedback_received: "Rəy",
     } as Record<string, string>,
   },
   documents: {
