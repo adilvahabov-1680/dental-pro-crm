@@ -33,6 +33,7 @@ export default async function TreatmentsPage({
   };
 
   const canManage = hasPermission(user, "treatments.manage");
+  const canManagePatients = hasPermission(user, "patients.manage");
   const showDoctorFilter = user.role !== "doctor" && user.role !== "assistant";
   const [items, doctors] = await Promise.all([
     listTreatmentItems(user, filters),
@@ -87,6 +88,16 @@ export default async function TreatmentsPage({
         consumablesLabel={canManage ? t.treatments.consumables.title : undefined}
         consumableStatusBadges={consumableStatusBadges}
         recallLabel={canManage ? tt.recall.createLabel : undefined}
+        feedbackLabels={
+          canManagePatients
+            ? {
+                label: t.patientFeedback.staff.createLabel,
+                preparedLabel: t.communications.whatsapp.prepared,
+                noPhoneLabel: t.communications.errors.noPhone,
+                errors: t.patientFeedback.staff.errors,
+              }
+            : undefined
+        }
       />
       {items.length > 0 && (
         <p className="mt-3 text-sm tabular-nums text-text-secondary">

@@ -3,6 +3,8 @@ import { User, Receipt, Package, CalendarPlus, FlaskConical, BellPlus } from "lu
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { TreatmentStatusBadge } from "@/components/treatments/TreatmentStatusBadge";
 import { TreatmentStatusControl } from "@/components/treatments/TreatmentStatusControl";
+import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
+import { prepareFeedbackLinkAction } from "@/lib/actions/patient-feedback";
 import { formatInvoiceNumber } from "@/lib/constants";
 import type { TreatmentItemFull } from "@/lib/treatments";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
@@ -18,6 +20,7 @@ export function TreatmentItemCard({
   consumableStatusBadge,
   followUpLabel,
   recallLabel,
+  feedbackLabels,
 }: {
   item: TreatmentItemFull;
   canManage: boolean;
@@ -34,6 +37,8 @@ export function TreatmentItemCard({
   followUpLabel?: string;
   /** метка «Kontrol xatırlatması yarat» — ссылка на /treatments/[id]/recall (только done, сессия 44) */
   recallLabel?: string;
+  /** inline WhatsApp-кнопка «Rəy linki hazırla» (только done, сессия 45) */
+  feedbackLabels?: { label: string; preparedLabel: string; noPhoneLabel: string; errors: Record<string, string> };
 }) {
   const cancelled = item.status === "cancelled";
   const date = item.performedAt ?? item.createdAt;
@@ -155,6 +160,19 @@ export function TreatmentItemCard({
           >
             <BellPlus className="size-4" />
           </Link>
+        )}
+        {feedbackLabels && item.status === "done" && (
+          <WhatsAppActionButton
+            action={prepareFeedbackLinkAction}
+            hiddenName="treatmentItemId"
+            hiddenValue={item.id}
+            label={feedbackLabels.label}
+            preparedLabel={feedbackLabels.preparedLabel}
+            noPhoneLabel={feedbackLabels.noPhoneLabel}
+            errors={feedbackLabels.errors}
+            hasPhone={!!item.patient.phone}
+            small
+          />
         )}
         <span
           className={cn(

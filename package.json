@@ -34,7 +34,8 @@
     "e2e-patient-response-links-check": "tsx scripts/e2e-patient-response-links-check.ts",
     "e2e-appointment-reminder-scheduling-check": "tsx scripts/e2e-appointment-reminder-scheduling-check.ts",
     "e2e-patient-reschedule-options-check": "tsx scripts/e2e-patient-reschedule-options-check.ts",
-    "e2e-recall-tasks-check": "tsx scripts/e2e-recall-tasks-check.ts"
+    "e2e-recall-tasks-check": "tsx scripts/e2e-recall-tasks-check.ts",
+    "e2e-patient-feedback-check": "tsx scripts/e2e-patient-feedback-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

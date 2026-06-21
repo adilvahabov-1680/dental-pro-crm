@@ -80,6 +80,7 @@ const TENANT_MODELS = new Set<string>([
   "Notification",
   "PatientResponseLink",
   "RecallTask",
+  "PatientFeedback",
   "Setting",
   "Translation",
   "AuditLog",

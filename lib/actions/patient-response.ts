@@ -12,9 +12,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { tenantClient } from "@/lib/tenant";
 import { formatDate } from "@/lib/utils";
-import { parseRescheduleOptions } from "@/lib/patient-response";
+import { parseRescheduleOptions, parsePendingFeedbackTreatmentItemId } from "@/lib/patient-response";
 import { submitPatientResponseSchema, type PatientResponseFormState } from "@/lib/validation/patient-response";
 import { selectRescheduleOptionSchema } from "@/lib/validation/reschedule-options";
+import { submitFeedbackSchema } from "@/lib/validation/patient-feedback";
 
 const RESPONSE_TO_STATUS: Record<string, string> = {
   confirm: "confirmed",
@@ -248,6 +249,105 @@ export async function selectRescheduleOptionAction(
 
   revalidatePath("/appointments");
   revalidatePath(`/patients/${link.patientId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
+
+  return { success: true };
+}
+
+/**
+ * Public (no-login) сабмит отзыва (сессия 45). Безопасность — тот же
+ * принцип: scoping только из записи по token; single-use через атомарный
+ * updateMany(status: active -> used). rating/comment валидируются схемой
+ * (1–5, comment ≤1000 символов) — любая ошибка схемы сводится к generic,
+ * как и в submitPatientResponseAction/selectRescheduleOptionAction.
+ */
+export async function submitFeedbackAction(
+  _prev: PatientResponseFormState | undefined,
+  formData: FormData,
+): Promise<PatientResponseFormState> {
+  const parsed = submitFeedbackSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: "generic" };
+  const { token, rating, comment } = parsed.data;
+
+  const link = await prisma.patientResponseLink.findUnique({
+    where: { token },
+    select: {
+      id: true,
+      clinicId: true,
+      patientId: true,
+      appointmentId: true,
+      purpose: true,
+      status: true,
+      expiresAt: true,
+      response: true,
+      patient: { select: { firstName: true, lastName: true } },
+    },
+  });
+  if (!link || link.purpose !== "feedback") return { error: "notFound" };
+  if (link.expiresAt.getTime() < Date.now()) return { error: "expired" };
+  if (link.status !== "active") return { error: "alreadyUsed" };
+
+  const treatmentItemId = parsePendingFeedbackTreatmentItemId(link.response);
+
+  // Атомарный compare-and-swap: только ОДИН конкурентный запрос пройдёт это условие.
+  const claimed = await prisma.patientResponseLink.updateMany({
+    where: { id: link.id, status: "active" },
+    data: {
+      status: "used",
+      respondedAt: new Date(),
+      response: { kind: "feedback_submitted", rating, comment, submittedAt: new Date().toISOString() },
+    },
+  });
+  if (claimed.count === 0) return { error: "alreadyUsed" };
+
+  const db = tenantClient(link.clinicId);
+  const patientName = `${link.patient.lastName} ${link.patient.firstName}`;
+  const now = new Date();
+
+  try {
+    await db.patientFeedback.create({
+      data: {
+        patientId: link.patientId,
+        appointmentId: link.appointmentId,
+        treatmentItemId,
+        responseLinkId: link.id,
+        rating,
+        comment,
+        submittedAt: now,
+      },
+    } as never);
+
+    await db.notification.create({
+      data: {
+        patientId: link.patientId,
+        appointmentId: link.appointmentId,
+        channel: "other",
+        type: "feedback_received",
+        body: `Pasiyent rəy linki vasitəsilə qiymətləndirmə bildirdi: ${rating}/5${comment ? ` — "${comment}"` : ""}.`,
+        status: "prepared",
+        scheduledAt: now,
+        sentAt: now,
+      } as never,
+    });
+
+    await db.notification.create({
+      data: {
+        appointmentId: link.appointmentId,
+        channel: "in_app",
+        type: "feedback_received",
+        body: `${patientName} ${rating}/5 qiymət bildirdi.`,
+        status: "pending",
+        scheduledAt: now,
+      } as never,
+    });
+  } catch (e) {
+    console.error("submitFeedbackAction failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/patients/${link.patientId}`);
+  revalidatePath("/feedback");
   revalidatePath("/dashboard");
   revalidatePath("/notifications");
 

@@ -18,10 +18,13 @@ import { listPatientFinance } from "@/lib/finance";
 import { listPatientDocumentRecords, listPatientLinkOptions } from "@/lib/documents";
 import { listPatientCommunications, COMMUNICATION_CHANNELS } from "@/lib/communications";
 import { prepareAppointmentReminder } from "@/lib/actions/communications";
+import { listPatientFeedback } from "@/lib/patient-feedback";
+import { prepareFeedbackLinkAction } from "@/lib/actions/patient-feedback";
 import { UPLOAD_DOCUMENT_TYPES } from "@/lib/validation/documents";
 import { DOCUMENT_TYPE_META, COMMUNICATION_CHANNEL_META } from "@/lib/constants";
 import { PatientDocumentsBlock } from "@/components/documents/PatientDocumentsBlock";
 import { CommunicationHistoryBlock } from "@/components/communications/CommunicationHistoryBlock";
+import { PatientFeedbackBlock } from "@/components/patients/PatientFeedbackBlock";
 import { WhatsAppActionButton } from "@/components/communications/WhatsAppActionButton";
 import { AppointmentStatusBadge } from "@/components/appointments/AppointmentStatusBadge";
 import { RescheduleOptionsForm } from "@/components/appointments/RescheduleOptionsForm";
@@ -100,6 +103,7 @@ export default async function PatientDetailPage({
       : ti.serviceName,
   }));
   const communications = await listPatientCommunications(user, patient.id);
+  const feedbackRows = await listPatientFeedback(user, patient.id);
   const age = calcAge(patient.birthDate);
   const child = isChildPatient(patient.birthDate, patient.guardianId);
   const genderLabel = { male: t.patients.filters.male, female: t.patients.filters.female };
@@ -355,6 +359,19 @@ export default async function PatientDetailPage({
                         {a.doctor.user.fullName}
                       </span>
                       <AppointmentStatusBadge status={a.status} />
+                      {canManage && a.status === "completed" && (
+                        <WhatsAppActionButton
+                          action={prepareFeedbackLinkAction}
+                          hiddenName="appointmentId"
+                          hiddenValue={a.id}
+                          label={t.patientFeedback.staff.createLabel}
+                          preparedLabel={t.communications.whatsapp.prepared}
+                          noPhoneLabel={t.communications.errors.noPhone}
+                          errors={t.patientFeedback.staff.errors}
+                          hasPhone={!!patient.phone}
+                          small
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -466,6 +483,14 @@ export default async function PatientDetailPage({
           }))}
           labels={{ ...t.communications.history }}
           errors={t.communications.errors}
+        />
+      </div>
+
+      {/* Son rəylər — сессия 45 */}
+      <div className="mt-4">
+        <PatientFeedbackBlock
+          rows={feedbackRows}
+          labels={{ title: t.patientFeedback.list.blockTitle, empty: t.patientFeedback.list.empty }}
         />
       </div>
     </>

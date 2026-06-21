@@ -812,6 +812,39 @@ export const az = {
       thankYou: "Yeni qəbul vaxtı təsdiqləndi",
     },
   },
+  patientFeedback: {
+    staff: {
+      createLabel: "Rəy linki hazırla",
+      errors: {
+        notFound: "Tapılmadı",
+        noPhone: "Telefon nömrəsi yoxdur",
+        notCompleted: "Bu əməliyyat yalnız tamamlanmış qəbul/müalicə üçün mövcuddur",
+        generic: "Xəta baş verdi. Yenidən cəhd edin.",
+      },
+    },
+    public: {
+      title: "Rəy bildirin",
+      serviceLabel: "Xidmət",
+      ratingLabel: "Qiymətləndirmə",
+      commentLabel: "Şərh (istəyə görə)",
+      commentPlaceholder: "Fikrinizi yazın…",
+      submit: "Göndər",
+      submitting: "Göndərilir…",
+      thankYou: "Rəyiniz üçün təşəkkür edirik",
+      alreadySubmitted: "Rəy artıq göndərilib",
+      errors: {
+        generic: "Xəta baş verdi. Yenidən cəhd edin.",
+      },
+    },
+    list: {
+      pageTitle: "Pasiyent rəyləri",
+      pageDesc: "Pasiyentlərin göndərdiyi rəylər",
+      blockTitle: "Son rəylər",
+      empty: "Hələ rəy yoxdur",
+      comment: "Şərh",
+      noAutoSend: "Avtomatik göndərilmir",
+    },
+  },
   inventory: {
     new: "Yeni material",
     summary: {

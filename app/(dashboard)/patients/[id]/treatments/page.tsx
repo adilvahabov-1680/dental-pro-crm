@@ -31,6 +31,7 @@ export default async function PatientTreatmentsPage({
   if (!patient) notFound();
 
   const canManage = hasPermission(user, "treatments.manage");
+  const canManagePatients = hasPermission(user, "patients.manage");
   const [{ plans, items, total, activeAmount, doneAmount }, protocols, doctors] =
     await Promise.all([
       listPatientTreatments(user, patient.id),
@@ -150,6 +151,16 @@ export default async function PatientTreatmentsPage({
         consumableStatusBadges={consumableStatusBadges}
         followUpLabel={canManage ? t.settings.protocols.followUpTitle : undefined}
         recallLabel={canManage ? tt.recall.createLabel : undefined}
+        feedbackLabels={
+          canManagePatients
+            ? {
+                label: t.patientFeedback.staff.createLabel,
+                preparedLabel: t.communications.whatsapp.prepared,
+                noPhoneLabel: t.communications.errors.noPhone,
+                errors: t.patientFeedback.staff.errors,
+              }
+            : undefined
+        }
       />
     </>
   );

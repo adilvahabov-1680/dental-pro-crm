@@ -20,6 +20,7 @@ const TYPE_PERMISSION: Record<string, PermissionKey> = {
   repeat_visit_reminder: "appointments.view",
   treatment_pdf: "documents.view",
   custom: "notifications.view",
+  feedback_received: "patients.view",
 };
 
 /** Типы tenant-level notifications, доступные пользователю. */

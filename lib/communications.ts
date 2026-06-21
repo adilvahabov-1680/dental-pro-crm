@@ -138,6 +138,27 @@ export function recallMessage(opts: {
   return lines.join("\n");
 }
 
+/** Sorğu rəy/feedback mesajı (сессия 45). doctorName опционален — известен, если есть приём/процедура с врачом. */
+export function feedbackRequestMessage(opts: {
+  patientName: string;
+  clinicName: string;
+  feedbackUrl: string;
+  doctorName?: string | null;
+}): string {
+  const lines = [
+    `Hörmətli ${opts.patientName},`,
+    opts.doctorName
+      ? `${opts.doctorName} həkimin qəbulundan sonra rəyiniz bizim üçün önəmlidir.`
+      : `klinikamızda göstərilən xidmətlə bağlı fikrinizi bölüşməyiniz bizim üçün önəmlidir.`,
+    "",
+    `Zəhmət olmasa bu linkdən qısa rəy bildirin:`,
+    opts.feedbackUrl,
+    "",
+    `Təşəkkür edirik.`,
+  ];
+  return lines.join("\n");
+}
+
 /** Сообщение со ссылкой на выбор предложенного варианта времени (сессия 43). */
 export function rescheduleOptionsMessage(opts: {
   patientName: string;

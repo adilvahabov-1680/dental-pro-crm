@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, PackageOpen, CalendarDays, Wallet, CheckCheck, Check } from "lucide-react";
+import { Bell, PackageOpen, CalendarDays, Wallet, CheckCheck, Check, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -14,6 +14,7 @@ const TYPE_ICON: Record<string, LucideIcon> = {
   followup: CalendarDays,
   repeat_visit_reminder: CalendarDays,
   debt_reminder: Wallet,
+  feedback_received: Star,
 };
 
 /** Server component: формы — server actions, работают без JS (progressive enhancement). */

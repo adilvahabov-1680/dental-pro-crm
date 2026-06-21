@@ -133,28 +133,89 @@ export async function createOrReplaceRescheduleOptionsLink(
   });
 }
 
+/** Pre-use payload ссылки purpose=feedback — какую процедуру комментирует отзыв, если не привязан к приёму. */
+interface PendingFeedbackContext {
+  kind: "pending_feedback";
+  treatmentItemId: string | null;
+}
+
+function isPendingFeedbackContext(v: unknown): v is PendingFeedbackContext {
+  return !!v && typeof v === "object" && (v as Record<string, unknown>).kind === "pending_feedback";
+}
+
+export function parsePendingFeedbackTreatmentItemId(response: unknown): string | null {
+  return isPendingFeedbackContext(response) ? response.treatmentItemId : null;
+}
+
+export const FEEDBACK_LINK_TTL_HOURS = 24 * 7; // 7 дней
+
+/**
+ * Ссылка для отзыва (сессия 45). В отличие от reschedule_offer — переиспользует
+ * активную непросроченную ссылку для ТОЙ ЖЕ сущности (того же приёма либо той же
+ * процедуры — сравнение по appointmentId-колонке либо по treatmentItemId внутри
+ * response), а не создаёт новую при каждом клике. appointmentId — реальная
+ * колонка (есть у приёма); treatmentItemId — только в response (у
+ * PatientResponseLink нет такой колонки, заводить её под одно поле — overkill).
+ */
+export async function getOrCreateFeedbackLink(
+  db: TenantClient,
+  params: { patientId: string; appointmentId: string | null; treatmentItemId: string | null },
+): Promise<{ id: string; token: string }> {
+  const candidates = await db.patientResponseLink.findMany({
+    where: { patientId: params.patientId, purpose: "feedback", status: "active", expiresAt: { gt: new Date() } },
+    select: { id: true, token: true, appointmentId: true, response: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const existing = candidates.find((c) => {
+    if (params.appointmentId) return c.appointmentId === params.appointmentId;
+    if (params.treatmentItemId) return parsePendingFeedbackTreatmentItemId(c.response) === params.treatmentItemId;
+    return false;
+  });
+  if (existing) return { id: existing.id, token: existing.token };
+
+  const token = generateResponseToken();
+  const expiresAt = new Date(Date.now() + FEEDBACK_LINK_TTL_HOURS * 60 * 60 * 1000);
+  return db.patientResponseLink.create({
+    data: {
+      patientId: params.patientId,
+      appointmentId: params.appointmentId,
+      token,
+      purpose: "feedback",
+      status: "active",
+      expiresAt,
+      response: { kind: "pending_feedback", treatmentItemId: params.treatmentItemId },
+    } as never,
+    select: { id: true, token: true },
+  });
+}
+
 export type PublicResponseLinkState =
   | { kind: "not_found" }
   | { kind: "expired" }
-  | { kind: "used"; responseType: string | null }
+  | { kind: "used"; purpose: "confirm_appointment" | "reschedule_offer" | "feedback"; responseType: string | null }
   | {
       kind: "active";
       token: string;
-      purpose: "confirm_appointment" | "reschedule_offer";
+      purpose: "confirm_appointment" | "reschedule_offer" | "feedback";
       clinicName: string;
       patientName: string;
-      doctorName: string;
-      startsAt: Date;
+      /** null — для feedback без привязанного приёма/процедуры с известным врачом. */
+      doctorName: string | null;
+      /** null — для feedback без привязанного приёма. */
+      startsAt: Date | null;
       /** только для purpose === "reschedule_offer". */
       options?: RescheduleOption[];
+      /** только для purpose === "feedback", когда известна процедура (без приёма). */
+      serviceName?: string | null;
     };
 
 /**
  * Публичное (без сессии) чтение по токену. Минимум данных, никаких internal id,
  * никакой медицинской/финансовой информации. clinicId/patientId/appointmentId
  * берутся ТОЛЬКО из найденной по token записи — без поиска по другим id.
- * purpose=reschedule_offer дополнительно возвращает options (сессия 43) —
- * остальные kind ("used"/"expired"/"not_found") универсальны для обоих purpose.
+ * purpose=reschedule_offer дополнительно возвращает options (сессия 43);
+ * purpose=feedback — единственный purpose, где appointment опционален (сессия 45,
+ * см. getOrCreateFeedbackLink) — остальные purpose требуют приём, как и раньше.
  */
 export async function getPublicResponseLinkState(token: string): Promise<PublicResponseLinkState> {
   if (!TOKEN_FORMAT.test(token)) return { kind: "not_found" };
@@ -175,23 +236,49 @@ export async function getPublicResponseLinkState(token: string): Promise<PublicR
       },
     },
   });
-  if (!link || !link.appointmentId || !link.appointment) return { kind: "not_found" };
+  if (!link) return { kind: "not_found" };
+
+  const purpose: "confirm_appointment" | "reschedule_offer" | "feedback" =
+    link.purpose === "reschedule_offer" ? "reschedule_offer" : link.purpose === "feedback" ? "feedback" : "confirm_appointment";
+
+  // confirm_appointment/reschedule_offer всегда требуют приём; feedback — опционален.
+  if (purpose !== "feedback" && (!link.appointmentId || !link.appointment)) {
+    return { kind: "not_found" };
+  }
 
   if (link.status === "used" || link.status === "revoked") {
-    return { kind: "used", responseType: link.responseType };
+    return { kind: "used", purpose, responseType: link.responseType };
   }
   if (link.status === "expired" || link.expiresAt.getTime() < Date.now()) {
     return { kind: "expired" };
   }
 
+  let doctorName = link.appointment?.doctor.user.fullName ?? null;
+  let serviceName: string | null = null;
+  if (purpose === "feedback" && !link.appointment) {
+    const treatmentItemId = parsePendingFeedbackTreatmentItemId(link.response);
+    if (treatmentItemId) {
+      const item = await prisma.treatmentItem.findUnique({
+        where: { id: treatmentItemId },
+        select: {
+          service: { select: { name: true } },
+          doctor: { select: { user: { select: { fullName: true } } } },
+        },
+      });
+      serviceName = item?.service.name ?? null;
+      doctorName = item?.doctor.user.fullName ?? null;
+    }
+  }
+
   return {
     kind: "active",
     token,
-    purpose: link.purpose === "reschedule_offer" ? "reschedule_offer" : "confirm_appointment",
+    purpose,
     clinicName: link.clinic.name,
     patientName: `${link.patient.lastName} ${link.patient.firstName}`,
-    doctorName: link.appointment.doctor.user.fullName,
-    startsAt: link.appointment.startsAt,
-    ...(link.purpose === "reschedule_offer" ? { options: parseRescheduleOptions(link.response) } : {}),
+    doctorName,
+    startsAt: link.appointment?.startsAt ?? null,
+    serviceName,
+    ...(purpose === "reschedule_offer" ? { options: parseRescheduleOptions(link.response) } : {}),
   };
 }

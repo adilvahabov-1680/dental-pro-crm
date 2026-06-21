@@ -217,6 +217,7 @@ enum NotificationType {
   payment_reminder // сессия 15: напоминание об оплате (WhatsApp click-to-chat)
   manual_note // сессия 15: ручная запись в истории коммуникации
   reschedule_offer // сессия 43: предложенные варианты времени / выбор пациента
+  feedback_received // сессия 45: рейтинг/отзыв пациента (link prepared + получен)
 }
 
 enum NotificationStatus {
@@ -310,6 +311,7 @@ model Clinic {
   notifications        Notification[]
   patientResponseLinks PatientResponseLink[]
   recallTasks          RecallTask[]
+  patientFeedbacks     PatientFeedback[]
   settings             Setting[]
   translations         Translation[]
   auditLogs            AuditLog[]
@@ -498,6 +500,7 @@ model Patient {
   notifications        Notification[]
   patientResponseLinks PatientResponseLink[]
   recallTasks          RecallTask[]
+  feedbacks            PatientFeedback[]
 
   @@index([clinicId, phone])
   @@index([clinicId, lastName])
@@ -539,6 +542,7 @@ model Appointment {
   notifications  Notification[]
   responseLinks  PatientResponseLink[]
   recallTasks    RecallTask[]
+  feedbacks      PatientFeedback[]
 
   @@index([clinicId, doctorId, startsAt])
   @@index([clinicId, patientId])
@@ -691,6 +695,7 @@ model TreatmentItem {
   movements          InventoryMovement[]
   consumableUsages   TreatmentConsumableUsage[]
   recallTasks        RecallTask[]
+  feedbacks          PatientFeedback[]
 
   @@index([clinicId, patientId, toothNumber])
   @@map("treatment_items")
@@ -1249,6 +1254,7 @@ model PatientResponseLink {
   clinic      Clinic       @relation(fields: [clinicId], references: [id])
   patient     Patient      @relation(fields: [patientId], references: [id])
   appointment Appointment? @relation(fields: [appointmentId], references: [id])
+  feedback    PatientFeedback?
 
   @@map("patient_response_links")
 }
@@ -1292,6 +1298,33 @@ enum RecallStatus {
   prepared
   scheduled
   dismissed
+}
+
+/// Отзыв пациента 1–5 (сессия 45). Создаётся ТОЛЬКО при сабмите публичной формы
+/// (lib/actions/patient-response.ts:submitFeedbackAction) — pending-состояние до
+/// этого момента живёт в PatientResponseLink{purpose: feedback}, не здесь.
+model PatientFeedback {
+  id              String   @id @default(uuid()) @db.Uuid
+  clinicId        String   @map("clinic_id") @db.Uuid
+  patientId       String   @map("patient_id") @db.Uuid
+  appointmentId   String?  @map("appointment_id") @db.Uuid
+  treatmentItemId String?  @map("treatment_item_id") @db.Uuid
+  responseLinkId  String   @unique @map("response_link_id") @db.Uuid
+  rating          Int      @db.SmallInt
+  comment         String?
+  submittedAt     DateTime @map("submitted_at") @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  clinic        Clinic              @relation(fields: [clinicId], references: [id])
+  patient       Patient             @relation(fields: [patientId], references: [id])
+  appointment   Appointment?        @relation(fields: [appointmentId], references: [id])
+  treatmentItem TreatmentItem?      @relation(fields: [treatmentItemId], references: [id])
+  responseLink  PatientResponseLink @relation(fields: [responseLinkId], references: [id])
+
+  @@index([clinicId, submittedAt])
+  @@map("patient_feedbacks")
 }
 
 // ─────────────── H2. Settings & i18n ───────────────

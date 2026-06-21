@@ -112,6 +112,7 @@ export const COMMUNICATION_TYPE_META: Record<string, { az: string; color: string
   manual_note: { az: "Qeyd", color: "text-secondary" },
   reschedule_offer: { az: "Vaxt variantı təklifi", color: "info" },
   repeat_visit_reminder: { az: "Kontrol xatırlatması", color: "info" },
+  feedback_received: { az: "Rəy", color: "accent" },
 };
 
 /** AZ-метки статусов recall-задачи (enum RecallStatus, сессия 44). */

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { ToothIcon } from "@/components/ui/ToothIcon";
 import { PatientResponseForm } from "@/components/patient-response/PatientResponseForm";
 import { RescheduleOptionsSelectionForm } from "@/components/patient-response/RescheduleOptionsSelectionForm";
+import { FeedbackForm } from "@/components/patient-response/FeedbackForm";
 import { getPublicResponseLinkState } from "@/lib/patient-response";
 import { getDict } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
@@ -20,6 +21,7 @@ export default async function PatientResponsePage({
   const { token } = await params;
   const t = getDict().patientResponse;
   const tr = getDict().rescheduleOptions.public;
+  const tf = getDict().patientFeedback.public;
   const state = await getPublicResponseLinkState(token);
 
   return (
@@ -33,7 +35,11 @@ export default async function PatientResponsePage({
             <ToothIcon className="size-8" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight">
-            {state.kind === "active" && state.purpose === "reschedule_offer" ? tr.title : t.title}
+            {state.kind === "active" && state.purpose === "reschedule_offer"
+              ? tr.title
+              : state.kind === "active" && state.purpose === "feedback"
+                ? tf.title
+                : t.title}
           </h1>
         </div>
 
@@ -43,23 +49,35 @@ export default async function PatientResponsePage({
               <p className="mb-1 text-sm text-text-secondary">
                 {t.greeting} {state.patientName}
               </p>
-              <div className="my-4 space-y-2 rounded-[10px] bg-bg-base/50 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <CalendarClock className="size-4 text-accent" />
-                  <span className="text-text-secondary">{t.appointmentTime}:</span>
-                  <span className="font-medium text-text-primary">
-                    {formatDate(state.startsAt)}{" "}
-                    {new Date(state.startsAt).toLocaleTimeString("az-AZ", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
+              {(state.startsAt || state.doctorName || state.serviceName) && (
+                <div className="my-4 space-y-2 rounded-[10px] bg-bg-base/50 px-4 py-3">
+                  {state.startsAt && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CalendarClock className="size-4 text-accent" />
+                      <span className="text-text-secondary">{t.appointmentTime}:</span>
+                      <span className="font-medium text-text-primary">
+                        {formatDate(state.startsAt)}{" "}
+                        {new Date(state.startsAt).toLocaleTimeString("az-AZ", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {state.doctorName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-text-secondary">{t.doctor}:</span>
+                      <span className="font-medium text-text-primary">{state.doctorName}</span>
+                    </div>
+                  )}
+                  {state.purpose === "feedback" && state.serviceName && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-text-secondary">{tf.serviceLabel}:</span>
+                      <span className="font-medium text-text-primary">{state.serviceName}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-text-secondary">{t.doctor}:</span>
-                  <span className="font-medium text-text-primary">{state.doctorName}</span>
-                </div>
-              </div>
+              )}
               <p className="mb-3 text-xs text-text-secondary">{state.clinicName}</p>
 
               {state.purpose === "reschedule_offer" ? (
@@ -73,6 +91,19 @@ export default async function PatientResponsePage({
                     submitting: tr.submitting,
                     thankYou: tr.thankYou,
                     errors: t.errors,
+                  }}
+                />
+              ) : state.purpose === "feedback" ? (
+                <FeedbackForm
+                  token={state.token}
+                  labels={{
+                    ratingLabel: tf.ratingLabel,
+                    commentLabel: tf.commentLabel,
+                    commentPlaceholder: tf.commentPlaceholder,
+                    submit: tf.submit,
+                    submitting: tf.submitting,
+                    thankYou: tf.thankYou,
+                    errors: tf.errors,
                   }}
                 />
               ) : (
@@ -99,7 +130,9 @@ export default async function PatientResponsePage({
               data-e2e-marker="link-used"
             >
               <CheckCircle2 className="size-8 text-success" />
-              <p className="text-sm font-medium text-text-primary">{t.linkUsed}</p>
+              <p className="text-sm font-medium text-text-primary">
+                {state.purpose === "feedback" ? tf.alreadySubmitted : t.linkUsed}
+              </p>
             </div>
           )}
 

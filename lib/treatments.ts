@@ -14,7 +14,7 @@ import type { SessionUser } from "@/types/auth";
 export const INACTIVE_ITEM_STATUSES = ["cancelled"] as const;
 
 const itemInclude = {
-  patient: { select: { id: true, firstName: true, lastName: true } },
+  patient: { select: { id: true, firstName: true, lastName: true, phone: true } },
   doctor: { select: { id: true, user: { select: { fullName: true } } } },
   service: { select: { id: true, name: true } },
   treatmentPlan: { select: { id: true, title: true, status: true } },

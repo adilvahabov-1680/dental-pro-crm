@@ -16,6 +16,7 @@ export function TreatmentItemsList({
   consumableStatusBadges,
   followUpLabel,
   recallLabel,
+  feedbackLabels,
 }: {
   items: TreatmentItemFull[];
   canManage: boolean;
@@ -29,6 +30,7 @@ export function TreatmentItemsList({
   consumableStatusBadges?: Record<string, { label: string; tone: "applied" | "reversed" | "reapplied" }>;
   followUpLabel?: string;
   recallLabel?: string;
+  feedbackLabels?: { label: string; preparedLabel: string; noPhoneLabel: string; errors: Record<string, string> };
 }) {
   if (items.length === 0) {
     return (
@@ -52,6 +54,7 @@ export function TreatmentItemsList({
           consumableStatusBadge={consumableStatusBadges?.[item.id]}
           followUpLabel={followUpLabel}
           recallLabel={recallLabel}
+          feedbackLabels={feedbackLabels}
         />
       ))}
     </div>
