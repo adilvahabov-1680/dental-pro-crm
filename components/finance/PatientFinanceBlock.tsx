@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { InvoiceCard } from "@/components/finance/InvoiceCard";
 import { PaymentsList } from "@/components/finance/PaymentsList";
 import type { InvoiceListItem } from "@/lib/finance";
-import { formatMoney } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 import type { Dict } from "@/i18n/az";
 
 /** Живой блок «Ödənişlər» на карточке пациента. */
@@ -16,6 +16,7 @@ export function PatientFinanceBlock({
   invoiced,
   paid,
   debt,
+  lastReminderAt,
   canManage,
 }: {
   patientId: string;
@@ -32,6 +33,7 @@ export function PatientFinanceBlock({
   invoiced: number;
   paid: number;
   debt: number;
+  lastReminderAt?: Date | null;
   canManage: boolean;
 }) {
   return (
@@ -43,6 +45,12 @@ export function PatientFinanceBlock({
             <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
               <TriangleAlert className="size-3" /> {dict.patientBlock.debtBadge}:{" "}
               <span className="tabular-nums">{formatMoney(debt)}</span>
+            </span>
+          )}
+          {debt > 0 && (
+            <span className="text-[11px] text-text-secondary">
+              {dict.patientBlock.lastReminder}:{" "}
+              {lastReminderAt ? formatDate(lastReminderAt) : dict.patientBlock.neverReminded}
             </span>
           )}
         </h2>

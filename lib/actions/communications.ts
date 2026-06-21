@@ -195,13 +195,17 @@ export async function prepareInvoiceReminder(
   const invoice = await getInvoiceForUser(user, parsed.data.invoiceId);
   if (!invoice) return { error: "notFound" };
 
+  const balance = invoice.total - invoice.paidAmount;
+  if (invoice.status === "paid" || invoice.status === "cancelled" || balance <= 0) {
+    return { error: "fullyPaid" };
+  }
+
   const phone = normalizeAzPhone(invoice.patient.phone);
   if (!phone) return { error: "noPhone" };
 
   try {
     const db = tenantClient(clinicId);
     const name = await clinicName(clinicId);
-    const balance = invoice.total - invoice.paidAmount;
     const text = paymentReminderMessage({
       patientName: `${invoice.patient.lastName} ${invoice.patient.firstName}`,
       clinicName: name,
@@ -239,8 +243,14 @@ export async function prepareInvoiceReminder(
       },
     } as never);
 
+    await db.debt.updateMany({
+      where: { invoiceId: invoice.id },
+      data: { lastReminderAt: now },
+    });
+
     revalidatePatient(invoice.patient.id);
     revalidatePath(`/finance/invoices/${invoice.id}`);
+    revalidatePath("/finance/debts");
     return { success: true, waUrl };
   } catch (e) {
     console.error("prepareInvoiceReminder failed:", e);

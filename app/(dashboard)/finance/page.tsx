@@ -48,14 +48,22 @@ export default async function FinancePage({
         title={t.modules.finance.title}
         description={t.modules.finance.desc}
         actions={
-          canManage ? (
+          <div className="flex items-center gap-2">
             <Link
-              href="/finance/invoices/new"
-              className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              href="/finance/debts"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface px-4 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
             >
-              <Plus className="size-4" /> {tf.newInvoice}
+              <TriangleAlert className="size-4" /> {tf.debts.viewAll}
             </Link>
-          ) : undefined
+            {canManage && (
+              <Link
+                href="/finance/invoices/new"
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              >
+                <Plus className="size-4" /> {tf.newInvoice}
+              </Link>
+            )}
+          </div>
         }
       />
 

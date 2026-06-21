@@ -181,6 +181,18 @@ optionsUrl })` (`lib/communications.ts`) и новое действие
 впервые применяется на практике; AZ-метка добавлена в
 `COMMUNICATION_TYPE_META`. Полная схема recall — **[RECALL_TASKS.md](RECALL_TASKS.md)**.
 
+## Дополнение (Session 47): debt reminder queue
+
+`prepareInvoiceReminder` теперь отклоняет полностью оплаченный/отменённый
+счёт (`{ error: "fullyPaid" }`, без создания записи) и обновляет
+`Debt.lastReminderAt` после успешной подготовки напоминания — поле
+существовало в схеме с самого начала, но было неиспользуемым до этой
+сессии. Новая очередь `/finance/debts` (`listDebtReminderCandidates`,
+`lib/finance.ts`) показывает все открытые/частичные долги клиники и
+переиспользует ту же кнопку/действие — никакого нового
+server action не вводилось. Подробности —
+**[DEBT_REMINDERS.md](DEBT_REMINDERS.md)**.
+
 ## Дополнение (Session 45): отзыв/рейтинг пациента
 
 Новый шаблон `feedbackRequestMessage({ patientName, clinicName,

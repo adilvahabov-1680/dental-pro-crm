@@ -83,7 +83,7 @@ export default async function PatientDetailPage({
   const canViewFinance = hasPermission(user, "finance.view");
   const finance = canViewFinance
     ? await listPatientFinance(user, patient.id)
-    : { invoices: [], payments: [], invoiced: 0, paid: 0, debt: 0 };
+    : { invoices: [], payments: [], invoiced: 0, paid: 0, debt: 0, lastReminderAt: null };
   const canViewDocuments = hasPermission(user, "documents.view");
   const canManageDocuments = hasPermission(user, "documents.manage");
   const documentRecords = canViewDocuments
@@ -429,6 +429,7 @@ export default async function PatientDetailPage({
             invoiced={finance.invoiced}
             paid={finance.paid}
             debt={finance.debt}
+            lastReminderAt={finance.lastReminderAt}
             canManage={canManageFinance}
           />
         </div>

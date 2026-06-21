@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { tenantClient } from "@/lib/tenant";
 import { patientScopeWhere } from "@/lib/patients";
+import { hasPermission } from "@/lib/permissions";
 import type { SessionUser } from "@/types/auth";
 
 export const OPEN_DEBT_STATUSES = ["open", "partial"] as const;
@@ -82,6 +83,35 @@ export async function getInvoiceForUser(
   })) as InvoiceDetail | null;
 }
 
+const debtCandidateInclude = {
+  patient: { select: { id: true, firstName: true, lastName: true, phone: true } },
+  invoice: {
+    select: { id: true, number: true, status: true, total: true, paidAmount: true, dueDate: true },
+  },
+} satisfies Prisma.DebtInclude;
+
+export type DebtReminderCandidate = Prisma.DebtGetPayload<{ include: typeof debtCandidateInclude }>;
+
+/**
+ * Очередь debt reminder (сессия 47): открытые/частичные долги в scope
+ * пользователя (по пациенту, как остальные finance-запросы), сортировка —
+ * самый большой остаток первым, при равенстве — старые долги впереди.
+ */
+export async function listDebtReminderCandidates(
+  user: SessionUser,
+): Promise<DebtReminderCandidate[]> {
+  if (!user.clinicId || !hasPermission(user, "finance.view")) return [];
+  const db = tenantClient(user.clinicId);
+  const pScope = await patientScopeWhere(user);
+  const patientFilter = Object.keys(pScope).length ? { patient: pScope } : {};
+  return (await db.debt.findMany({
+    where: { status: { in: [...OPEN_DEBT_STATUSES] }, ...patientFilter },
+    include: debtCandidateInclude,
+    orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
+    take: 100,
+  })) as DebtReminderCandidate[];
+}
+
 /** Summary-карточки /finance (в scope пользователя). */
 export async function financeSummary(user: SessionUser) {
   if (!user.clinicId) return { invoiced: 0, paid: 0, debt: 0, monthPayments: 0 };
@@ -117,7 +147,14 @@ export async function financeSummary(user: SessionUser) {
 /** Финансы пациента: счета, оплаты, итоги. */
 export async function listPatientFinance(user: SessionUser, patientId: string) {
   if (!user.clinicId) {
-    return { invoices: [] as InvoiceListItem[], payments: [], invoiced: 0, paid: 0, debt: 0 };
+    return {
+      invoices: [] as InvoiceListItem[],
+      payments: [],
+      invoiced: 0,
+      paid: 0,
+      debt: 0,
+      lastReminderAt: null as Date | null,
+    };
   }
   const db = tenantClient(user.clinicId);
   const [invoices, payments, inv, debts] = await Promise.all([
@@ -140,6 +177,7 @@ export async function listPatientFinance(user: SessionUser, patientId: string) {
     db.debt.aggregate({
       where: { patientId, status: { in: [...OPEN_DEBT_STATUSES] } },
       _sum: { amount: true },
+      _max: { lastReminderAt: true },
     }),
   ]);
   return {
@@ -148,6 +186,7 @@ export async function listPatientFinance(user: SessionUser, patientId: string) {
     invoiced: inv._sum.total ?? 0,
     paid: inv._sum.paidAmount ?? 0,
     debt: debts._sum.amount ?? 0,
+    lastReminderAt: debts._max.lastReminderAt ?? null,
   };
 }
 
