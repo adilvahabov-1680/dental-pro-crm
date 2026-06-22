@@ -39,7 +39,20 @@ const itemInclude = {
   supplier: { select: { id: true, name: true } },
 } satisfies Prisma.InventoryItemInclude;
 
-export type InventoryItemFull = Prisma.InventoryItemGetPayload<{ include: typeof itemInclude }>;
+type InventoryItemRaw = Prisma.InventoryItemGetPayload<{ include: typeof itemInclude }>;
+
+/** Decimal-поля сериализуются в number на границе с client-компонентами (React RSC требует plain objects). */
+function serializeInventoryItem(item: InventoryItemRaw) {
+  return {
+    ...item,
+    quantity: Number(item.quantity),
+    minQuantity: Number(item.minQuantity),
+    purchaseToBaseFactor: Number(item.purchaseToBaseFactor),
+    doseToBaseFactor: item.doseToBaseFactor != null ? Number(item.doseToBaseFactor) : null,
+  };
+}
+
+export type InventoryItemFull = ReturnType<typeof serializeInventoryItem>;
 
 export interface InventoryFilters {
   q?: string;
@@ -61,11 +74,12 @@ export async function listInventoryItems(
     include: itemInclude,
     orderBy: { name: "asc" },
     take: 200,
-  })) as InventoryItemFull[];
+  })) as InventoryItemRaw[];
+  const serialized = items.map(serializeInventoryItem);
   // low-фильтр — по вычисляемому статусу (quantity ≤ minQuantity)
   return filters.low
-    ? items.filter((i) => ["low", "out"].includes(inventoryStatus(i)))
-    : items;
+    ? serialized.filter((i) => ["low", "out"].includes(inventoryStatus(i)))
+    : serialized;
 }
 
 /** Материал клиники по id; чужой → null. */
@@ -75,10 +89,11 @@ export async function getInventoryItemForUser(
 ): Promise<InventoryItemFull | null> {
   if (!user.clinicId) return null;
   const db = tenantClient(user.clinicId);
-  return (await db.inventoryItem.findFirst({
+  const item = (await db.inventoryItem.findFirst({
     where: { id, deletedAt: null },
     include: itemInclude,
-  })) as InventoryItemFull | null;
+  })) as InventoryItemRaw | null;
+  return item ? serializeInventoryItem(item) : null;
 }
 
 export interface MovementRow {

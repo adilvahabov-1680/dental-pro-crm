@@ -44,9 +44,21 @@ const orderItemSelect = {
   createdAt: true,
 } satisfies Prisma.SupplierOrderItemSelect;
 
-export type SupplierOrderItemRow = Prisma.SupplierOrderItemGetPayload<{
+type SupplierOrderItemRaw = Prisma.SupplierOrderItemGetPayload<{
   select: typeof orderItemSelect;
 }>;
+
+/** Decimal-поля сериализуются в number на границе с client-компонентами (React RSC требует plain objects). */
+function serializeOrderItem(item: SupplierOrderItemRaw) {
+  return {
+    ...item,
+    quantity: Number(item.quantity),
+    priceSnapshot: Number(item.priceSnapshot),
+    receivedQty: item.receivedQty != null ? Number(item.receivedQty) : null,
+  };
+}
+
+export type SupplierOrderItemRow = ReturnType<typeof serializeOrderItem>;
 
 export type SupplierOrderFull = SupplierOrderRow & {
   items: SupplierOrderItemRow[];
@@ -76,7 +88,8 @@ export async function getSupplierOrderForUser(
       items: { select: orderItemSelect, orderBy: { createdAt: "asc" } },
     },
   });
-  return order as SupplierOrderFull | null;
+  if (!order) return null;
+  return { ...order, items: order.items.map(serializeOrderItem) };
 }
 
 /** Get or create a draft order for a given supplier. One draft per supplier at a time. */

@@ -40,9 +40,20 @@ const catalogItemSelect = {
   supplier: { select: { id: true, name: true } },
 } satisfies Prisma.SupplierCatalogItemSelect;
 
-export type CatalogItemRow = Prisma.SupplierCatalogItemGetPayload<{
+type CatalogItemRaw = Prisma.SupplierCatalogItemGetPayload<{
   select: typeof catalogItemSelect;
 }>;
+
+/** Decimal-поля сериализуются в number на границе с client-компонентами (React RSC требует plain objects). */
+function serializeCatalogItem(item: CatalogItemRaw) {
+  return {
+    ...item,
+    price: Number(item.price),
+    minOrderQty: item.minOrderQty != null ? Number(item.minOrderQty) : null,
+  };
+}
+
+export type CatalogItemRow = ReturnType<typeof serializeCatalogItem>;
 
 export interface CatalogFilters {
   q?: string;
@@ -94,12 +105,13 @@ export async function listCatalogItems(
     });
   }
   if (filters.category) and.push({ category: filters.category });
-  return db.supplierCatalogItem.findMany({
+  const items = await db.supplierCatalogItem.findMany({
     where: { AND: and },
     select: catalogItemSelect,
     orderBy: [{ category: "asc" }, { name: "asc" }],
     take: 500,
   });
+  return items.map(serializeCatalogItem);
 }
 
 /** Distinct categories for a supplier's catalog (for filter dropdown). */
