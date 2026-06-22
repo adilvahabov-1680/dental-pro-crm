@@ -1,6 +1,8 @@
 # Dental Pro CRM — Free Demo Deploy Guide
 **by AV Systems** · v1.0 · сессия 21 (Free Public Demo Deploy Preparation)
-Связанные документы: [DEPLOYMENT.md](DEPLOYMENT.md) (VPS/production) · [SETUP.md](SETUP.md) (local dev)
+Связанные документы: [DEPLOYMENT.md](DEPLOYMENT.md) (VPS/production) ·
+[SETUP.md](SETUP.md) (local dev) ·
+[DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) (сценарий показа клинике, сессия 52)
 
 Этот документ — пошаговая инструкция для быстрого публичного demo-деплоя
 без локального Docker/npm. Целевой стек: **GitHub + Vercel + Neon Postgres (free tier)**.

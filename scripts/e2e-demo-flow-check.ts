@@ -1,10 +1,11 @@
 /**
- * E2E demo-flow smoke check (сессия 18, dev-скрипт):
+ * E2E demo-flow smoke check (сессия 18, расширен в сессии 52, dev-скрипт):
  *   npx tsx scripts/e2e-demo-flow-check.ts
  * Требует dev-сервер + seed. Не дублирует модульные e2e-наборы — быстрая
- * проверка, что демо-путь (DEMO.md) не сломан перед показом клинике:
- * логины ролей, ключевые страницы открываются, базовые ограничения доступа
- * работают.
+ * проверка, что демо-путь (DEMO.md / DEMO_PRESENTATION.md) не сломан перед
+ * показом клинике: логины ролей, ключевые страницы всех модулей открываются,
+ * базовые ограничения доступа работают, /login demo-hint не утекает реальный
+ * dev-пароль.
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -111,22 +112,51 @@ async function main() {
   const admin = await owner.get("/admin");
   check("8. Admin açılır", admin.status === 200 && admin.html.includes("Əməkdaşlar və rollar"));
 
-  // 9. doctor cannot access admin
+  // 9-15. demo-presentation üçün açılması vacib olan əsas modullar (сессия 52)
+  const keyPages: Array<[string, string, string]> = [
+    ["9", "/patients", "Pasiyentlər"],
+    ["10", "/appointments", "Qəbullar"],
+    ["11", "/finance", "Maliyyə"],
+    ["12", "/inventory", "Anbar"],
+    ["13", "/recalls", "Kontrol xatırlatmaları"],
+    ["14", "/feedback", "Pasiyent rəyləri"],
+    ["15", "/notifications", "Bildirişlər"],
+  ];
+  for (const [n, path, marker] of keyPages) {
+    const page = await owner.get(path);
+    check(`${n}. ${path} açılır`, page.status === 200 && page.html.includes(marker));
+  }
+
+  // 16. doctor cannot access admin
   const doctor = new Session();
   await doctor.login("hekim@demo.dentalpro.az");
   const doctorAdmin = await doctor.get("/admin");
-  check("9. doctor: /admin əlçatan deyil (redirect)", doctorAdmin.status >= 300);
+  check("16. doctor: /admin əlçatan deyil (redirect)", doctorAdmin.status >= 300);
 
-  // 10. assistant cannot access restricted area (Ayarlar — нет settings.view)
+  // 17. assistant cannot access restricted area (Ayarlar — нет settings.view)
   const assistant = new Session();
   await assistant.login("assistent@demo.dentalpro.az");
   const assistantSettings = await assistant.get("/settings");
-  check("10. assistant: /settings əlçatan deyil (redirect)", assistantSettings.status >= 300);
+  check("17. assistant: /settings əlçatan deyil (redirect)", assistantSettings.status >= 300);
 
-  // 11. health check открыт без авторизации (сессия 20)
+  // 18. health check открыт без авторизации (сессия 20)
   const health = await fetch(BASE + "/api/health");
   const healthBody = await health.json().catch(() => null);
-  check("11. /api/health işləyir (ok:true, авторизация tələb olunmur)", health.status === 200 && healthBody?.ok === true);
+  check("18. /api/health işləyir (ok:true, авторизация tələb olunmur)", health.status === 200 && healthBody?.ok === true);
+
+  // 19. /login demo-hint daxili uyğunluğu (сессия 52): real dev-parol heç vaxt
+  // səhifəyə sızmamalıdır; əgər NEXT_PUBLIC_DEMO_MODE=true isə, hint admin/admin123
+  // göstərməlidir — server hansı env-də render olunursa, ona uyğun yoxlanılır.
+  const loginRes = await fetch(BASE + "/login");
+  const loginHtml = await loginRes.text();
+  const noRealPasswordLeak = !loginHtml.includes("Demo1234");
+  const hasDemoHint = loginHtml.includes("Demo giriş");
+  const hintConsistent = !hasDemoHint || (loginHtml.includes("admin123") && loginHtml.includes(">admin<"));
+  check(
+    "19. /login: demo-hint düzgündür, real parol sızmır",
+    noRealPasswordLeak && hintConsistent,
+    `hasDemoHint=${hasDemoHint}`,
+  );
 
   console.log(`\nNəticə: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

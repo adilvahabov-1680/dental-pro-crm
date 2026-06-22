@@ -19,7 +19,7 @@
 import { PrismaClient } from "@prisma/client";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
-const PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "admin123";
+const PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo1234!";
 const prisma = new PrismaClient();
 
 let passed = 0;

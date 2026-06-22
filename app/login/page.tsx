@@ -49,6 +49,9 @@ export default function LoginPage() {
               <span className="text-text-secondary/50"> / </span>
               <span className="text-text-secondary">admin123</span>
             </p>
+            <p className="mt-2 text-[11px] text-text-secondary/60">
+              Klinika sahibi demo hesabı — bütün modullara giriş
+            </p>
           </Card>
         )}
 

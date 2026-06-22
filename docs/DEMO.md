@@ -1,9 +1,13 @@
 # Dental Pro CRM — Demo Guide
 
-**by AV Systems** · создано в сессии 18 (MVP Hardening & Demo Readiness)
+**by AV Systems** · создано в сессии 18 (MVP Hardening & Demo Readiness),
+обновлено в сессии 52 (Demo / Public Presentation Polish v1)
 
 Для развёртывания на сервере (а не только локальной демо) — см.
-[DEPLOYMENT.md](DEPLOYMENT.md).
+[DEPLOYMENT.md](DEPLOYMENT.md). Для структурированного сценария показа
+по ролям (owner/həkim/assistent) с актуальным списком модулей — см.
+**[DEMO_PRESENTATION.md](DEMO_PRESENTATION.md)** (сессия 52); этот файл
+остаётся быстрой dev-шпаргалкой с командами и известными ограничениями.
 
 Этот документ — шпаргалка для показа продукта клинике: кто логинится, что
 показывать и в каком порядке, какие ограничения нужно проговорить заранее.
@@ -66,6 +70,9 @@ Yeni işçi) прямо во время демо.
 - Anbar: `/inventory`
 - Sənədlər: `/documents`
 - Bildirişlər: `/notifications`
+- Kontrol xatırlatmaları (recall): `/recalls`
+- Pasiyent rəyləri (feedback): `/feedback`
+- Borc xatırlatmaları (debt reminders): `/finance/debts`
 - Ayarlar: `/settings` (xidmətlər: `/settings/services`)
 - Admin: `/admin`
 
@@ -141,3 +148,7 @@ npx tsx scripts/e2e-admin-check.ts
   Anbar/Dashboard).
 - Рабочие часы: Mon–Fri 09:00–18:00, Sat 10:00–14:00, Sun — bağlı
   (добавлено в сессии 18).
+- **Recall / Feedback / Əlaqə tarixçəsi пусты на свежем seed** (намеренно,
+  сессия 52 — изменения `prisma/seed.ts` не делались, чтобы не задеть
+  count-based e2e-проверки). Как быстро подготовить живой пример прямо на
+  демо — см. [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) §5.
