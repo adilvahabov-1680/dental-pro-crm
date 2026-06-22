@@ -1,19 +1,29 @@
 /**
- * E2E-проверка Mobile UX / Doctor Workflow Polish v1 (сессия 50):
+ * E2E-проверка Mobile UX / Doctor Workflow Polish v1 (сессия 50) +
+ * Inventory Mobile Polish v1 (сессия 51):
  *   npx tsx scripts/e2e-mobile-ux-check.ts
  * Требует дев-сервер + seed.
  *
  * Проект не использует Playwright/браузерный harness (только HTTP +
  * cookie-jar + строковые DOM-проверки, как и все остальные e2e-скрипты) —
- * визуальная проверка отсутствия horizontal overflow на 360/390/430/768px
- * была сделана интерактивно через MCP preview-браузер во время разработки
- * (resize + document.documentElement.scrollWidth vs clientWidth на каждой
- * из 9 целевых страниц). Этот скрипт — лёгкая регрессионная защита:
- * не повторяет визуальный замер (нет браузера в CI), но гарантирует, что
- * найденный реальный баг (DebtReminderRow/TreatmentItemCard/AppointmentCard/
- * InvoiceCard — `shrink-0` на action-zone не давал ей сжаться/обернуться
- * при `flex-wrap`, единственно верный фикс — снять `shrink-0`) не
- * вернётся, и что ключевые страницы/кнопки рендерятся.
+ * визуальная проверка отсутствия horizontal overflow на 360/390/430/768/
+ * 1024px была сделана интерактивно через MCP preview-браузер во время
+ * разработки (resize + document.documentElement.scrollWidth vs clientWidth,
+ * подтверждено реальным `window.scrollTo` тестом — scrollWidth у страниц с
+ * намеренно горизонтально-скроллящимися элементами (mobile nav chips,
+ * CatalogTable/OrderItemsTable с `overflow-x-auto`) может казаться
+ * «раздутым», хотя сама страница не скроллится; ground truth — реальный
+ * scroll, не сам по себе scrollWidth). Этот скрипт — лёгкая регрессионная
+ * защита: не повторяет визуальный замер (нет браузера в CI), но
+ * гарантирует, что найденные реальные баги не вернутся:
+ *   - сессия 50: DebtReminderRow/TreatmentItemCard/AppointmentCard/
+ *     InvoiceCard — `shrink-0` на action-zone не давал ей сжаться/
+ *     обернуться при `flex-wrap`, фикс — снять `shrink-0`;
+ *   - сессия 51: тот же паттерн в InventoryItemCard (то же исправление);
+ *     отдельно — `/inventory` PageHeader actions (5 ссылок) не имел
+ *     `flex-wrap` вовсе (не было даже первой попытки `sm:flex-nowrap`-фикса) —
+ *     последняя ссылка «Yeni material» уходила на right:693px при
+ *     clientWidth:390. Фикс — добавлен `flex-wrap`.
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -92,6 +102,15 @@ async function main() {
 
   const clinic = await prisma.clinic.findUniqueOrThrow({ where: { slug: "demo-klinika" } });
   const resad = await prisma.patient.findFirstOrThrow({ where: { clinicId: clinic.id, phone: "+994501112233" } });
+  const supplier = await prisma.supplier.findFirstOrThrow({
+    where: { clinicId: clinic.id, name: "Demo Dental Təchizat" },
+  });
+  const order = await prisma.supplierOrder.findFirstOrThrow({
+    where: { clinicId: clinic.id, number: "SO-DEMO-01" },
+  });
+  const item = await prisma.inventoryItem.findFirstOrThrow({
+    where: { clinicId: clinic.id, name: "Bonding agent" },
+  });
 
   // ── базовый mobile-readiness сигнал (viewport meta) ───────────────────
   const loginPage = await new Session().get("/login");
@@ -112,6 +131,13 @@ async function main() {
     { path: "/recalls", label: "recalls", expect: ["Kontrol xatırlatmaları"] },
     { path: "/feedback", label: "feedback", expect: ["Pasiyent rəyləri"] },
     { path: "/notifications", label: "notifications", expect: ["Bildirişlər"] },
+    { path: "/inventory", label: "inventory list", expect: ["Anbar"] },
+    { path: "/inventory/alerts", label: "low-stock alerts", expect: ["Stok xəbərdarlıqları"] },
+    { path: "/inventory/supplier-orders", label: "supplier orders", expect: ["Sifarişlər"] },
+    { path: "/inventory/suppliers", label: "suppliers", expect: ["Təchizatçılar"] },
+    { path: `/inventory/${item.id}`, label: "inventory item detail", expect: ["Bonding agent"] },
+    { path: `/inventory/suppliers/${supplier.id}`, label: "supplier detail", expect: ["Demo Dental Təchizat"] },
+    { path: `/inventory/supplier-orders/${order.id}`, label: "supplier order detail", expect: ["SO-DEMO-01"] },
   ];
 
   for (const p of pages) {
@@ -140,6 +166,29 @@ async function main() {
   // ── patients table: aria-label на Eye/Pencil действиях ──
   const patientsPage = await owner.get("/patients");
   check("patients list: action-иконки имеют aria-label", patientsPage.html.includes("aria-label="));
+
+  // ── специфическая регрессия (сессия 51): InventoryItemCard action-zone ──
+  // shrink-0 не давал зоне (qty/min/badge) сжаться — тот же баг, что у
+  // DebtReminderRow в сессии 50. Фикс — снять shrink-0, оставить flex-wrap.
+  const inventoryPage = await owner.get("/inventory");
+  check("inventory list: action-zone класс — flex-wrap без shrink-0",
+    inventoryPage.html.includes("flex flex-wrap items-center gap-3") &&
+      inventoryPage.html.includes("Bonding agent"));
+
+  // ── специфическая регрессия (сессия 51): PageHeader actions на /inventory ──
+  // 5 ссылок (alerts/reports/orders/suppliers/+new) без flex-wrap — последняя
+  // уходила за пределы viewport (right:693px при clientWidth:390px). Фикс —
+  // добавлен flex-wrap (этот паттерн отличается от sm:flex-nowrap-бага: тут
+  // wrap не было вообще, ни в каком виде).
+  check("inventory list: PageHeader actions — flex-wrap, все 5 ссылок видны",
+    inventoryPage.html.includes("flex flex-wrap items-center gap-2") &&
+      ["Stok xəbərdarlıqları", "Sərfiyyat hesabatı", "Sifarişlər", "Təchizatçılar", "Yeni material"].every(
+        (s) => inventoryPage.html.includes(s),
+      ));
+
+  // ── aria-label на icon-only действиях inventory/supplier (сессия 51) ──
+  const supplierPage = await owner.get(`/inventory/suppliers/${supplier.id}`);
+  check("supplier detail: edit-иконка имеет aria-label", supplierPage.html.includes("aria-label="));
 
   console.log(`\nРезультат: ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

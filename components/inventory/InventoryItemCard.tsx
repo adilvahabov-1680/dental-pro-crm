@@ -16,7 +16,7 @@ export function InventoryItemCard({
     <Link
       href={`/inventory/${item.id}`}
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30 sm:flex-nowrap",
+        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30",
         status === "out" && "opacity-70",
       )}
     >
@@ -39,7 +39,7 @@ export function InventoryItemCard({
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="text-right">
           <p className="text-sm font-semibold tabular-nums text-text-primary">
             {formatQty(item.quantity)} {item.unit}

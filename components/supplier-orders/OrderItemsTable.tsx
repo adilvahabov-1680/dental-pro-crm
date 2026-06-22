@@ -58,6 +58,7 @@ function RemoveButton({
         type="submit"
         disabled={pending}
         title={dict.remove}
+        aria-label={dict.remove}
         className="rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
       >
         <Trash2 className="size-4" />

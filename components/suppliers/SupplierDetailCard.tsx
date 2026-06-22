@@ -132,6 +132,7 @@ export function SupplierDetailCard({
             onClick={() => setEditing(true)}
             className="shrink-0 rounded-lg p-2 text-text-secondary transition-colors hover:bg-bg-surface hover:text-text-primary"
             title={f.editTitle}
+            aria-label={f.editTitle}
           >
             <Pencil className="size-4" />
           </button>

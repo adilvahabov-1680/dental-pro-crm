@@ -47,7 +47,7 @@ export default async function InventoryPage({
         title={t.modules.inventory.title}
         description={t.modules.inventory.desc}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/inventory/alerts"
               className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface/80 px-4 text-sm font-medium text-text-primary transition-colors hover:bg-bg-surface"
