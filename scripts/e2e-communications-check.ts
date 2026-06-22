@@ -1,9 +1,13 @@
 /**
  * E2E-проверка модуля Patient Communication v1 (сессия 15, dev-скрипт):
  *   npx tsx scripts/e2e-communications-check.ts
- * Требует dev-сервер + seed. Проверяет: лог коммуникаций (Əlaqə tarixçəsi),
+ * Требует дев-сервер + seed. Проверяет: лог коммуникаций (Əlaqə tarixçəsi),
  * WhatsApp click-to-chat (appointment/invoice/document), нормализацию
  * телефона, кандидатов напоминаний на dashboard, permissions/scope.
+ * Сессия 49: dashboard-reminder проверки используют собственные приёмы
+ * (`resadTestAppt`/`leylaTestAppt`, +2ч/+3ч от текущего момента), а не
+ * seed-приёмы, зафиксированные на 10:00/11:00 «сегодня» — тест стабилен в
+ * любое время суток.
  */
 import { PrismaClient } from "@prisma/client";
 
@@ -163,6 +167,40 @@ async function main() {
   });
   cleanupAppointmentIds.push(aysuAppt.id);
 
+  // тестовые приёмы для reminder-flow (сессия 49): создаются относительно
+  // текущего момента (+2ч/+3ч), а не привязаны к seed-приёму, жёстко
+  // зафиксированному на 10:00/11:00 «сегодня» — тот падал на dashboard-окне
+  // напоминаний после 10-11 утра. Всегда внутри окна [now, now+reminder_hours_before].
+  const now = new Date();
+  const resadTestAppt = await prisma.appointment.create({
+    data: {
+      clinicId: clinic.id,
+      patientId: resad.id,
+      doctorId: doctor.id,
+      startsAt: new Date(now.getTime() + 2 * 60 * 60_000),
+      endsAt: new Date(now.getTime() + 2.5 * 60 * 60_000),
+      status: "scheduled",
+      complaint: "e2e-comm: reminder test (Resad)",
+      notes: "e2e-comm:reminder-test-resad",
+      createdById: adminUser.id,
+    },
+  });
+  cleanupAppointmentIds.push(resadTestAppt.id);
+  const leylaTestAppt = await prisma.appointment.create({
+    data: {
+      clinicId: clinic.id,
+      patientId: leyla.id,
+      doctorId: doctor.id,
+      startsAt: new Date(now.getTime() + 3 * 60 * 60_000),
+      endsAt: new Date(now.getTime() + 3.75 * 60 * 60_000),
+      status: "confirmed",
+      complaint: "e2e-comm: reminder test (Leyla)",
+      notes: "e2e-comm:reminder-test-leyla",
+      createdById: adminUser.id,
+    },
+  });
+  cleanupAppointmentIds.push(leylaTestAppt.id);
+
   // временный загруженный документ для Resad (для WhatsApp document message)
   const resadDoc = await prisma.document.create({
     data: {
@@ -211,16 +249,15 @@ async function main() {
     const resadPage = await owner.get(`/patients/${resad.id}`);
     check("патиент-страница: видна Əlaqə tarixçəsi", resadPage.html.includes("Əlaqə tarixçəsi"));
 
-    const resadAppt = await prisma.appointment.findFirstOrThrow({ where: { clinicId: clinic.id, patientId: resad.id, notes: "demo-seed:Diş ağrısı (16)" } });
     const dashBefore = await owner.get("/dashboard");
     check("dashboard: панель Qəbul xatırlatmaları видна", dashBefore.html.includes("Qəbul xatırlatmaları"));
-    const reminderForm = formContaining(dashBefore.html, 'name="appointmentId"', `value="${resadAppt.id}"`);
+    const reminderForm = formContaining(dashBefore.html, 'name="appointmentId"', `value="${resadTestAppt.id}"`);
     check("форма WhatsApp xatırlatma найдена для приёма Resad (dashboard)", !!reminderForm);
 
     const beforeReminder = await prisma.notification.count({ where: { patientId: resad.id, type: "appointment_reminder" } });
-    await owner.postForm(`/dashboard`, reminderForm, { appointmentId: resadAppt.id });
+    await owner.postForm(`/dashboard`, reminderForm, { appointmentId: resadTestAppt.id });
     const reminderRecord = await prisma.notification.findFirst({
-      where: { patientId: resad.id, type: "appointment_reminder", appointmentId: resadAppt.id },
+      where: { patientId: resad.id, type: "appointment_reminder", appointmentId: resadTestAppt.id },
       orderBy: { createdAt: "desc" },
     });
     check("prepareAppointmentReminder: создана запись status=prepared",
@@ -302,7 +339,7 @@ async function main() {
     const dash = await owner.get("/dashboard");
     check("dashboard: панель Qəbul xatırlatmaları видна", dash.html.includes("Qəbul xatırlatmaları"));
     check("dashboard: пациент Resad (alreadyPrepared) виден", dash.html.includes("Həsənov Rəşad"));
-    check("dashboard: пациент Leyla (today appt) виден", dash.html.includes("Quliyeva Leyla"));
+    check("dashboard: пациент Leyla (in reminder window) виден", dash.html.includes("Quliyeva Leyla"));
     check("dashboard: бейдж 'Mesaj hazırlanıb' у уже подготовленного", dash.html.includes("Mesaj hazırlanıb"));
 
     // ── 9. Doctor: cross-patient-scope denial ─────────────────────────
