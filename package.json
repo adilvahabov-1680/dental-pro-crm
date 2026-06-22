@@ -38,7 +38,11 @@
     "e2e-patient-feedback-check": "tsx scripts/e2e-patient-feedback-check.ts",
     "e2e-debt-reminders-check": "tsx scripts/e2e-debt-reminders-check.ts",
     "e2e-production-hardening-check": "tsx scripts/e2e-production-hardening-check.ts",
-    "e2e-mobile-ux-check": "tsx scripts/e2e-mobile-ux-check.ts"
+    "e2e-mobile-ux-check": "tsx scripts/e2e-mobile-ux-check.ts",
+    "e2e-notifications-check": "tsx scripts/e2e-notifications-check.ts",
+    "e2e-communications-check": "tsx scripts/e2e-communications-check.ts",
+    "e2e-finance-check": "tsx scripts/e2e-finance-check.ts",
+    "e2e-release-candidate-check": "tsx scripts/e2e-release-candidate-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
