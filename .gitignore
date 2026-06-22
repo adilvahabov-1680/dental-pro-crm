@@ -17,3 +17,7 @@ next-env.d.ts
 
 # сгенерированные PDF-документы (локальный storage, см. docs/DOCUMENTS.md)
 uploads/
+
+# Vercel CLI (vercel link/dev) — локальные метаданные проекта, не секреты,
+# но не должны коммититься (см. docs/FREE_DEMO_DEPLOY.md)
+.vercel/

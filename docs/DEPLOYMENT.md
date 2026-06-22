@@ -209,7 +209,9 @@ curl http://localhost:3000/api/health
 curl http://localhost:3000/api/health/db
 # → {"ok":true,"db":"connected"}
 # при ошибке БД:
-# → {"ok":false,"db":"disconnected","error":"..."} (HTTP 503)
+# → {"ok":false,"db":"disconnected","error":"db_unreachable"} (HTTP 503)
+# Реальный текст ошибки Prisma (может содержать internal host/порт БД) идёт
+# только в server-лог (console.error) — route без авторизации (сессия 48).
 ```
 
 Использовать для monitoring/alerting (Uptime Robot, Grafana, etc.) —

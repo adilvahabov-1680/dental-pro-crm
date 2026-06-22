@@ -46,7 +46,13 @@ export async function login(_prev: LoginState | undefined, formData: FormData): 
 
   let sessionUser: SessionUser | null = null;
 
-  if (process.env.AUTH_MOCK === "true") {
+  // Production hardening (сессия 48): AUTH_MOCK игнорируется в production,
+  // даже если переменная окружения случайно оставлена true — иначе это
+  // вход с захардкоженным паролем без проверки БД (см. .env.example).
+  const authMockEnabled =
+    process.env.AUTH_MOCK === "true" && process.env.NODE_ENV !== "production";
+
+  if (authMockEnabled) {
     // ───────────────────────────────────────────────────────
     // ВРЕМЕННО: mock-вход без БД (см. lib/constants.ts).
     // Удалить эту ветку после применения миграций и seed.

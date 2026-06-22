@@ -9,10 +9,18 @@ import type { SessionUser } from "@/types/auth";
 export const SESSION_COOKIE = "dp_session";
 export const SESSION_TTL = "12h";
 
+/**
+ * Production hardening (сессия 48): без SESSION_SECRET в production JWT
+ * подписывался бы публично известной dev-строкой из этого репозитория —
+ * любой мог бы подделать сессию. Fail fast вместо silent insecure fallback.
+ * В development/test секрет не обязателен — есть insecure-фолбэк для удобства.
+ */
 function secret(): Uint8Array {
-  return new TextEncoder().encode(
-    process.env.SESSION_SECRET ?? "dev-only-secret-do-not-use-in-production",
-  );
+  const value = process.env.SESSION_SECRET;
+  if (!value && process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET is required in production (see .env.example)");
+  }
+  return new TextEncoder().encode(value ?? "dev-only-secret-do-not-use-in-production");
 }
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
