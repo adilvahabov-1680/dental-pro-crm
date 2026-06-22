@@ -45,7 +45,7 @@ export function TreatmentItemCard({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30 sm:flex-nowrap",
+        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30",
         cancelled && "opacity-60",
       )}
     >
@@ -122,11 +122,12 @@ export function TreatmentItemCard({
       </div>
 
       {/* цена + статус */}
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {followUpLabel && ["planned", "in_progress"].includes(item.status) && !item.appointmentId && (
           <Link
             href={`/treatments/${item.id}/followup`}
             title={followUpLabel}
+            aria-label={followUpLabel}
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             <CalendarPlus className="size-4" />
@@ -136,6 +137,7 @@ export function TreatmentItemCard({
           <Link
             href={`/treatments/${item.id}/materials`}
             title={materialsLabel}
+            aria-label={materialsLabel}
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             <Package className="size-4" />
@@ -145,6 +147,7 @@ export function TreatmentItemCard({
           <Link
             href={`/treatments/${item.id}/consumables`}
             title={consumablesLabel}
+            aria-label={consumablesLabel}
             data-e2e-marker={`consumables-link-${item.id}`}
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
@@ -155,6 +158,7 @@ export function TreatmentItemCard({
           <Link
             href={`/treatments/${item.id}/recall`}
             title={recallLabel}
+            aria-label={recallLabel}
             data-e2e-marker={`recall-link-${item.id}`}
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >

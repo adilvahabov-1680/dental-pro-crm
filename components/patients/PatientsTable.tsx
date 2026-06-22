@@ -104,6 +104,7 @@ export function PatientsTable({
                     <Link
                       href={`/patients/${p.id}`}
                       title={t.view}
+                      aria-label={t.view}
                       className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
                     >
                       <Eye className="size-4" />
@@ -112,6 +113,7 @@ export function PatientsTable({
                       <Link
                         href={`/patients/${p.id}/edit`}
                         title={t.edit}
+                        aria-label={t.edit}
                         className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
                       >
                         <Pencil className="size-4" />

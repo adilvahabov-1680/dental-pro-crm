@@ -34,7 +34,7 @@ export function AppointmentCard({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30 sm:flex-nowrap",
+        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30",
         muted && "opacity-60",
       )}
     >
@@ -75,7 +75,7 @@ export function AppointmentCard({
       </div>
 
       {/* статус + действия */}
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {canManage ? (
           <AppointmentStatusControl
             appointmentId={a.id}
@@ -88,6 +88,7 @@ export function AppointmentCard({
         <Link
           href={`/patients/${a.patient.id}/dental-chart`}
           title={labels.chart}
+          aria-label={labels.chart}
           className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
         >
           <ToothIcon className="size-4" />
@@ -96,6 +97,7 @@ export function AppointmentCard({
           <Link
             href={`/patients/${a.patient.id}/treatments/new?appointmentId=${a.id}`}
             title={addTreatmentLabel}
+            aria-label={addTreatmentLabel}
             className="flex size-8 items-center justify-center rounded-[8px] text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             <Stethoscope className="size-4" />

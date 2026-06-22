@@ -20,7 +20,7 @@ export function InvoiceCard({
     <Link
       href={`/finance/invoices/${inv.id}`}
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30 sm:flex-nowrap",
+        "flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 transition-colors hover:border-accent/30",
         cancelled && "opacity-60",
       )}
     >
@@ -55,7 +55,7 @@ export function InvoiceCard({
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold tabular-nums text-text-primary">
           {formatMoney(inv.total)}
         </span>

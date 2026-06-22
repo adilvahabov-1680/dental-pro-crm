@@ -28,7 +28,7 @@ export function DebtReminderRow({
   errors: Record<string, string>;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3 sm:flex-nowrap">
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border-subtle bg-bg-surface/80 p-3">
       <div className="min-w-0 flex-1">
         <Link
           href={`/finance/invoices/${candidate.invoice.id}`}
@@ -58,7 +58,7 @@ export function DebtReminderRow({
         </p>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="text-right">
           <p className="text-xs text-text-secondary">
             {labels.paid}:{" "}

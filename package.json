@@ -37,7 +37,8 @@
     "e2e-recall-tasks-check": "tsx scripts/e2e-recall-tasks-check.ts",
     "e2e-patient-feedback-check": "tsx scripts/e2e-patient-feedback-check.ts",
     "e2e-debt-reminders-check": "tsx scripts/e2e-debt-reminders-check.ts",
-    "e2e-production-hardening-check": "tsx scripts/e2e-production-hardening-check.ts"
+    "e2e-production-hardening-check": "tsx scripts/e2e-production-hardening-check.ts",
+    "e2e-mobile-ux-check": "tsx scripts/e2e-mobile-ux-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
