@@ -135,7 +135,6 @@ enum SupplierOrderStatus {
 | `markSupplierOrderSent` | manage | draft → sent (требует ≥1 позиции) |
 | `markSupplierOrderReceived` | manage | sent → received |
 | `cancelSupplierOrder` | manage | draft/sent → cancelled |
-| `addCatalogItemToOrderFromSupplierPage` | manage | Со страницы поставщика: найти/создать черновик + добавить позицию → redirect |
 | `createSupplierOrderDraftsFromLowStockAction` (Session 39, `lib/actions/low-stock-reorder.ts`) | manage | С `/inventory/alerts`: выбранные low-stock материалы → группировка по supplierId → черновик(и) с позициями `inventoryItemId` (без catalogItemId). См. LOW_STOCK_REORDER_DRAFTS.md |
 | `confirmSupplierOrderDraftAction` (сессия 40) | manage | draft → approved (требует ≥1 позиции). Не отправляет, не меняет склад. См. SUPPLIER_ORDER_DRAFT_APPROVAL.md |
 
