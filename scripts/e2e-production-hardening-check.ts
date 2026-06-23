@@ -308,7 +308,24 @@ async function main() {
       !FINANCE_TERMS.some((t) => reschedulePage.html.includes(t)) && !DOCUMENT_TERMS.some((t) => reschedulePage.html.includes(t)));
 
     const feedbackPage = await anon.get(`/r/${linkFeedback.token}`);
-    check("A15: feedback токен → 200, показывает форму отзыва", feedbackPage.status === 200 && feedbackPage.html.includes("Rəy bildirin"));
+    // Sessiya 59: данных-зависимый маркер ("Rəy bildirin" — переведённый заголовок)
+    // заменён на структурный `data-e2e-marker="feedback-form"` с самой формы
+    // (components/patient-response/FeedbackForm.tsx) — тот же паттерн, что уже
+    // используется для link-used/link-expired/patient-response-card. Надёжнее:
+    // проверяет, что РЕАЛЬНО отрендерилась форма отзыва, а не просто заголовок.
+    const feedbackFormMarker = 'data-e2e-marker="feedback-form"';
+    const feedbackOk = feedbackPage.status === 200 && feedbackPage.html.includes(feedbackFormMarker);
+    if (!feedbackOk) {
+      const liveLink = await prisma.patientResponseLink.findUnique({
+        where: { token: linkFeedback.token },
+        select: { purpose: true, status: true, expiresAt: true, appointmentId: true },
+      });
+      console.error(
+        `  ⓘ A15 diagnostics: status=${feedbackPage.status}, dbLink=${JSON.stringify(liveLink)}, ` +
+          `bodyStart=${JSON.stringify(feedbackPage.html.slice(0, 400))}`,
+      );
+    }
+    check(`A15: feedback токен → 200, показывает форму отзыва (${feedbackFormMarker})`, feedbackOk);
     check("A16: feedback — нет raw UUID", !UUID_RE.test(feedbackPage.html));
     check("A17: feedback — нет финансовых/документных терминов",
       !FINANCE_TERMS.some((t) => feedbackPage.html.includes(t)) && !DOCUMENT_TERMS.some((t) => feedbackPage.html.includes(t)));

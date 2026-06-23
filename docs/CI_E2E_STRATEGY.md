@@ -229,6 +229,63 @@ non-unique индекса (`clinic_id`/`treatment_item_id`/`inventory_item_id`/
 (build/start/health/e2e) — это отдельная, новая находка, не относится
 к этому фиксу.
 
+## 9. Второй прогон — миграция прошла, упал A15 production-hardening (сессия 59)
+
+**Статус: pending user re-run** (фикс внесён, повторный прогон ещё не
+подтверждён — `gh` CLI всё ещё недоступен, проверено повторно).
+
+Пользователь перезапустил `E2E Smoke` на `main`, commit `febff08`
+(фикс миграции из сессии 58). Прогресс:
+
+```text
+✓ migrate deploy
+✓ seed demo data
+✓ build
+✓ app start
+✓ /api/health/db
+✓ e2e-release-candidate-check
+✓ e2e-demo-flow-check
+✕ e2e-production-hardening-check — 37 passed, 1 failed (A15)
+```
+
+`A15: feedback токен → 200, показывает форму отзыва` — единственный
+упавший assertion, из 42 в этом наборе.
+
+**Локальная репродукция**: `npm run e2e-production-hardening-check`
+прогнан **локально несколько раз — 42/42, без единого флейка**, включая
+A15. Построчный разбор `getPublicResponseLinkState()`
+(`lib/patient-response.ts`) и пути рендера
+(`app/r/[token]/page.tsx` → `FeedbackForm`) для feedback-ссылки без
+привязанного приёма (`appointmentId: null`, единственный purpose, где
+это разрешено) — реального логического бага не найдено: ветка
+`purpose !== "feedback"` корректно пропускает feedback, `null`
+`treatmentItemId` корректно пропускает lookup процедуры, заголовок
+рендерится безусловно при `state.kind === "active" && state.purpose === "feedback"`.
+`getDict()` (`lib/i18n.ts`) полностью статичен (всегда AZ, без
+env-ветвления) — исключена гипотеза про locale-зависимость от окружения.
+
+**Фикс (test-only, без изменений business logic)**: старая проверка
+сверяла `html.includes("Rəy bildirin")` — переведённый заголовок
+страницы. У `FeedbackForm` (`components/patient-response/FeedbackForm.tsx`)
+уже есть собственный структурный маркер
+`data-e2e-marker="feedback-form"` на самой `<form>` — тот же паттерн
+конвенции проекта, что и `link-used`/`link-expired`/
+`patient-response-card` (см. SESSION_HANDOFF.md §4 «E2E-техника»). A15
+переключён на этот маркер — он точнее проверяет именно «форма отзыва
+отрендерилась» (что и заявлено в названии чека), а не косвенно через
+заголовок страницы. Добавлена диагностика на случай повторного сбоя:
+status, живое состояние ссылки в БД (`purpose`/`status`/`expiresAt`/
+`appointmentId`), первые 400 символов тела ответа — печатается только
+при failure, чтобы следующий прогон (если упадёт) дал конкретную
+улику, а не голое «1 failed».
+
+**Честно**: точную причину разницы local vs. CI **не удалось доказать**
+(нет доступа к полным логам CI, локально воспроизвести не получилось
+ни разу). Изменение в `data-e2e-marker` — это объективное усиление
+теста (более точный, конвенционный маркер), а не вслепую угаданный
+«фикс» несуществующего бага — если флейк повторится, новая диагностика
+даст реальные данные для следующей сессии вместо догадок.
+
 ## См. также
 
 - [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) §1.4 — где это было анонсировано
