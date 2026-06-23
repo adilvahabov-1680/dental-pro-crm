@@ -206,10 +206,14 @@ SUPPLIER_*), плюс находки этой сессии.
    `package.json` для единообразия (см. §F «Процессные»).
 7. *(низкий приоритет)* Удалить legacy `AUTH_MOCK`-ветку из
    `lib/actions/auth.ts`/`lib/constants.ts` после стабилизации на реальной БД.
-8. **CI e2e: расширить и сделать обязательным** — DB-backed e2e smoke в CI
-   настроен в сессии 56, но manual-only (`workflow_dispatch`, 3 из 40
-   наборов). Путь к обязательному gate на push/PR — см.
-   [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) §6.
+8. **CI e2e: первый прогон + расширение до обязательного gate** —
+   DB-backed e2e smoke настроен в сессии 56 (manual-only,
+   `workflow_dispatch`, 3 из 40 наборов). **Сессия 57**: workflow
+   статически проверен/построчно проверен, добавлен `timeout-minutes: 15`
+   — но реальный прогон на GitHub Actions **ещё не выполнен** (`gh` CLI
+   недоступен в среде агента) — статус **pending user-run**, точные шаги
+   запуска — [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) §7. Путь к
+   обязательному gate на push/PR (после стабилизации) — там же §6.
 
 ## См. также
 

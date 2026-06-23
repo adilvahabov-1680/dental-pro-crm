@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-23 (после сессии 56: CI Database / E2E Workflow Planning v1)
+**by AV Systems** · обновлено: 2026-06-23 (после сессии 57: GitHub Actions Smoke Run / CI Stabilization v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -879,6 +879,67 @@ release-candidate, deployment-readiness, demo-flow) — итоги см. в от
 schema.prisma **не менялась**, migration **не требовалась**.
 
 **Один коммит (один scope = один коммит):** `chore: document ci e2e strategy`.
+
+## 7.35. Сессия 57 — итоги (GitHub Actions Smoke Run / CI Stabilization v1)
+
+CI-сессия без новых бизнес-модулей, без изменений business logic/schema.
+Цель — реально запустить `e2e-smoke.yml` (сессия 56) на GitHub Actions,
+изучить логи, исправить CI/workflow если упал, либо зафиксировать
+результат.
+
+**Architecture note (перед реализацией):**
+1. `gh` (GitHub CLI) **не установлен/не авторизован** в среде агента —
+   проверено явно в обоих доступных shell (Bash и PowerShell), `gh` не
+   найден ни там, ни там. Запустить `workflow_dispatch` или прочитать
+   логи реального прогона из этой среды физически невозможно.
+2. Вместо запуска — сделан тщательный построчный ручной разбор
+   `e2e-smoke.yml` на предмет очевидных ошибок: цепочка env (workflow-level
+   `env:` наследуется всеми step'ами, включая `Build` — критично для
+   `NEXT_PUBLIC_DEMO_MODE`, которая встраивается в бандл на этапе build,
+   не runtime); `prisma/schema.prisma` требует только `DATABASE_URL` (нет
+   `shadowDatabaseUrl`/`directUrl`, который мог бы быть пропущен);
+   `next start` форсирует `NODE_ENV=production` (ставит `Secure` на
+   session cookie), но собственный fetch-based cookie-jar e2e-скриптов не
+   браузер — `Secure` не enforced против него, конфликта нет;
+   `SEED_DEMO_PASSWORD=Demo1234!` (workflow) совпадает с дефолтом всех
+   e2e-скриптов; `lockfileVersion: 3` совместим с npm, идущим в Node 20
+   (версия workflow). **Явных багов не найдено** при ручном разборе.
+3. Единственный пробел — отсутствие `timeout-minutes` на job (дефолт
+   GitHub — 360 минут) — исправлено проактивно (см. ниже), это явный
+   «optional hardening» из scope сессии 57, не требует наблюдаемого сбоя.
+
+**Изменения:**
+- **`.github/workflows/e2e-smoke.yml`**: добавлен `timeout-minutes: 15`
+  на job `e2e-smoke` — единственное изменение workflow (никаких других
+  фиксов, т.к. реального сбоя не наблюдалось — нечего «лечить»).
+- **`docs/CI_E2E_STRATEGY.md`**: новый §7 «Статус первого прогона» —
+  статус **pending user-run**, явное объяснение почему (`gh` недоступен),
+  точные 9 шагов для ручного запуска через GitHub UI (Actions → E2E Smoke
+  → Run workflow → branch main → Run), что делать с результатом
+  (✅ обновить раздел вручную / ❌ принести точный лог в следующую сессию).
+- **`docs/RELEASE_CANDIDATE_CHECKLIST.md`** §G пункт 8: обновлён —
+  статически проверен + hardening добавлен, но реальный прогон —
+  pending user-run, ссылка на точные шаги.
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, этот
+  раздел.
+
+**Не реализовано (по scope, намеренно, и не по выбору агента):**
+реальный запуск/просмотр GitHub Actions прогона — требует `gh` CLI или
+ручного действия владельца проекта через браузер, недоступно из этой
+среды. Никаких фиксов в workflow кроме hardening — не наблюдалось
+сбоя, который нужно было бы чинить. Изменения business logic/schema,
+PDF user manual, WhatsApp Business API, payment gateway, full patient
+portal — не делались (вне scope).
+
+**Локальные проверки (после сессии):** `npx tsc --noEmit`, `npm run build`,
+`e2e-ci-e2e-strategy-check`, `e2e-external-audit-setup-check`,
+`e2e-release-candidate-check`, `e2e-deployment-readiness-check`,
+`e2e-demo-flow-check` — итоги см. в отчёте коммита. **GitHub Actions сам
+прогон — НЕ выполнялся и НЕ заявляется как пройденный.**
+
+schema.prisma **не менялась**, migration **не требовалась**.
+
+**Один коммит (один scope = один коммит):** `chore: stabilize e2e smoke workflow`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 
