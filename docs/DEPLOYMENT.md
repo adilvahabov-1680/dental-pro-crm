@@ -1,7 +1,9 @@
 # Dental Pro CRM — Deployment Guide
 **by AV Systems** · v1.2 · обновлено в сессии 23
 Связанные документы: [SETUP.md](SETUP.md) (local dev) · [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) (Vercel + Neon) ·
-[SESSION_HANDOFF.md](SESSION_HANDOFF.md) · [DOCUMENTS.md](DOCUMENTS.md) (storage) · [DATABASE.md](DATABASE.md)
+[SESSION_HANDOFF.md](SESSION_HANDOFF.md) · [DOCUMENTS.md](DOCUMENTS.md) (storage) · [DATABASE.md](DATABASE.md) ·
+[DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) (шаги конкретного деплоя + smoke tests, сессия 54) ·
+[BACKUP_MONITORING.md](BACKUP_MONITORING.md) (расписание backup, retention, monitoring, сессия 54)
 
 Эта сессия — техническая подготовка к запуску, **без изменений бизнес-логики**
 и **без изменений schema.prisma**. Документ описывает, как развернуть текущую
@@ -78,6 +80,9 @@ npm run start          # next start, по умолчанию http://localhost:30
 любой, конфиг не входит в эту сессию), чтобы автоматически перезапускаться
 при падении/перезагрузке сервера.
 
+Чеклист-версия шагов выше (с pre-deploy/post-deploy пунктами и smoke-тестами)
+— [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) (сессия 54).
+
 ## 4. Обновление деплоя
 
 ```bash
@@ -126,6 +131,10 @@ npm run prod:update        # migrate + generate + build (полный перес
 затем `npm install` → `npx prisma generate` → `npm run build` → `npm run start`.
 Порядок важен из-за `fileUrl` в БД, который хранит relative path внутри
 `uploads/`.
+
+Расписание backup, retention, test-restore и monitoring (что и как
+проверять помимо самих команд выше) — см.
+[BACKUP_MONITORING.md](BACKUP_MONITORING.md) (сессия 54).
 
 ## 6. Известные ограничения (на момент сессии 20)
 

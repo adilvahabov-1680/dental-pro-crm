@@ -208,7 +208,9 @@ document download scope/permission/path traversal.
   `docs/NOTIFICATIONS.md`).
 - **`/api/health/db`** остаётся без авторизации (нужно для
   monitoring/alerting) — теперь не раскрывает детали ошибки, но сам факт
-  доступности эндпоинта (ping) остаётся публичным по дизайну.
+  доступности эндпоинта (ping) остаётся публичным по дизайну. Что именно
+  мониторить через эти эндпоинты (uptime, alerting) — см.
+  [BACKUP_MONITORING.md](BACKUP_MONITORING.md) §5 (сессия 54).
 
 ## 10. Рекомендуемые будущие аудиты
 
@@ -222,3 +224,8 @@ integration"), но рекомендуются как следующий шаг:
 - **Manual business logic audit** — отдельная сессия per модулю
   (например, advisory locks в finance под реальной нагрузкой,
   rate-limiting на `/login` и `/r/[token]`, который сейчас не реализован).
+
+> **Сессия 54**: backup/restore/monitoring **policy** теперь документирована
+> ([BACKUP_MONITORING.md](BACKUP_MONITORING.md), [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md)) —
+> но автоматизация (cron backup, платный monitoring/alerting сервис) всё
+> ещё future work, см. оба документа §«что НЕ входит в v1».

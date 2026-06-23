@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-22 (после сессии 53: Final QA / Release Candidate Checklist v1)
+**by AV Systems** · обновлено: 2026-06-22 (после сессии 54: Deployment / Backup / Monitoring v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -650,6 +650,76 @@ platform-admin) — итоги см. в отчёте коммита.
 schema.prisma **не менялась**, migration **не требовалась**.
 
 **Один коммит (один scope = один коммит):** `chore: add release candidate checklist`.
+
+## 7.32. Сессия 54 — итоги (Deployment / Backup / Monitoring v1)
+
+DevOps/docs-сессия без новых бизнес-модулей, без изменений business logic/
+schema/permissions/security model. Цель — задокументировать backup-policy,
+monitoring-чеклист и исполняемый deployment runbook, которых не было.
+
+**Находки (architecture note перед реализацией):**
+1. Все обязательные env vars (`DATABASE_URL`, `SESSION_SECRET`, `AUTH_MOCK`,
+   `NEXT_PUBLIC_DEMO_MODE`, `SEED_DEMO_PASSWORD`, опциональные
+   `NEXT_PUBLIC_APP_URL`/`PLATFORM_OWNER_*`) уже были полно задокументированы
+   в `.env.example` с dev-vs-production guidance — **изменений не потребовалось**.
+2. `GET /api/health` (статичный, `{ok:true, service}`) и `GET /api/health/db`
+   (реальный пинг Postgres, безопасная форма ошибки, без утечки деталей)
+   — оба **уже существовали** и оба безопасны — повторная проверка кода
+   подтвердила, новый health-эндпоинт добавлять не требовалось.
+3. `docs/DEPLOYMENT.md` §5 уже содержал backup-механику (pg_dump/restore
+   команды, порядок восстановления, upload-ограничение) — но **не было**
+   расписания/retention/test-restore рекомендации и **monitoring-раздела
+   не было вовсе** (что именно мониторить, кроме самого факта существования
+   health-эндпоинтов). Это и стало содержанием `BACKUP_MONITORING.md`.
+4. Не было единого исполняемого deployment-чеклиста (pre-deploy → migrate →
+   seed caution → build → smoke tests → rollback → post-deploy) — шаги были
+   разбросаны между DEPLOYMENT.md «полезные команды» и RELEASE_CANDIDATE_CHECKLIST.md.
+   Это стало содержанием `DEPLOYMENT_RUNBOOK.md`.
+5. Prisma migrations — 17 применённых, ни одной pending; schema.prisma
+   **не менялась**, migration не требовалась.
+
+**Изменения:**
+- **`docs/BACKUP_MONITORING.md`** (новый): PostgreSQL backup (pg_dump/restore/
+  расписание/retention), backup `uploads/` (VPS/local vs. Vercel-ограничение),
+  test-restore рекомендация, аварийный чеклист восстановления, что/кого
+  мониторить (health-эндпоинты, диск, логи, возраст backup, TLS-сертификат).
+- **`docs/DEPLOYMENT_RUNBOOK.md`** (новый): pre-deploy checklist, env vars
+  табличкой, migration, seed/demo steps с production-caution, build
+  verification, 5 smoke tests (login/dashboard/`/api/health`/`/api/health/db`/
+  `/r/bad-token`), rollback notes (код без миграции vs. код+миграция),
+  post-deploy checklist.
+- **`scripts/e2e-deployment-readiness-check.ts`** (новый) + package script:
+  легкая проверка — deployment/backup/runbook docs на месте, `.env.example`
+  содержит обязательные ключи, package scripts (build/prod:migrate/
+  prod:update/RC-checks) зарегистрированы, repo hygiene, `/api/health` +
+  `/api/health/db` отвечают, `/login` открывается. Не дублирует
+  `e2e-release-candidate-check.ts` (там — demo-login, ключевые страницы под
+  сессией, `/r/bad-token`).
+- **`docs/DEPLOYMENT.md`**: добавлены ссылки на DEPLOYMENT_RUNBOOK.md и
+  BACKUP_MONITORING.md (заголовок, §3, §5).
+- **`docs/PRODUCTION_HARDENING.md`**: добавлены ссылки на BACKUP_MONITORING.md
+  (§9, §10) — уточнено, что backup/monitoring policy теперь документирована,
+  но автоматизация/платные инструменты — всё ещё future.
+- **`docs/RELEASE_CANDIDATE_CHECKLIST.md`**: §D дополнен ссылками на новые
+  docs; §G «Backup/monitoring strategy» переформулирован — policy готова,
+  осталось только реальное подключение на целевой инфраструктуре; добавлены
+  ссылки в «См. также».
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, доб. ссылки
+  в карту документации (§10), этот раздел.
+
+**Не реализовано (по scope, намеренно):** изменения business logic/schema,
+новый общий health-эндпоинт (уже существовал), автоматизация cron backup,
+платная monitoring/alerting интеграция, object storage для `uploads/`,
+PDF user manual, WhatsApp Business API, payment gateway, full patient portal.
+
+**E2E (после сессии):** `e2e-deployment-readiness-check` (новый, зелёный) +
+полный обязательный регрессионный набор (release-candidate, production-
+hardening, demo-flow, admin, platform-admin) — итоги см. в отчёте коммита.
+
+`npx tsc --noEmit` → 0 ошибок. `npm run build` → чистый.
+schema.prisma **не менялась**, migration **не требовалась**.
+
+**Один коммит (один scope = один коммит):** `chore: add deployment runbook`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 
@@ -1934,4 +2004,6 @@ COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
 **PATIENT_RESCHEDULE_OPTIONS**, **RECALL_TASKS**, **PATIENT_FEEDBACK**,
 **DEBT_REMINDERS**, **PRODUCTION_HARDENING**, **UX_MOBILE_POLISH**,
 **DEMO_PRESENTATION** (сценарий показа клинике, сессия 52),
-**RELEASE_CANDIDATE_CHECKLIST** (сводный QA/release-чеклист, сессия 53).
+**RELEASE_CANDIDATE_CHECKLIST** (сводный QA/release-чеклист, сессия 53),
+**DEPLOYMENT_RUNBOOK** (шаги конкретного деплоя + smoke tests, сессия 54),
+**BACKUP_MONITORING** (backup-расписание, retention, monitoring, сессия 54).

@@ -42,7 +42,8 @@
     "e2e-notifications-check": "tsx scripts/e2e-notifications-check.ts",
     "e2e-communications-check": "tsx scripts/e2e-communications-check.ts",
     "e2e-finance-check": "tsx scripts/e2e-finance-check.ts",
-    "e2e-release-candidate-check": "tsx scripts/e2e-release-candidate-check.ts"
+    "e2e-release-candidate-check": "tsx scripts/e2e-release-candidate-check.ts",
+    "e2e-deployment-readiness-check": "tsx scripts/e2e-deployment-readiness-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

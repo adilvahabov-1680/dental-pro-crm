@@ -112,11 +112,17 @@
   переживает редеплой на Vercel (serverless, ephemeral FS). Для production
   клиники — VPS с постоянным диском ИЛИ S3-совместимый сервис (единственная
   точка замены — `lib/storage.ts`, см. DOCUMENTS.md).
-- **Backup notes** (DEPLOYMENT.md §5): `pg_dump -Fc -d dental_pro_crm -f
-  backup_$(date +%Y%m%d).dump` для БД + отдельный backup `uploads/` (tar/rsync)
-  + `.env` хранить отдельно в защищённом секрет-менеджере. Без backup'а
-  `uploads/` записи в БД будут указывать на отсутствующие файлы.
-  Автоматизация (cron/managed backup) — не реализована, см. §G.
+- **Backup notes** (DEPLOYMENT.md §5, расписание/retention/monitoring —
+  [BACKUP_MONITORING.md](BACKUP_MONITORING.md), сессия 54): `pg_dump -Fc -d
+  dental_pro_crm -f backup_$(date +%Y%m%d).dump` для БД + отдельный backup
+  `uploads/` (tar/rsync) + `.env` хранить отдельно в защищённом
+  секрет-менеджере. Без backup'а `uploads/` записи в БД будут указывать на
+  отсутствующие файлы. Автоматизация (cron/managed backup) — задокументирована,
+  но не настроена (намеренно — зависит от целевого сервера), см. §G.
+- **Deployment runbook** ([DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md),
+  сессия 54): пошаговый чеклист конкретного деплоя — pre-deploy, миграция,
+  seed caution, build, smoke tests (login/dashboard/health/`/r/bad-token`),
+  rollback notes, post-deploy.
 
 ## E. Demo checklist
 
@@ -180,9 +186,11 @@ SUPPLIER_*), плюс находки этой сессии.
 1. **Final deploy environment verification** — реальный прогон
    `demo:deploy:init`/`prod:update` на целевой инфраструктуре (Vercel+Neon
    или VPS) с боевыми `SESSION_SECRET`/`DATABASE_URL`, не только локально.
-2. **Backup/monitoring strategy** — автоматизировать `pg_dump` (cron/managed
-   backup у хостинг-провайдера) + `uploads/`; подключить `/api/health`
-   и `/api/health/db` к внешнему uptime-монитору (см. DEPLOYMENT.md §8).
+2. **Backup/monitoring automation** — policy и команды задокументированы
+   (сессия 54, [BACKUP_MONITORING.md](BACKUP_MONITORING.md)); осталось
+   реально настроить cron/managed backup у хостинг-провайдера и подключить
+   `/api/health`+`/api/health/db` к внешнему uptime-монитору на целевой
+   инфраструктуре (см. DEPLOYMENT.md §8).
 3. **PDF user manual со скриншотами** — финальная фаза проекта (намеренно
    не в этой и не в предыдущих сессиях).
 4. **Опциональный внешний security-аудит** — CodeQL/Snyk/`npm audit`/OWASP
@@ -201,4 +209,6 @@ SUPPLIER_*), плюс находки этой сессии.
 - [PRODUCTION_HARDENING.md](PRODUCTION_HARDENING.md) — полный security-аудит.
 - [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) — клиентский demo-сценарий.
 - [DEPLOYMENT.md](DEPLOYMENT.md) / [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) — деплой.
+- [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) — шаги конкретного деплоя + smoke tests (сессия 54).
+- [BACKUP_MONITORING.md](BACKUP_MONITORING.md) — backup-расписание, retention, monitoring (сессия 54).
 - [SESSION_HANDOFF.md](SESSION_HANDOFF.md) — статус модулей, e2e-итоги, история сессий.
