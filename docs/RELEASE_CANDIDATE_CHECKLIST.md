@@ -206,6 +206,10 @@ SUPPLIER_*), плюс находки этой сессии.
    `package.json` для единообразия (см. §F «Процессные»).
 7. *(низкий приоритет)* Удалить legacy `AUTH_MOCK`-ветку из
    `lib/actions/auth.ts`/`lib/constants.ts` после стабилизации на реальной БД.
+8. **CI e2e: расширить и сделать обязательным** — DB-backed e2e smoke в CI
+   настроен в сессии 56, но manual-only (`workflow_dispatch`, 3 из 40
+   наборов). Путь к обязательному gate на push/PR — см.
+   [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) §6.
 
 ## См. также
 
@@ -213,6 +217,7 @@ SUPPLIER_*), плюс находки этой сессии.
 - [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) — клиентский demo-сценарий.
 - [DEPLOYMENT.md](DEPLOYMENT.md) / [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) — деплой.
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) — шаги конкретного деплоя + smoke tests (сессия 54).
+- [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) — DB-backed e2e в CI, manual-first стратегия (сессия 56).
 - [BACKUP_MONITORING.md](BACKUP_MONITORING.md) — backup-расписание, retention, monitoring (сессия 54).
 - [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) — CodeQL/CI/npm audit, внешние сканеры, manual audit checklist (сессия 55).
 - [SESSION_HANDOFF.md](SESSION_HANDOFF.md) — статус модулей, e2e-итоги, история сессий.

@@ -46,21 +46,19 @@ npm audit --audit-level=moderate
 - **E2E-наборы (требуют живую Postgres + seed) в CI НЕ запускаются** — нет
   настроенной CI-БД. См. §1.4 «Будущее: E2E в CI».
 
-### 1.4 Будущее: E2E в CI (документировано, не настроено)
+### 1.4 E2E в CI — реализовано в сессии 56 (manual-only)
 
-Чтобы прогонять `npm run e2e-*-check` в CI, потребуется:
+~~Чтобы прогонять `npm run e2e-*-check` в CI, потребуется...~~ ✅ сделано
+в сессии 56: `.github/workflows/e2e-smoke.yml` — Postgres service container,
+`prisma migrate deploy` + `prisma db seed`, build + start в background,
+ожидание `/api/health/db`, затем 3 ограниченных smoke-набора
+(`e2e-release-candidate-check`, `e2e-demo-flow-check`,
+`e2e-production-hardening-check`).
 
-1. Сервис-контейнер Postgres в workflow (`services: postgres:` в GitHub
-   Actions) или managed CI-БД.
-2. `DATABASE_URL`, указывающий на этот контейнер (не dummy).
-3. `npx prisma migrate deploy` + `npm run db:seed` перед запуском e2e.
-4. Запуск `npm run build && npm run start &` (или `npm run dev &`) перед
-   e2e (e2e-скрипты ходят по HTTP на `localhost:3000`).
-
-Не сделано в этой сессии — осознанно, чтобы не плодить hidden-state CI
-(тестовая БД, которая может не совпадать с production-конфигурацией) без
-отдельного решения о том, где она живёт. См. §G в
-[RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md).
+**Триггер — только `workflow_dispatch` (ручной запуск)**, НЕ push/PR —
+не полный 40-скриптовый матрикс, не обязательный gate. Подробное
+обоснование, безопасные env-правила и план расширения —
+[CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md).
 
 ## 2. Внешние инструменты (только документация — НЕ настроены в этой сессии)
 
@@ -154,3 +152,5 @@ Report link: <ссылка на полный отчёт, если есть — C
   — security checklist, known limitations, remaining before v1.0.
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) / [BACKUP_MONITORING.md](BACKUP_MONITORING.md)
   — deploy/backup/monitoring (сессия 54).
+- [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) — DB-backed e2e в CI, manual-first
+  стратегия, безопасные env-правила (сессия 56).

@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-22 (после сессии 55: External Audit Setup / CodeQL + Dependency Scan v1)
+**by AV Systems** · обновлено: 2026-06-23 (после сессии 56: CI Database / E2E Workflow Planning v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -796,6 +796,89 @@ platform-admin) — итоги см. в отчёте коммита.
 schema.prisma **не менялась**, migration **не требовалась**.
 
 **Один коммит (один scope = один коммит):** `chore: add external audit setup`.
+
+## 7.34. Сессия 56 — итоги (CI Database / E2E Workflow Planning v1)
+
+CI/release-сессия без новых бизнес-модулей, без изменений business
+logic/schema. Цель — решить и подготовить план: как безопасно запускать
+e2e в GitHub Actions с тестовой PostgreSQL БД (анонсировано как future
+work в EXTERNAL_AUDIT.md §1.4, сессия 55).
+
+**Находки (architecture note перед реализацией):**
+1. Все 40 e2e-скриптов следуют единому паттерну: `E2E_BASE_URL` (дефолт
+   `localhost:3000`), `SEED_DEMO_PASSWORD` (дефолт `Demo1234!`), реальный
+   login через Prisma+bcrypt (не `AUTH_MOCK`), требуют, чтобы `prisma/seed.ts`
+   уже отработал (ищут пациента «Rəşad Həsənov» по имени). 3 целевых
+   smoke-скрипта (release-candidate/demo-flow/production-hardening) не
+   зависят от `NODE_ENV`/`AUTH_MOCK` напрямую.
+2. Эмпирически проверено: `next start` принудительно ставит
+   `NODE_ENV=production` (выставляет `Secure` на session cookie), но
+   собственный cookie-jar e2e-скриптов (`fetch()`, не браузер) не проверяет
+   `Secure` — конфликта нет. `NEXT_PUBLIC_DEMO_MODE=true` +
+   `SEED_DEMO_PASSWORD=Demo1234!` не конфликтует с demo-hint проверкой
+   (сессия 52) — та проверяет только текст в HTML, не реальный логин.
+3. Backgrounding `next start` в одном GitHub Actions job и опрос
+   `/api/health/db` из последующего шага того же job — стандартный,
+   безопасный паттерн (шаги делят одну VM).
+4. Postgres service container — полностью ephemeral, изолирован в рамках
+   одного runner'а, `DATABASE_URL` захардкожен как plaintext non-secret в
+   YAML (не `secrets.*`) — физически невозможно случайно подключиться к
+   production.
+
+**Решение**: вариант A (GitHub Actions Postgres service container),
+**manual-only** (`workflow_dispatch`), ограниченный набор (3 из 40
+скриптов) — не вариант B (Neon test branch, требует платных секретов) и
+не просто документация без workflow (вариант A признан безопасным).
+
+**Изменения:**
+- **`.github/workflows/e2e-smoke.yml`** (новый): `workflow_dispatch` только;
+  `services: postgres:16`; `prisma migrate deploy` + `prisma db seed`;
+  `npm run build` → `npm run start` в background (`nohup ... & disown`);
+  shell-loop ожидание `/api/health/db` (без отдельного `wait-for-url`
+  скрипта — простой `for`-loop с `curl`, как и рекомендовано); 3 smoke-чека
+  (`e2e-release-candidate-check`, `e2e-demo-flow-check`,
+  `e2e-production-hardening-check`). Только dummy/test env-значения, без
+  `secrets.*`.
+- **`docs/CI_E2E_STRATEGY.md`** (новый): текущее состояние CI, static vs
+  DB-backed e2e, сравнение вариантов A/B/C с обоснованием выбора A
+  manual-first, безопасные env-правила, как запустить локальный
+  эквивалент, future path (несколько ручных прогонов → wider matrix →
+  обязательный gate).
+- **`scripts/e2e-ci-e2e-strategy-check.ts`** (новый, чисто статический —
+  НЕ требует dev-сервера/БД): docs/workflow на месте, `workflow_dispatch`
+  присутствует, НЕ триггерится на push/PR, Postgres service используется,
+  нет секретов/production-подобных host (`neon.tech`/`amazonaws.com`/
+  `.rds.`), dummy env-маркеры присутствуют, ограниченный (≤10) e2e-набор,
+  упомянутые package scripts реально зарегистрированы, docs ссылаются на
+  CI_E2E_STRATEGY.
+- **`package.json`**: +1 script entry — `e2e-ci-e2e-strategy-check`.
+- **`docs/EXTERNAL_AUDIT.md`** §1.4: помечено как реализовано (manual),
+  ссылка на CI_E2E_STRATEGY.md.
+- **`docs/RELEASE_CANDIDATE_CHECKLIST.md`** §G: новый пункт 8 (расширить
+  CI e2e до обязательного gate — future), ссылка в «См. также».
+- **`docs/DEPLOYMENT_RUNBOOK.md`**: ссылка на CI_E2E_STRATEGY.md (с
+  пометкой — не путать с deploy-time smoke tests §5).
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, карта
+  документации (§10), этот раздел.
+
+**Не реализовано (по scope, намеренно):** push/PR-триггер для e2e-smoke
+(остаётся manual до нескольких стабильных ручных прогонов), полный
+40-скриптовый e2e-матрикс в CI, managed/внешняя CI-БД (вариант B),
+изменения business logic/schema, PDF user manual, WhatsApp Business API,
+payment gateway, full patient portal.
+
+**E2E (после сессии):** `e2e-ci-e2e-strategy-check` (новый, статический,
+зелёный) + полный обязательный регрессионный набор (external-audit-setup,
+release-candidate, deployment-readiness, demo-flow) — итоги см. в отчёте
+коммита. `e2e-smoke.yml` сам по себе не запускался локально в этой
+сессии (GitHub Actions runner недоступен локально) — статическая
+валидация workflow через `e2e-ci-e2e-strategy-check.ts` признана
+достаточной (см. её же обоснование).
+
+`npx tsc --noEmit` → 0 ошибок. `npm run build` → чистый.
+schema.prisma **не менялась**, migration **не требовалась**.
+
+**Один коммит (один scope = один коммит):** `chore: document ci e2e strategy`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 
@@ -2083,4 +2166,5 @@ COMMUNICATIONS, GLOBAL_SEARCH, ADMIN, TREATMENT_PROTOCOLS, PLATFORM_ADMIN,
 **RELEASE_CANDIDATE_CHECKLIST** (сводный QA/release-чеклист, сессия 53),
 **DEPLOYMENT_RUNBOOK** (шаги конкретного деплоя + smoke tests, сессия 54),
 **BACKUP_MONITORING** (backup-расписание, retention, monitoring, сессия 54),
-**EXTERNAL_AUDIT** (CodeQL/CI/npm audit, внешние сканеры, сессия 55).
+**EXTERNAL_AUDIT** (CodeQL/CI/npm audit, внешние сканеры, сессия 55),
+**CI_E2E_STRATEGY** (DB-backed e2e в CI, manual-first, сессия 56).

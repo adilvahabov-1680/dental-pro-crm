@@ -1,0 +1,140 @@
+# Dental Pro CRM — CI / E2E Strategy v1
+
+**by AV Systems** · создано в сессии 56 (CI Database / E2E Workflow Planning v1)
+
+Этот документ объясняет, что сейчас умеет CI, чего не умеет, и почему;
+какой вариант выбран для DB-backed e2e в CI и почему он **manual-first**,
+а не обязательный blocking-чек на каждый push.
+
+---
+
+## 1. Текущее состояние CI (до и после этой сессии)
+
+| Workflow | Триггер | Что делает | БД? |
+|---|---|---|---|
+| `.github/workflows/codeql.yml` | push/PR на `main` | статический анализ кода | нет |
+| `.github/workflows/ci.yml` | push/PR на `main` | `tsc --noEmit` + `next build` | нет (dummy `DATABASE_URL`, build не подключается к БД — см. EXTERNAL_AUDIT.md) |
+| `.github/workflows/e2e-smoke.yml` **(новый, сессия 56)** | **только `workflow_dispatch`** (ручной запуск) | реальный Postgres service container, migrate+seed, запуск приложения, 3 smoke e2e-набора | да, изолированная ephemeral CI-БД |
+
+До этой сессии: 0 e2e-наборов из 40 запускались автоматически где-либо
+кроме локальной машины разработчика. После: 3 из 40 можно запустить
+вручную в GitHub Actions по требованию.
+
+## 2. Static CI vs DB-backed e2e
+
+- **Static CI** (`ci.yml`) — typecheck + build. Не требует БД, не требует
+  сервера, безопасен на каждый push/PR. Ловит: TypeScript-ошибки, broken
+  imports, build-time ошибки (включая server/client component boundary
+  ошибки Next.js).
+- **DB-backed e2e** (`e2e-smoke.yml`) — реальный HTTP-сервер + реальная
+  Postgres + реальный login + бизнес-логика. Ловит: regressions в server
+  actions, permission-guards, tenant isolation, фактическое поведение
+  страниц — то, что typecheck/build физически не может проверить (TypeScript
+  не знает, что `requirePermission` действительно блокирует не-owner'а).
+- Они **не конкурируют** — typecheck/build остаётся обязательным на каждый
+  push (быстрый, дешёвый, ловит большинство багов); e2e-smoke — дополнительный,
+  более дорогой и более глубокий слой, запускаемый по требованию.
+
+## 3. Выбранный вариант: A (GitHub Actions Postgres service container), manual-first
+
+Из трёх вариантов, рассмотренных в архитектурной записке этой сессии:
+
+| Вариант | Итог |
+|---|---|
+| **A. GitHub Actions Postgres service container** | ✅ **выбран** — без внешних секретов, изолированная одноразовая БД, полностью воспроизводимо |
+| **B. Neon test branch** | ❌ не выбран — требует секрет (Neon API token/connection string), зависимость от внешнего аккаунта/тарифа, риск при неправильной настройке (правило сессии: «не добавлять платные integration secrets») |
+| **C. Только manual/local e2e** | было статус-кво до этой сессии — менее автоматизированная уверенность, но безопасно. Теперь дополнено вариантом A как **опциональный** ручной слой, не заменяя локальный прогон |
+
+### Почему manual (`workflow_dispatch`), а не на каждый push/PR
+
+1. **Скорость PR-цикла**: полный цикл (build + migrate + seed + start +
+   3 e2e-набора) занимает заметно больше времени, чем typecheck/build —
+   делать его blocking на каждый push замедлило бы итерацию без
+   пропорциональной выгоды на этом этапе.
+2. **Только 3 из 40 e2e-наборов** включены — `e2e-release-candidate-check`,
+   `e2e-demo-flow-check`, `e2e-production-hardening-check` (release-critical
+   smoke, не полный модульный матрикс). Остальные 37 — ещё не оркестрированы
+   для CI (некоторые создают/чистят собственные временные данные, что не
+   аудировано построчно на предмет CI-совместимости в этой сессии).
+3. **Новизна паттерна**: это первый раз, когда DB-backed e2e запускается в
+   GitHub Actions для этого проекта — разумно сначала убедиться, что он
+   стабильно зелёный при ручных запусках несколько раз, прежде чем делать
+   его обязательным gate (см. §6 «Будущий путь»).
+4. Locally e2e уже стабильно зелёные (40/40 наборов проверяются вручную
+   перед каждым коммитом, см. SESSION_HANDOFF.md) — manual CI-копия снижает
+   риск «works on my machine», но не заменяет необходимость самой
+   методологии.
+
+## 4. Безопасные env-правила (обязательно для любого DB-backed workflow)
+
+- **Postgres — ТОЛЬКО service container** (`services: postgres:`), который
+  живёт исключительно внутри одного ephemeral GitHub-runner и умирает
+  вместе с job. Никогда — managed/внешняя БД с реальными учётными данными.
+- **`DATABASE_URL` — захардкожен в YAML, НЕ из `secrets.*`**. Если в
+  workflow-файле нет `${{ secrets. }}` для БД — физически невозможно
+  случайно подставить туда production-строку подключения.
+- **`SESSION_SECRET` — длинная dummy-строка**, явно помеченная как
+  «not for production» в самом значении — невозможно перепутать с реальным
+  секретом при чтении логов/diff.
+- **`SEED_DEMO_PASSWORD=Demo1234!`** — тот же демо-пароль, что и в
+  local dev (см. SETUP.md) — НЕ `admin123` (это для публичного demo-деплоя,
+  смешивать с CI не нужно).
+- **Никогда не указывать реальный `DATABASE_URL`/`SESSION_SECRET` клиники
+  в любом `.yml`-файле репозитория** — даже как `secrets.*` ссылку, если
+  только не принято отдельное, осознанное решение с владельцем проекта.
+- `e2e-ci-e2e-strategy-check.ts` (сессия 56) — статически проверяет, что
+  workflow не содержит паттернов реальных секретов/production-подобных URL.
+
+## 5. Как запустить локальный эквивалент
+
+```bash
+# 1. Поднять локальную PostgreSQL (или использовать существующую dev-БД)
+powershell -ExecutionPolicy Bypass -File scripts\db-start.ps1
+
+# 2. Применить миграции + засеять (идемпотентно)
+npx prisma migrate deploy
+npx prisma db seed
+
+# 3. Собрать и запустить production-бандл
+npm run build
+npm run start          # отдельное окно/процесс, http://localhost:3000
+
+# 4. В другом терминале — те же 3 smoke-проверки, что в e2e-smoke.yml
+npm run e2e-release-candidate-check
+npm run e2e-demo-flow-check
+npm run e2e-production-hardening-check
+```
+
+Эквивалентно тому, что делает `e2e-smoke.yml`, на собственной машине —
+без GitHub Actions.
+
+## 6. Будущий путь (не сделано в этой сессии)
+
+1. **Несколько ручных прогонов `e2e-smoke.yml`** (без изменений кода) —
+   убедиться, что workflow стабильно зелёный, прежде чем переходить к
+   следующим шагам.
+2. **Добавить CI service DB на push/PR** — превратить `e2e-smoke.yml`
+   (или его часть) в обязательный gate, возможно сначала только на `main`
+   после merge, не на каждый PR (баланс скорости/уверенности).
+3. **Расширить e2e matrix** — постепенно добавлять оставшиеся 37 наборов
+   (по группам — finance/inventory/communications/notifications и т.д.),
+   проверяя на CI-совместимость (временные данные, очистка, паттерны
+   `formContaining` и т.п. — см. SESSION_HANDOFF.md §4 «E2E-техника»)
+   по одному перед включением.
+4. **Сделать smoke обязательным** — после стабилизации (см. п.1-3),
+   перевести `e2e-smoke.yml` (или его расширенную версию) с
+   `workflow_dispatch` на `push`/`pull_request` триггер, как у `ci.yml`.
+5. Опционально — managed CI-БД (Neon test branch, вариант B) если
+   потребуется ближе-к-production окружение; требует отдельного решения
+   о секретах/аккаунте, см. EXTERNAL_AUDIT.md §2.
+
+## См. также
+
+- [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) §1.4 — где это было анонсировано
+  как future work (сессия 55).
+- [RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md) — сводный
+  release-чеклист v1.0.
+- [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) — шаги деплоя + smoke tests
+  (ручные, на целевой инфраструктуре — не путать с этим CI smoke).
+- [SESSION_HANDOFF.md](SESSION_HANDOFF.md) §4 «E2E-техника» — конвенции
+  написания e2e-скриптов в этом проекте.

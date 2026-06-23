@@ -1,0 +1,92 @@
+name: "E2E Smoke"
+
+# Sessiya 56: manual (workflow_dispatch) DB-backed e2e smoke. Push/PR
+# CI-də DEYİL — bax docs/CI_E2E_STRATEGY.md niyə manual-first.
+# Postgres yalnız bu runner-ə aid, ephemeral service container — production
+# DB-yə heç bir yol yoxdur. Bütün env dəyərləri dummy/test, secrets yoxdur.
+# Tam e2e matrisi (40 script) DEYİL — yalnız 3 limit edilmiş smoke check.
+on:
+  workflow_dispatch: {}
+
+env:
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dentalpro_ci?schema=public"
+  SESSION_SECRET: "ci-e2e-smoke-dummy-secret-not-for-production-use-0000"
+  AUTH_MOCK: "false"
+  NEXT_PUBLIC_DEMO_MODE: "true"
+  SEED_DEMO_PASSWORD: "Demo1234!"
+
+jobs:
+  e2e-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dentalpro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Apply migrations (CI-only ephemeral DB)
+        run: npx prisma migrate deploy
+
+      - name: Seed demo data (idempotent, CI-only ephemeral DB)
+        run: npx prisma db seed
+
+      - name: Build
+        run: npm run build
+
+      - name: Start app in background
+        run: |
+          nohup npm run start > app.log 2>&1 &
+          disown
+
+      - name: Wait for /api/health/db
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health/db | grep -q '"ok":true'; then
+              echo "App is up and DB is connected."
+              exit 0
+            fi
+            echo "Waiting for app/DB... ($i/30)"
+            sleep 2
+          done
+          echo "Timed out waiting for app to become healthy."
+          cat app.log || true
+          exit 1
+
+      - name: E2E — release candidate check
+        run: npm run e2e-release-candidate-check
+
+      - name: E2E — demo flow check
+        run: npm run e2e-demo-flow-check
+
+      - name: E2E — production hardening check
+        run: npm run e2e-production-hardening-check
+
+      - name: Show app log on failure
+        if: failure()
+        run: cat app.log || true

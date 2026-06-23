@@ -176,3 +176,6 @@ npm run build
   release-чеклист v1.0.
 - [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) — CodeQL/CI/npm audit, внешние
   сканеры, manual audit checklist (сессия 55).
+- [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) — DB-backed e2e в GitHub Actions
+  (сессия 56) — manual `workflow_dispatch`, отдельно от smoke tests §5
+  выше (те — на целевой production/deploy-инфраструктуре, не в CI).

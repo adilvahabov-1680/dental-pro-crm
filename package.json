@@ -45,7 +45,8 @@
     "e2e-finance-check": "tsx scripts/e2e-finance-check.ts",
     "e2e-release-candidate-check": "tsx scripts/e2e-release-candidate-check.ts",
     "e2e-deployment-readiness-check": "tsx scripts/e2e-deployment-readiness-check.ts",
-    "e2e-external-audit-setup-check": "tsx scripts/e2e-external-audit-setup-check.ts"
+    "e2e-external-audit-setup-check": "tsx scripts/e2e-external-audit-setup-check.ts",
+    "e2e-ci-e2e-strategy-check": "tsx scripts/e2e-ci-e2e-strategy-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
