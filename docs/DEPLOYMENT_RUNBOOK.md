@@ -22,6 +22,10 @@ backup/monitoring policy — [BACKUP_MONITORING.md](BACKUP_MONITORING.md).
       (`npx prisma migrate dev` на dev-БД) до `migrate deploy` на production.
 - [ ] Известно, что `next dev` НЕ запущен параллельно с `npm run build` на
       этой же машине (общий `.next/` — конфликт воркеров).
+- [ ] Перед крупным релизом — свежий `npm audit --audit-level=moderate` снят,
+      результаты сверены с [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) §4
+      (известные находки/принятые риски), новых high/critical нет
+      (или задокументированы).
 
 ## 1. Env vars (проверить перед стартом)
 
@@ -170,3 +174,5 @@ npm run build
 - [PRODUCTION_HARDENING.md](PRODUCTION_HARDENING.md) — security pre-flight чеклист.
 - [RELEASE_CANDIDATE_CHECKLIST.md](RELEASE_CANDIDATE_CHECKLIST.md) — сводный
   release-чеклист v1.0.
+- [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) — CodeQL/CI/npm audit, внешние
+  сканеры, manual audit checklist (сессия 55).

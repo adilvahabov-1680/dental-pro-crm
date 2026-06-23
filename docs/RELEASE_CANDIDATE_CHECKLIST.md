@@ -152,8 +152,10 @@ SUPPLIER_*), плюс находки этой сессии.
 - Нет full patient portal — только одноразовые токенизированные ссылки
   (`/r/[token]`) под конкретное действие.
 - Нет PDF user manual со скриншотами — финальная фаза проекта.
-- Нет интеграции внешних security-сканеров (CodeQL/Snyk/OWASP ZAP/SonarQube)
-  — см. PRODUCTION_HARDENING.md §10.
+- CodeQL + базовый CI + `npm audit` настроены (сессия 55, см.
+  [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md)); Snyk/OWASP ZAP/SonarQube — всё
+  ещё только документированы, не настроены (платные/нужны отдельные
+  токены) — см. PRODUCTION_HARDENING.md §10.
 
 **Технические (приняты для MVP/v1, задокументированы ранее):**
 - **Local filesystem storage** (`uploads/`) не подходит для serverless —
@@ -193,9 +195,10 @@ SUPPLIER_*), плюс находки этой сессии.
    инфраструктуре (см. DEPLOYMENT.md §8).
 3. **PDF user manual со скриншотами** — финальная фаза проекта (намеренно
    не в этой и не в предыдущих сессиях).
-4. **Опциональный внешний security-аудит** — CodeQL/Snyk/`npm audit`/OWASP
-   ZAP (см. PRODUCTION_HARDENING.md §10) — не блокирует v1.0, но рекомендован
-   до масштабирования на реальных клиентов.
+4. **Внешний security-аудит** — CodeQL + `npm audit` настроены (сессия 55,
+   [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md)); Snyk/OWASP ZAP/SonarQube —
+   опционально, не блокирует v1.0, но рекомендован до масштабирования на
+   реальных клиентов (требуют отдельных аккаунтов/токенов).
 5. **Real clinic pilot feedback** — пилот с одной реальной клиникой, чтобы
    подтвердить продуктовые допущения (рабочие часы, роли, объём seed-данных)
    на живых данных перед широким релизом.
@@ -211,4 +214,5 @@ SUPPLIER_*), плюс находки этой сессии.
 - [DEPLOYMENT.md](DEPLOYMENT.md) / [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) — деплой.
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md) — шаги конкретного деплоя + smoke tests (сессия 54).
 - [BACKUP_MONITORING.md](BACKUP_MONITORING.md) — backup-расписание, retention, monitoring (сессия 54).
+- [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) — CodeQL/CI/npm audit, внешние сканеры, manual audit checklist (сессия 55).
 - [SESSION_HANDOFF.md](SESSION_HANDOFF.md) — статус модулей, e2e-итоги, история сессий.

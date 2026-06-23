@@ -1,0 +1,43 @@
+name: "CI"
+
+# Sessiya 55: minimal safe CI — typecheck + build. DB tələb olunmur (yoxlanılıb:
+# `next build` real DATABASE_URL-siz keçir, heç bir səhifə build vaxtı DB-yə
+# müraciət etmir). Yalnız dummy/test dəyərlər — heç bir real secret yoxdur.
+# E2E (DB tələb edən skriptlər) bu workflow-a daxil edilmir — CI DB
+# konfiqurasiya olunmayıb (bax docs/EXTERNAL_AUDIT.md).
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_dummy?schema=public"
+  SESSION_SECRET: "ci-dummy-secret-not-for-production-use"
+  AUTH_MOCK: "false"
+  NEXT_PUBLIC_DEMO_MODE: "false"
+
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build

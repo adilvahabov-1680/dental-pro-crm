@@ -8,6 +8,7 @@
     "start": "next start",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
+    "audit:deps": "npm audit --audit-level=moderate",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -43,7 +44,8 @@
     "e2e-communications-check": "tsx scripts/e2e-communications-check.ts",
     "e2e-finance-check": "tsx scripts/e2e-finance-check.ts",
     "e2e-release-candidate-check": "tsx scripts/e2e-release-candidate-check.ts",
-    "e2e-deployment-readiness-check": "tsx scripts/e2e-deployment-readiness-check.ts"
+    "e2e-deployment-readiness-check": "tsx scripts/e2e-deployment-readiness-check.ts",
+    "e2e-external-audit-setup-check": "tsx scripts/e2e-external-audit-setup-check.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

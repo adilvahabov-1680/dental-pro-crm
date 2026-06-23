@@ -217,10 +217,10 @@ document download scope/permission/path traversal.
 Не выполнялись в этой сессии (вне scope — "external security scanner
 integration"), но рекомендуются как следующий шаг:
 
-- **GitHub CodeQL** — статический анализ на known vulnerability patterns.
-- **Snyk / `npm audit`** — уязвимости в зависимостях (`package-lock.json`).
-- **OWASP ZAP** — динамическое сканирование живого деплоя (staging).
-- **SonarQube** — code quality + security hotspots на постоянной основе.
+- ~~**GitHub CodeQL**~~ ✅ настроено в сессии 55 (`.github/workflows/codeql.yml`) — статический анализ на known vulnerability patterns.
+- ~~**Snyk / `npm audit`**~~ ✅ `npm audit` настроен (`npm run audit:deps`, сессия 55); Snyk — всё ещё future (отдельный аккаунт/токен).
+- **OWASP ZAP** — динамическое сканирование живого деплоя (staging). Не настроено, см. EXTERNAL_AUDIT.md §2.
+- **SonarQube** — code quality + security hotspots на постоянной основе. Не настроено, см. EXTERNAL_AUDIT.md §2.
 - **Manual business logic audit** — отдельная сессия per модулю
   (например, advisory locks в finance под реальной нагрузкой,
   rate-limiting на `/login` и `/r/[token]`, который сейчас не реализован).
@@ -229,3 +229,10 @@ integration"), но рекомендуются как следующий шаг:
 > ([BACKUP_MONITORING.md](BACKUP_MONITORING.md), [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_RUNBOOK.md)) —
 > но автоматизация (cron backup, платный monitoring/alerting сервис) всё
 > ещё future work, см. оба документа §«что НЕ входит в v1».
+>
+> **Сессия 55**: CodeQL + базовый CI (typecheck/build) + `npm audit` теперь
+> настроены и задокументированы — полный чеклист, текущие findings (esbuild
+> исправлен, postcss/xlsx — принятый риск с митигацией) и evidence-шаблон
+> — [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md). OWASP ZAP/SonarQube/Snyk —
+> всё ещё только документированы, не настроены (платные/требуют отдельных
+> токенов).
