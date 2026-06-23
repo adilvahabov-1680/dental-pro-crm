@@ -1,11 +1,12 @@
 /**
- * Static CI/E2E strategy check (сессия 56, dev-скрипт):
+ * Static CI/E2E strategy check (сессия 56, дополнен в сессии 58, dev-скрипт):
  *   npx tsx scripts/e2e-ci-e2e-strategy-check.ts
  * Чисто статическая проверка (НЕ требует dev-сервера/БД): docs/CI_E2E_STRATEGY.md
  * на месте, e2e-smoke.yml (если есть) — manual-only triggers, использует
- * Postgres service container, не содержит секретов/production-DB URL,
- * только dummy env, запускает ограниченный (не полный 40-скриптовый) набор
- * e2e, и эти scripts реально зарегистрированы в package.json.
+ * Postgres service container, реальные `prisma migrate deploy` (не `db push`),
+ * не содержит секретов/production-DB URL, только dummy env, запускает
+ * ограниченный (не полный 40-скриптовый) набор e2e, и эти scripts реально
+ * зарегистрированы в package.json.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -54,6 +55,8 @@ function main() {
       !/^on:\s*\n\s*push:/m.test(wf) && !/^\s*push:\s*$/m.test(wf.split("workflow_dispatch")[0] ?? ""),
     );
     check("workflow использует Postgres service container", /services:[\s\S]*postgres:/.test(wf));
+    check("workflow использует «prisma migrate deploy» (не db push)", /prisma migrate deploy/.test(wf));
+    check("workflow НЕ использует «prisma db push» (миграции, не push)", !/prisma db push/.test(wf));
 
     // Секреты/production-подобные паттерны — НЕ должны встречаться.
     const secretPatterns: Array<[string, RegExp]> = [

@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-23 (после сессии 57: GitHub Actions Smoke Run / CI Stabilization v1)
+**by AV Systems** · обновлено: 2026-06-23 (после сессии 58: GitHub Actions Smoke Fix / Migration Portability v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -940,6 +940,108 @@ portal — не делались (вне scope).
 schema.prisma **не менялась**, migration **не требовалась**.
 
 **Один коммит (один scope = один коммит):** `chore: stabilize e2e smoke workflow`.
+
+## 7.36. Сессия 58 — итоги (GitHub Actions Smoke Fix / Migration Portability v1)
+
+CI/migration-сессия без новых бизнес-модулей, без изменений
+business logic/schema.prisma/permissions. Цель — диагностировать и
+исправить реальный сбой `E2E Smoke` (пользователь запустил вручную на
+`main`, commit `52586f5`) на шаге `npx prisma migrate deploy`.
+
+**Ошибка из GitHub Actions**:
+
+```text
+Error: P3018
+Migration name: 20260618100805_add_consumable_reversal
+Database error: ERROR: index "treatment_consumable_usages_inventory_movement_id_idx" does not exist
+```
+
+**Root cause** (подтверждён построчным разбором миграций, не
+предположением): `20260618100805_add_consumable_reversal` (10:08:05)
+сортируется и применяется **раньше**, чем
+`20260618120000_add_treatment_consumable_usage` (12:00:00) — но именно
+вторая создаёт таблицу `treatment_consumable_usages` и нужный индекс.
+4 команды в `100805` (`DROP INDEX`/`ALTER TABLE ADD COLUMN`/
+`CREATE INDEX`/`RENAME INDEX`) ссылались на эту таблицу до её создания —
+работает только если миграции уже отмечены применёнными в
+`_prisma_migrations` (как на локальной dev-БД), и ломается на
+абсолютно чистой БД (ephemeral CI Postgres), которая реплеит историю
+с нуля в порядке имён папок.
+
+**Почему не просто `IF EXISTS`-guard**: это не «безопасно пропустить
+устаревший объект» случай — если эти 4 команды молча не выполнятся на
+чистой БД, финальная схема НАВСЕГДА останется без колонок
+`is_reversed`/`reversal_movement_id`/`reversal_reason`/`reversed_at`/
+`reversed_by_id`, которые требует `schema.prisma` — это была бы
+настоящая порча данных, не фикс.
+
+**Фикс**: 4 проблемные команды перенесены **слово в слово** (тот же SQL-
+текст, тот же относительный порядок) из `20260618100805_add_consumable_reversal/migration.sql`
+в конец `20260618120000_add_treatment_consumable_usage/migration.sql`
+(после создания таблицы/индексов/FK). Остальные команды в `100805`
+(alter enum, правки `supplier_order_items`/`service_consumable_templates`)
+проверены — все зависят только от миграций, применяемых раньше
+(`20260617130000`, `20260617160000`), не тронуты. **Никакой новой
+миграции, никаких изменений schema.prisma.**
+
+**Проверено локально перед коммитом** (не просто статически):
+1. `npx prisma validate` → схема валидна.
+2. Создана **отдельная временная** Postgres-БД на той же портативной
+   локальной инсталляции (`dental_pro_crm_ci_fresh_test`) — основная
+   dev-БД НЕ тронута.
+3. На ней с абсолютного нуля: `npx prisma migrate deploy` — все 16
+   миграций применились без ошибок (включая обе спорные).
+4. `npx prisma db seed` — прошёл полностью (демо-клиника, пациенты,
+   приёмы, материалы, протоколы — без ошибок).
+5. `\d treatment_consumable_usages` — ручная проверка структуры:
+   все 5 reversal-колонок, 4 non-unique индекса
+   (`clinic_id`/`treatment_item_id`/`inventory_item_id`/`is_reversed`),
+   единственный `UNIQUE` на `inventory_movement_id` (без избыточного
+   отдельного индекса) — 1:1 совпадает с `schema.prisma`.
+6. Временная БД удалена после проверки.
+
+Это воспроизводит ровно то, что делает CI (`prisma migrate deploy` →
+`prisma db seed` на ephemeral Postgres), максимально близко к реальному
+GitHub Actions окружению, доступному из среды агента.
+
+**Изменения:**
+- **`prisma/migrations/20260618100805_add_consumable_reversal/migration.sql`**:
+  удалены 4 команды (перенесены, не удалены безвозвратно — см. ниже),
+  добавлен комментарий с объяснением и ссылкой на этот раздел.
+- **`prisma/migrations/20260618120000_add_treatment_consumable_usage/migration.sql`**:
+  те же 4 команды добавлены в конец файла (после исходного содержимого),
+  с комментарием-объяснением.
+- **`scripts/e2e-ci-e2e-strategy-check.ts`**: +2 проверки — workflow
+  использует `prisma migrate deploy` (не `db push`); workflow НЕ
+  использует `prisma db push`.
+- **`docs/CI_E2E_STRATEGY.md`**: новый §8 — root cause, фикс, локальная
+  проверка fresh-DB, что осталось (re-run на GitHub Actions).
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, этот
+  раздел.
+
+**GitHub Actions**: `gh` CLI всё ещё недоступен в среде агента (повторно
+проверено в обоих shell) — повторный прогон **pending user-run**,
+результат НЕ заявляется как пройденный. Точные шаги — CI_E2E_STRATEGY.md
+§7 (без изменений с сессии 57).
+
+**Не реализовано (по scope, намеренно):** новая corrective-миграция (не
+требуется — реордеринг существующих файлов достаточен и менее
+рискован), `prisma db push` в CI (запрещено правилами сессии), реальный
+прогон GitHub Actions (недоступен из среды агента), изменения business
+logic/schema, PDF user manual, WhatsApp Business API, payment gateway,
+full patient portal.
+
+**Локальные проверки (после сессии):** `npx prisma validate`,
+`npx prisma generate`, fresh-DB `migrate deploy` + `db seed` (см. выше),
+`npx tsc --noEmit`, `npm run build`, `e2e-ci-e2e-strategy-check`,
+`e2e-external-audit-setup-check`, `e2e-release-candidate-check`,
+`e2e-deployment-readiness-check`, `e2e-demo-flow-check` — итоги см. в
+отчёте коммита.
+
+schema.prisma **не менялась**, новая migration **не создавалась**
+(существующие 2 файла отредактированы для portability).
+
+**Один коммит (один scope = один коммит):** `fix: make consumable reversal migration portable`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 

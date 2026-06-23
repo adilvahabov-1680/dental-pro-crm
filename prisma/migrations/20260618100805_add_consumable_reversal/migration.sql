@@ -7,9 +7,6 @@ ALTER TABLE "supplier_order_items" DROP CONSTRAINT "supplier_order_items_stock_m
 -- DropIndex
 DROP INDEX "service_consumable_templates_inventory_item_id_idx";
 
--- DropIndex
-DROP INDEX "treatment_consumable_usages_inventory_movement_id_idx";
-
 -- AlterTable
 ALTER TABLE "service_consumable_templates" ALTER COLUMN "updated_at" DROP DEFAULT;
 
@@ -17,19 +14,16 @@ ALTER TABLE "service_consumable_templates" ALTER COLUMN "updated_at" DROP DEFAUL
 ALTER TABLE "supplier_order_items" ALTER COLUMN "name_snapshot" DROP DEFAULT,
 ALTER COLUMN "price_snapshot" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "treatment_consumable_usages" ADD COLUMN     "is_reversed" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "reversal_movement_id" UUID,
-ADD COLUMN     "reversal_reason" TEXT,
-ADD COLUMN     "reversed_at" TIMESTAMPTZ,
-ADD COLUMN     "reversed_by_id" UUID,
-ALTER COLUMN "updated_at" DROP DEFAULT;
-
--- CreateIndex
-CREATE INDEX "treatment_consumable_usages_is_reversed_idx" ON "treatment_consumable_usages"("is_reversed");
-
 -- RenameIndex
 ALTER INDEX "service_consumable_templates_clinic_service_item_key" RENAME TO "service_consumable_templates_clinic_id_service_id_inventory_key";
 
--- RenameIndex
-ALTER INDEX "treatment_consumable_usages_movement_key" RENAME TO "treatment_consumable_usages_inventory_movement_id_key";
+-- Session 58 (CI migration-ordering fix): the 4 statements that used to be here
+-- (DropIndex/AlterTable/CreateIndex/RenameIndex on "treatment_consumable_usages")
+-- were relocated, verbatim, to the end of migration
+-- 20260618120000_add_treatment_consumable_usage — that table did not exist yet
+-- at this point in migration history on a from-zero apply (e.g. a fresh CI
+-- database), causing `prisma migrate deploy` to fail with P3018. See
+-- docs/CI_E2E_STRATEGY.md and docs/SESSION_HANDOFF.md §7.36 for the full
+-- root-cause writeup. This migration's net effect on an already-applied
+-- database is unchanged — only the statement order across the two files
+-- was corrected.

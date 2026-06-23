@@ -168,6 +168,67 @@ SESSION_HANDOFF.md §7.35).
   ограничены CI/workflow/orchestration (см. правила сессии 57 в
   SESSION_HANDOFF.md), не бизнес-логикой.
 
+## 8. Первый реальный прогон — упал на migration portability (сессия 58)
+
+**Статус: pending user re-run** (фикс внесён, повторный прогон ещё не
+подтверждён — `gh` CLI всё ещё недоступен в среде агента, проверено
+повторно в сессии 58).
+
+Пользователь запустил `E2E Smoke` вручную на `branch main`, commit
+`52586f5`. Workflow дошёл до шага **«Apply migrations (CI-only ephemeral
+DB)»** (`npx prisma migrate deploy`) и упал:
+
+```text
+Error: P3018
+A migration failed to apply. New migrations cannot be applied before
+the error is recovered from.
+Migration name: 20260618100805_add_consumable_reversal
+Database error code: 42704
+Database error: ERROR: index "treatment_consumable_usages_inventory_movement_id_idx" does not exist
+```
+
+**Root cause**: миграция `20260618100805_add_consumable_reversal`
+(timestamp `10:08:05`) сортируется и применяется **раньше**, чем
+`20260618120000_add_treatment_consumable_usage` (timestamp `12:00:00`) —
+но именно вторая создаёт таблицу `treatment_consumable_usages` и нужный
+индекс. На полностью чистой БД (ephemeral CI Postgres, ни одной
+применённой миграции) Prisma реплеит историю строго по сортировке имён
+папок и упирается в `DROP INDEX`/`ALTER TABLE`/`CREATE INDEX`/
+`RENAME INDEX` на таблицу, которой ещё не существует. Локально это не
+проявлялось, т.к. обе миграции уже были отмечены как применённые в
+`_prisma_migrations` локальной dev-БД — Prisma никогда не реплеила их с
+нуля до этого момента.
+
+**Фикс** (без новой миграции, без изменения schema.prisma, без правки
+бизнес-логики): 4 проблемные SQL-команды перенесены **слово в слово**
+из `20260618100805_add_consumable_reversal/migration.sql` в конец
+`20260618120000_add_treatment_consumable_usage/migration.sql` (после
+создания таблицы/индексов/FK) — сохранён их исходный текст и
+относительный порядок, изменилось только то, в каком файле/после какого
+момента они выполняются. Все остальные команды в `100805` (alter enum,
+правки `supplier_order_items`/`service_consumable_templates`) не
+относятся к `treatment_consumable_usages` и были безопасны на исходном
+месте — не тронуты.
+
+**Проверено локально** (сессия 58, перед коммитом): создана отдельная
+**временная** Postgres-БД на той же портативной локальной инсталляции
+(`dental_pro_crm_ci_fresh_test`, удалена после проверки — основная
+dev-БД не тронута), на ней с нуля выполнены `npx prisma migrate deploy`
+(все 16 миграций применились без ошибок) → `npx prisma db seed`
+(прошёл полностью) → ручная проверка структуры таблицы
+(`\d treatment_consumable_usages`) — все 5 reversal-колонок, все 4
+non-unique индекса (`clinic_id`/`treatment_item_id`/`inventory_item_id`/
+`is_reversed`) и единственный `UNIQUE` на `inventory_movement_id`
+(без избыточного отдельного индекса) — присутствуют, 1:1 совпадают с
+`schema.prisma`.
+
+**Что осталось**: реальный прогон на GitHub Actions (с этим фиксом) —
+см. §7 выше, те же точные шаги UI. Если упадёт снова — на ЭТОМ шаге
+упасть он больше не должен (проверено локально на from-zero реплее
+с тем же `prisma migrate deploy`); если упадёт на чём-то другом
+(build/start/health/e2e) — это отдельная, новая находка, не относится
+к этому фиксу.
+
 ## См. также
 
 - [EXTERNAL_AUDIT.md](EXTERNAL_AUDIT.md) §1.4 — где это было анонсировано

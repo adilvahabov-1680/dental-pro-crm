@@ -57,3 +57,27 @@ ALTER TABLE "treatment_consumable_usages"
 ALTER TABLE "treatment_consumable_usages"
     ADD CONSTRAINT "treatment_consumable_usages_inventory_movement_id_fkey"
         FOREIGN KEY ("inventory_movement_id") REFERENCES "inventory_movements"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Session 58 (CI migration-ordering fix): relocated verbatim from
+-- 20260618100805_add_consumable_reversal, which originally ran BEFORE this
+-- migration (100805 < 120000) and referenced this table before it existed —
+-- failed with P3018 on a from-zero apply (fresh CI database). Statement
+-- text/order below is unchanged from the original migration; only its file
+-- location moved. See docs/CI_E2E_STRATEGY.md and docs/SESSION_HANDOFF.md §7.36.
+
+-- DropIndex
+DROP INDEX "treatment_consumable_usages_inventory_movement_id_idx";
+
+-- AlterTable
+ALTER TABLE "treatment_consumable_usages" ADD COLUMN     "is_reversed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "reversal_movement_id" UUID,
+ADD COLUMN     "reversal_reason" TEXT,
+ADD COLUMN     "reversed_at" TIMESTAMPTZ,
+ADD COLUMN     "reversed_by_id" UUID,
+ALTER COLUMN "updated_at" DROP DEFAULT;
+
+-- CreateIndex
+CREATE INDEX "treatment_consumable_usages_is_reversed_idx" ON "treatment_consumable_usages"("is_reversed");
+
+-- RenameIndex
+ALTER INDEX "treatment_consumable_usages_movement_key" RENAME TO "treatment_consumable_usages_inventory_movement_id_key";
