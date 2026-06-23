@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-23 (после сессии 59: GitHub Actions Production Hardening E2E Fix v1)
+**by AV Systems** · обновлено: 2026-06-24 (после сессии 60: Real Deploy Environment Verification v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -1107,6 +1107,54 @@ WhatsApp Business API, payment gateway, full patient portal.
 schema.prisma **не менялась**, migration **не создавалась**.
 
 **Один коммит (один scope = один коммит):** `fix: stabilize feedback token hardening check`.
+
+## 7.38. Сессия 60 — итоги (Real Deploy Environment Verification v1)
+
+Verification-сессия без новых бизнес-модулей, без изменений business
+logic/schema. Цель — проверить, готова ли документация deploy/demo
+окружения теперь, когда CI полностью зелёный (CI ✅, CodeQL ✅,
+E2E Smoke #3 ✅ на `main`, commit `0a7131d`).
+
+**Находки**: техническая часть документации (`DEPLOYMENT.md`,
+`FREE_DEMO_DEPLOY.md`, `DEMO.md`, `.env.example`, package.json scripts
+`prod:migrate`/`prod:update`/`demo:deploy:init`/`db:seed`,
+`/api/health/db` route) сверена с реальным кодом — расхождений не
+найдено, 1:1 соответствует. **Единственное расхождение**: документация
+CI-статуса (`CI_E2E_STRATEGY.md` §9, `RELEASE_CANDIDATE_CHECKLIST.md`
+§G.8) была помечена «pending user-run»/«pending user re-run», хотя
+третий прогон `E2E Smoke` фактически прошёл полностью зелёным — docs
+не были обновлены после подтверждения пользователем (ожидаемо: предыдущие
+сессии явно фиксировали «обновление этого статуса требует ручного шага
+владельца проекта, т.к. среда агента не может это подтвердить
+самостоятельно» — этот шаг и был сделан в сессии 60, на основании
+сообщённого пользователем результата).
+
+**Изменения (docs only):**
+- **`docs/CI_E2E_STRATEGY.md`**: новый §10 — третий прогон зафиксирован
+  как ✅ passed (commit `0a7131d`, все 3 smoke-набора зелёные, включая
+  A15 после фикса сессии 59); §6 п.1 помечен ✅ минимально выполненным.
+- **`docs/RELEASE_CANDIDATE_CHECKLIST.md`** §G.8: статус обновлён с
+  «pending user-run» на ✅ подтверждённый зелёный прогон.
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, этот
+  раздел.
+
+**Не реализовано (по scope, намеренно):** изменения кода/business
+logic/schema (реального deploy-only бага не найдено — техническая
+документация уже соответствовала коду); новые e2e/helper-скрипты (все
+нужные проверки уже покрыты `e2e-deployment-readiness-check`/
+`e2e-ci-e2e-strategy-check`/`e2e-external-audit-setup-check`); seed
+против production БД (не запускался — не подтверждено, что есть
+disposable demo БД); PDF user manual, WhatsApp Business API, payment
+gateway, full patient portal.
+
+**Локальные проверки (после сессии):** `npx prisma validate`,
+`npx prisma generate`, `npx tsc --noEmit`, `npm run build`,
+`e2e-deployment-readiness-check`, `e2e-ci-e2e-strategy-check`,
+`e2e-external-audit-setup-check` — итоги см. в отчёте коммита.
+
+schema.prisma **не менялась**, migration **не создавалась**.
+
+**Один коммит (один scope = один коммит):** `docs: prepare real deploy verification`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 

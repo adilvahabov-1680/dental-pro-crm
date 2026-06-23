@@ -206,14 +206,17 @@ SUPPLIER_*), плюс находки этой сессии.
    `package.json` для единообразия (см. §F «Процессные»).
 7. *(низкий приоритет)* Удалить legacy `AUTH_MOCK`-ветку из
    `lib/actions/auth.ts`/`lib/constants.ts` после стабилизации на реальной БД.
-8. **CI e2e: первый прогон + расширение до обязательного gate** —
-   DB-backed e2e smoke настроен в сессии 56 (manual-only,
-   `workflow_dispatch`, 3 из 40 наборов). **Сессия 57**: workflow
-   статически проверен/построчно проверен, добавлен `timeout-minutes: 15`
-   — но реальный прогон на GitHub Actions **ещё не выполнен** (`gh` CLI
-   недоступен в среде агента) — статус **pending user-run**, точные шаги
-   запуска — [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) §7. Путь к
-   обязательному gate на push/PR (после стабилизации) — там же §6.
+8. **CI e2e: расширение до обязательного gate** — DB-backed e2e smoke
+   настроен в сессии 56 (manual-only, `workflow_dispatch`, 3 из 40
+   наборов). **Сессии 57-59**: workflow построчно проверен, найден и
+   исправлен реальный сбой migration portability (сессия 58) и
+   стабилизирован flaky-assertion в e2e (сессия 59). **Сессия 60**:
+   ✅ `E2E Smoke` прошёл полностью зелёным (прогон №3, commit
+   `0a7131d`), вместе с `CI` и `CodeQL` на том же коммите — DB-backed
+   e2e в GitHub Actions подтверждён рабочим. Путь к обязательному gate
+   на push/PR (расширение matrix, перевод с `workflow_dispatch`) — см.
+   [CI_E2E_STRATEGY.md](CI_E2E_STRATEGY.md) §6/§10, не блокирует
+   текущую готовность.
 
 ## См. также
 
