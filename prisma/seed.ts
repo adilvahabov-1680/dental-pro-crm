@@ -601,6 +601,12 @@ async function main() {
   }
 
   // 15. Demo-материалы склада (идемпотентно: по clinic+name)
+  // Сессия 64: единая AZ-конвенция единиц измерения — `unit` (= baseUnit
+  // склада) ВСЕГДА равен реальной единице расхода/использования (ədəd —
+  // штука, cüt — пара, karpul — картридж), НИКОГДА закупочной упаковке.
+  // `purchaseUnit` + `purchaseToBaseFactor` — только для прихода (qutu/paket
+  // → во сколько раз больше базовых единиц в одной упаковке). Источники
+  // реалистичных чисел — docs/INVENTORY_MEDICINE_UNITS_V2_PLAN.md §6.
   const catByName = new Map<string, string>();
   for (const name of INVENTORY_CATEGORIES) {
     const c = await prisma.inventoryCategory.findFirst({
@@ -615,13 +621,73 @@ async function main() {
     qty: number;
     min: number;
     cost?: number;
+    purchaseUnit?: string;
+    purchaseToBaseFactor?: number;
   }> = [
-    { name: "Artikain anesteziya", category: "Anesteziya", unit: "karpul", qty: 30, min: 10, cost: 2_50 },
+    {
+      name: "Artikain 4% + epinefrin anesteziyası",
+      category: "Anesteziya",
+      unit: "karpul",
+      qty: 30,
+      min: 10,
+      cost: 2_50,
+      purchaseUnit: "qutu",
+      purchaseToBaseFactor: 50, // 1 qutu = 50 karpul
+    },
     { name: "Kompozit A2", category: "Plomba materialları", unit: "şpris", qty: 8, min: 3, cost: 45_00 },
     { name: "Bonding agent", category: "Plomba materialları", unit: "şüşə", qty: 2, min: 2, cost: 60_00 },
     { name: "Endo file set", category: "Endodontiya", unit: "dəst", qty: 5, min: 2, cost: 25_00 },
-    { name: "Lateks əlcək M", category: "Birdəfəlik ləvazimat", unit: "qutu", qty: 1, min: 5, cost: 8_00 },
-    { name: "Steril maska", category: "Gigiyena", unit: "qutu", qty: 6, min: 3, cost: 5_00 },
+    {
+      // baseUnit = cüt (cərt) — əsas vahid REAL istifadə vahididir, qutu YOX.
+      name: "Lateks əlcək M",
+      category: "Birdəfəlik ləvazimat",
+      unit: "cüt",
+      qty: 40,
+      min: 100,
+      cost: 20, // ~0.20 AZN/cüt (qutu ~10 AZN / 50 cüt)
+      purchaseUnit: "qutu",
+      purchaseToBaseFactor: 50, // 1 qutu (100 ədəd) = 50 cüt
+    },
+    {
+      name: "Steril maska",
+      category: "Gigiyena",
+      unit: "ədəd",
+      qty: 300,
+      min: 150,
+      cost: 10, // ~0.10 AZN/ədəd (qutu ~5 AZN / 50 ədəd)
+      purchaseUnit: "qutu",
+      purchaseToBaseFactor: 50, // 1 qutu = 50 ədəd
+    },
+    {
+      name: "Bir dəfəlik iynə (27G)",
+      category: "Birdəfəlik ləvazimat",
+      unit: "ədəd",
+      qty: 150,
+      min: 100,
+      cost: 6, // ~0.06 AZN/ədəd (qutu ~6 AZN / 100 ədəd)
+      purchaseUnit: "qutu",
+      purchaseToBaseFactor: 100, // 1 qutu = 100 ədəd
+    },
+    {
+      name: "Tüpürcək sorucu",
+      category: "Birdəfəlik ləvazimat",
+      unit: "ədəd",
+      qty: 80,
+      min: 50,
+      cost: 4, // ~0.04 AZN/ədəd (paket ~4 AZN / 100 ədəd)
+      purchaseUnit: "paket",
+      purchaseToBaseFactor: 100, // 1 paket = 100 ədəd
+    },
+    {
+      name: "Bir dəfəlik önlük",
+      category: "Gigiyena",
+      unit: "ədəd",
+      qty: 400,
+      min: 250,
+      cost: 3, // ~0.03 AZN/ədəd (qutu ~15 AZN / 500 ədəd)
+      purchaseUnit: "qutu",
+      purchaseToBaseFactor: 500, // 1 qutu = 500 ədəd
+    },
   ];
   const materialIds = new Map<string, string>();
   for (const m of DEMO_MATERIALS) {
@@ -638,6 +704,8 @@ async function main() {
           quantity: m.qty,
           minQuantity: m.min,
           unitCost: m.cost ?? null,
+          purchaseUnit: m.purchaseUnit ?? null,
+          ...(m.purchaseToBaseFactor !== undefined ? { purchaseToBaseFactor: m.purchaseToBaseFactor } : {}),
         },
       });
       await prisma.inventoryMovement.create({
@@ -655,6 +723,64 @@ async function main() {
     materialIds.set(m.name, item.id);
   }
   console.log(`  demo inventory: ${DEMO_MATERIALS.length} materials (2 low stock)`);
+
+  // 15a. Demo-шаблоны стандартного расхода на услугу (idempotent, сессия 64) —
+  // показывают реальный default-usage workflow с правильно настроенными
+  // единицами измерения (ServiceConsumableTemplate, см. SERVICE_CONSUMABLE_TEMPLATES.md).
+  const DEMO_CONSUMABLE_TEMPLATES: Array<{
+    service: string;
+    items: Array<{ material: string; quantity: number; unit: string; isRequired?: boolean }>;
+  }> = [
+    {
+      service: "Profilaktik təmizlik",
+      items: [
+        { material: "Lateks əlcək M", quantity: 1, unit: "cüt" },
+        { material: "Steril maska", quantity: 1, unit: "ədəd" },
+      ],
+    },
+    {
+      service: "Kompozit plomba",
+      items: [
+        { material: "Lateks əlcək M", quantity: 1, unit: "cüt" },
+        { material: "Steril maska", quantity: 1, unit: "ədəd" },
+        { material: "Artikain 4% + epinefrin anesteziyası", quantity: 1, unit: "karpul", isRequired: false },
+      ],
+    },
+    {
+      service: "Kanal müalicəsi",
+      items: [
+        { material: "Lateks əlcək M", quantity: 1, unit: "cüt" },
+        { material: "Steril maska", quantity: 1, unit: "ədəd" },
+        { material: "Artikain 4% + epinefrin anesteziyası", quantity: 1, unit: "karpul" },
+        { material: "Bir dəfəlik iynə (27G)", quantity: 1, unit: "ədəd" },
+      ],
+    },
+  ];
+  let templateCount = 0;
+  for (const tpl of DEMO_CONSUMABLE_TEMPLATES) {
+    const svcId = serviceIds[tpl.service];
+    if (!svcId) continue;
+    for (const it of tpl.items) {
+      const invId = materialIds.get(it.material);
+      if (!invId) continue;
+      const exists = await prisma.serviceConsumableTemplate.findFirst({
+        where: { clinicId: clinic.id, serviceId: svcId, inventoryItemId: invId },
+      });
+      if (exists) continue;
+      await prisma.serviceConsumableTemplate.create({
+        data: {
+          clinicId: clinic.id,
+          serviceId: svcId,
+          inventoryItemId: invId,
+          quantity: it.quantity,
+          unit: it.unit,
+          isRequired: it.isRequired ?? true,
+        },
+      });
+      templateCount++;
+    }
+  }
+  console.log(`  demo consumable templates: ${DEMO_CONSUMABLE_TEMPLATES.length} services (${templateCount} items)`);
 
   // 16. Списание материалов на demo-процедуру Rəşad tooth 16 (идемпотентно)
   const item16 = await prisma.treatmentItem.findFirst({

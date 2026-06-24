@@ -68,11 +68,12 @@ class Session {
   }
 }
 
-// Seed-значение "Steril maska" (см. prisma/seed.ts: qty 6, min 3). Сид —
-// create-only и не сбрасывает quantity при повторных запусках, поэтому
-// тест сам гарантирует и восстанавливает достаточный остаток (test-data
-// hygiene, не относится к продуктовой логике inventory).
-const SAFE_MASKA_QTY = 6;
+// Seed-значение "Steril maska" (см. prisma/seed.ts: unit ədəd, qty 300,
+// min 150 — baseUnit сессии 64, не qutu). Сид — create-only и не сбрасывает
+// quantity при повторных запусках, поэтому тест сам гарантирует и
+// восстанавливает достаточный остаток (test-data hygiene, не относится к
+// продуктовой логике inventory).
+const SAFE_MASKA_QTY = 300;
 
 async function main() {
   console.log(`E2E inventory check → ${BASE}\n`);
