@@ -9,6 +9,18 @@ const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 const PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "Demo1234!";
 const prisma = new PrismaClient();
 
+/**
+ * "Сегодня" в часовом поясе сервера, НЕ через toISOString() — тот возвращает
+ * UTC-дату, которая возле местной полуночи (например UTC+4) ещё "вчера" по
+ * UTC, пока тестовые данные уже создаются с местным now(). /reports/consumables
+ * парсит from/to как локальную дату (`${date}T00:00:00`), поэтому фильтр должен
+ * получать ту же локальную дату. Тот же подход — scripts/e2e-doctor-daily-report-check.ts.
+ */
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 let passed = 0;
 let failed = 0;
 function check(name: string, ok: boolean, extra = "") {
@@ -356,7 +368,7 @@ async function main() {
   );
 
   // filter to today (should include test data created now)
-  const today = new Date().toISOString().split("T")[0];
+  const today = localToday();
   const todayPage = await owner.get(`/reports/consumables?from=${today}&to=${today}`);
   check("today filter: page 200", todayPage.status === 200, `status=${todayPage.status}`);
   check(
