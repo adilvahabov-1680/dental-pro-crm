@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft, Package, Pencil } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
@@ -52,6 +52,14 @@ export default async function InventoryItemPage({
         actions={
           <div className="flex items-center gap-2">
             <InventoryStatusBadge status={status} />
+            {canManage && (
+              <Link
+                href={`/inventory/${item.id}/edit`}
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface px-4 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+              >
+                <Pencil className="size-4" /> {ti.item.edit}
+              </Link>
+            )}
             <Link
               href="/inventory"
               className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface px-4 text-sm text-text-primary transition-colors hover:bg-bg-elevated"

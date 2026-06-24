@@ -1,6 +1,7 @@
 import { requirePermission } from "@/lib/auth";
 import { getDict } from "@/lib/i18n";
 import { listInventoryCategories } from "@/lib/inventory";
+import { createInventoryItem } from "@/lib/actions/inventory";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { InventoryItemForm } from "@/components/inventory/InventoryItemForm";
 
@@ -12,7 +13,7 @@ export default async function NewInventoryItemPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title={t.inventory.form.title} description={t.inventory.form.desc} />
-      <InventoryItemForm dict={t.inventory} categories={categories} />
+      <InventoryItemForm action={createInventoryItem} dict={t.inventory} categories={categories} />
     </div>
   );
 }

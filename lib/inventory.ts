@@ -166,6 +166,22 @@ export async function listLowStockItems(user: SessionUser): Promise<InventoryIte
   return listInventoryItems(user, { low: true });
 }
 
+/** Есть ли у материала движения/списания/шаблоны расхода (сессия 68 — предупреждение на форме редактирования о смене единиц). */
+export async function hasLinkedInventoryRecords(
+  user: SessionUser,
+  inventoryItemId: string,
+): Promise<boolean> {
+  if (!user.clinicId) return false;
+  const db = tenantClient(user.clinicId);
+  const [movements, usages, templates, materials] = await Promise.all([
+    db.inventoryMovement.count({ where: { inventoryItemId } }),
+    db.treatmentConsumableUsage.count({ where: { inventoryItemId } }),
+    db.serviceConsumableTemplate.count({ where: { inventoryItemId } }),
+    db.treatmentItemMaterial.count({ where: { inventoryItemId } }),
+  ]);
+  return movements + usages + templates + materials > 0;
+}
+
 export async function listInventoryCategories(user: SessionUser) {
   if (!user.clinicId) return [];
   const db = tenantClient(user.clinicId);

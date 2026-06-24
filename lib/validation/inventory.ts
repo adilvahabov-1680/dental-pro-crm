@@ -66,6 +66,20 @@ export const inventoryItemSchema = z.object({
   expiresAt: optionalText,
 });
 
+/** Редактирование существующего материала (сессия 68) — без quantity/initialQuantity: остаток меняется только через движение/корректировку. */
+export const updateInventoryItemSchema = z.object({
+  name: z.string().trim().min(1, "nameRequired").max(200),
+  categoryId: optionalText,
+  unit: z.string().trim().min(1, "unitRequired").max(50),
+  purchaseUnit: optionalText,
+  purchaseToBaseFactor: decimalFactor,
+  doseToBaseFactor: optionalFactor,
+  minQuantity: decimalQty(0),
+  purchasePrice: optionalMoney,
+  supplierName: optionalText,
+  expiresAt: optionalText,
+});
+
 export const movementSchema = z.object({
   inventoryItemId: z.string().uuid(),
   type: z.enum(MOVEMENT_FORM_TYPES),

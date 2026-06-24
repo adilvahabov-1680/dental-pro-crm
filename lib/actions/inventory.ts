@@ -15,8 +15,10 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
 import { tenantClient } from "@/lib/tenant";
 import { getTreatmentItemForUser } from "@/lib/treatments";
+import { safeUpdateByTenant } from "@/lib/tenant";
 import {
   inventoryItemSchema,
+  updateInventoryItemSchema,
   movementSchema,
   treatmentMaterialSchema,
   type InventoryFormState,
@@ -174,6 +176,98 @@ export async function createInventoryItem(
 
   revalidatePath("/inventory");
   redirect(`/inventory/${itemId}`);
+}
+
+/**
+ * Редактирование метаданных существующего материала (сессия 68).
+ * quantity НЕ принимается и не меняется здесь — остаток только через
+ * addInventoryMovement/adjustInventoryItemStock (append-only движения).
+ */
+export async function updateInventoryItem(
+  _prev: InventoryFormState | undefined,
+  formData: FormData,
+): Promise<InventoryFormState> {
+  const user = await requirePermission("inventory.manage");
+  if (!user.clinicId) redirect("/dashboard");
+  const clinicId = user.clinicId;
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "itemNotFound" };
+
+  const db = tenantClient(clinicId);
+  const existing = await db.inventoryItem.findFirst({ where: { id, deletedAt: null } });
+  if (!existing || !existing.isActive) return { error: "itemNotFound" };
+
+  const parsed = updateInventoryItemSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { fieldErrors: issuesToFieldErrors(parsed.error.issues) };
+  const input = parsed.data;
+
+  try {
+    // категория — только своей клиники
+    if (input.categoryId) {
+      const cat = await db.inventoryCategory.findFirst({
+        where: { id: input.categoryId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!cat) input.categoryId = null;
+    }
+    // supplier: find-or-create по имени; пустое поле — снять привязку
+    let supplierId: string | null = null;
+    if (input.supplierName) {
+      const existingSupplier = await db.supplier.findFirst({
+        where: { name: input.supplierName, deletedAt: null },
+        select: { id: true },
+      });
+      supplierId = existingSupplier
+        ? existingSupplier.id
+        : ((await db.supplier.create({ data: { name: input.supplierName } } as never)) as { id: string }).id;
+    }
+
+    await safeUpdateByTenant(db.inventoryItem, "InventoryItem", id, {
+      name: input.name,
+      categoryId: input.categoryId,
+      unit: input.unit,
+      purchaseUnit: input.purchaseUnit,
+      purchaseToBaseFactor: input.purchaseToBaseFactor,
+      doseToBaseFactor: input.doseToBaseFactor,
+      minQuantity: input.minQuantity,
+      unitCost: input.purchasePrice,
+      supplierId,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+    });
+
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "update",
+        entityType: "inventory_item",
+        entityId: id,
+        before: {
+          name: existing.name,
+          unit: existing.unit,
+          purchaseUnit: existing.purchaseUnit,
+          purchaseToBaseFactor: Number(existing.purchaseToBaseFactor),
+          minQuantity: Number(existing.minQuantity),
+          unitCost: existing.unitCost,
+        },
+        after: {
+          name: input.name,
+          unit: input.unit,
+          purchaseUnit: input.purchaseUnit,
+          purchaseToBaseFactor: input.purchaseToBaseFactor,
+          minQuantity: input.minQuantity,
+          unitCost: input.purchasePrice,
+        },
+      },
+    } as never);
+  } catch (e) {
+    console.error("updateInventoryItem failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/inventory/${id}`);
+  revalidatePath("/inventory");
+  redirect(`/inventory/${id}`);
 }
 
 export async function addInventoryMovement(

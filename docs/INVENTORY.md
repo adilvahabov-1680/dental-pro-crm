@@ -10,6 +10,7 @@
 | `/inventory/alerts` | Stok xəbərdarlıqları (Session 38) — out/low/warning статусы + reorder-тövsiyə, см. [LOW_STOCK_ALERTS.md](LOW_STOCK_ALERTS.md) |
 | `/inventory/new` | создание материала (initialQuantity > 0 → автоматическое движение «Mədaxil: İlkin qalıq») |
 | `/inventory/[id]` | карточка: остаток, минимум, цена, поставщик, срок годности; форма движения (Mədaxil/Məxaric/Silinmə); история 20 движений |
+| `/inventory/[id]/edit` | редактирование метаданных (Session 68): name/category/supplier/unit/purchaseUnit/purchaseToBaseFactor/doseToBaseFactor/minQuantity/unitCost/expiresAt; **quantity не редактируется** — только через движение/корректировку на `/inventory/[id]` |
 | `/treatments/[id]/materials` | материалы процедуры: список использованных + себестоимость + форма списания |
 
 ## Models (schema.prisma НЕ менялась)

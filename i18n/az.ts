@@ -898,6 +898,7 @@ export const az = {
       purchaseUnit: "Alış vahidi",
       purchaseConversion: "Alış çevrilməsi",
       doseConversion: "Doza çevrilməsi",
+      edit: "Düzəliş et",
     },
     empty: {
       title: "Material tapılmadı",
@@ -977,6 +978,7 @@ export const az = {
     form: {
       title: "Yeni material",
       desc: "Material məlumatlarını daxil edin",
+      editTitle: "Materialı düzəlt",
       name: "Adı",
       category: "Kateqoriya",
       categoryNone: "Kateqoriyasız",
@@ -989,6 +991,9 @@ export const az = {
       doseToBaseFactorHint: "Məs: 1 karpul = 2 ml → 2 yazın",
       unitConversionSection: "Vahid çevrilməsi",
       initialQuantity: "İlkin qalıq",
+      currentQuantity: "Cari qalıq",
+      quantityLocked: "Qalıq bu formada dəyişdirilmir — material kartındaki stok düzəlişi formasından istifadə edin.",
+      unitChangeWarning: "Bu material üzrə hərəkət/şablon qeydləri mövcuddur. Vahid parametrlərinin dəyişdirilməsi yalnız gələcək görünüşə/istifadəyə təsir edir — mövcud qalıq avtomatik yenidən hesablanmır.",
       minQuantity: "Minimum qalıq (xəbərdarlıq həddi)",
       purchasePrice: "Alış qiyməti (AZN)",
       supplierName: "Təchizatçı (adı)",
