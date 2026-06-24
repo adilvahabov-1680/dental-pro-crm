@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, CalendarClock } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
@@ -59,14 +59,22 @@ export default async function TreatmentsPage({
         title={t.modules.treatments.title}
         description={t.modules.treatments.desc}
         actions={
-          canManage ? (
+          <>
             <Link
-              href="/treatments/new"
-              className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              href="/reports/daily-doctor"
+              className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-surface px-4 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
             >
-              <Plus className="size-4" /> {tt.new}
+              <CalendarClock className="size-4" /> {t.reports.dailyDoctor.title}
             </Link>
-          ) : undefined
+            {canManage && (
+              <Link
+                href="/treatments/new"
+                className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-linear-to-br from-accent to-accent-deep px-4 text-sm font-semibold text-bg-base shadow-[0_4px_16px_rgb(34_211_238/0.25)] transition-opacity hover:opacity-90"
+              >
+                <Plus className="size-4" /> {tt.new}
+              </Link>
+            )}
+          </>
         }
       />
 
