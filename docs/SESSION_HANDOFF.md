@@ -1,5 +1,5 @@
 # Dental Pro CRM — Session Handoff
-**by AV Systems** · обновлено: 2026-06-24 (после сессии 60: Real Deploy Environment Verification v1)
+**by AV Systems** · обновлено: 2026-06-24 (после сессии 62: Demo Response Link Fix / Secret Rotation v1)
 
 Этот файл — точка входа для следующей сессии. Прочитать ПЕРЕД началом работы;
 обновлять в конце каждой сессии. Детали по модулям — в profile-доках (ниже).
@@ -1155,6 +1155,66 @@ gateway, full patient portal.
 schema.prisma **не менялась**, migration **не создавалась**.
 
 **Один коммит (один scope = один коммит):** `docs: prepare real deploy verification`.
+
+## 7.39. Сессия 62 — итоги (Demo Response Link Fix / Secret Rotation v1)
+
+Verification-сессия без новых бизнес-модулей, без изменений business
+logic/schema. Контекст: пользователь сообщил, что подготовленная ссылка
+отзыва пациента (`/r/[token]`) не открывалась, плюс часть Neon DB URL
+случайно попала на экран — требовалась ротация секрета.
+
+**Расследование**: построчно проверены `buildPatientResponseUrl`/
+`getAppBaseUrl` (`lib/patient-response.ts`), `prepareFeedbackLinkAction`
+(`lib/actions/patient-feedback.ts`), `middleware.ts` (`/r` bypass) —
+логических багов не найдено; `/r/bad-token` уже был подтверждён
+рабочим на этом деплое в сессии 61. Найдена реальная проблема **в
+документации**: `docs/FREE_DEMO_DEPLOY.md` (основной Vercel-гайд) не
+включал `NEXT_PUBLIC_APP_URL` в таблицу env vars, а
+`docs/PATIENT_RESPONSE_LINKS.md`/`.env.example` описывали её как нужную
+«только за нестандартным proxy/CDN» — формулировка, под которую сам
+Vercel формально подходит, но не звучала как явная рекомендация.
+
+**Ротация секрета** (выполнена пользователем): пароль Neon-роли сброшен,
+`DATABASE_URL` обновлён в Vercel, `NEXT_PUBLIC_APP_URL=https://dental-pro-crm.vercel.app`
+добавлен, Production redeploy выполнен.
+
+**Верификация после redeploy** (мной, через публичные HTTP-запросы, без
+секретов): `/api/health` ✅, `/api/health/db` ✅ (новый пароль работает),
+demo-логин (`admin@demo.dentalpro.az`/`admin123`) ✅, **сгенерирована
+свежая feedback-ссылка** через demo UI (форма на карточке процедуры
+пациента Rəşad) — текст подготовленного уведомления содержит корректный
+абсолютный URL `https://dental-pro-crm.vercel.app/r/<token>`; сама
+публичная страница по этой ссылке → 200, форма отзыва
+(`data-e2e-marker="feedback-form"`), без утечки UUID/финансовых/
+документных терминов ✅. `/r/bad-token` — generic expired-state,
+без утечки ✅.
+
+**Честно**: точную причину ИСХОДНОГО сбоя (тот самый, о котором сообщил
+пользователь) подтвердить не удалось — исходный токен недоступен для
+повторной проверки. Подтверждено только, что СЕЙЧАС, с явным
+`NEXT_PUBLIC_APP_URL`, свежая ссылка работает корректно.
+
+**Изменения (docs only):**
+- **`docs/FREE_DEMO_DEPLOY.md`**: `NEXT_PUBLIC_APP_URL` добавлен в
+  таблицу env vars §5 как обязательный для Vercel, с пояснением.
+- **`docs/PATIENT_RESPONSE_LINKS.md`**: уточнена формулировка — Vercel
+  явно назван «нестандартным proxy/CDN»-случаем, переменную задавать
+  всегда, не опционально.
+- **`.env.example`**: аналогичное уточнение в комментарии к
+  `NEXT_PUBLIC_APP_URL`.
+- **`docs/SESSION_HANDOFF.md`** (этот файл): обновлён заголовок, этот
+  раздел.
+
+**Не реализовано (по scope, намеренно):** изменения кода (`lib/patient-response.ts`,
+`lib/actions/patient-feedback.ts`, `middleware.ts`) — реального кодового
+бага не найдено, код прошёл построчную проверку и эмпирическую
+верификацию без замечаний; новые функции, PDF user manual, изменения
+inventory/medicine-функциональности (запланированы как отдельная
+будущая сессия, не эта).
+
+schema.prisma **не менялась**, migration **не создавалась**.
+
+**Один коммит (один scope = один коммит):** `docs: clarify deployed response link configuration`.
 
 ## 7.1. Сессия 18 — итоги (MVP Hardening & Demo Readiness)
 
