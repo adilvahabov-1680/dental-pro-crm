@@ -333,6 +333,115 @@ async function main() {
     } else {
       console.log("\n── Check 19: platform owner alias (SKIPPED — PLATFORM_OWNER_LOGIN/EMAIL/PASSWORD not set) ──");
     }
+
+    // ── 20-26. Session 80: clinic metadata edit (updateClinic) ───────────────
+    console.log("\n── Checks 20-26: clinic metadata edit (Session 80) ──");
+    const clinicDetailPage4 = await superSession.get(`/platform/clinics/${testClinic.id}`);
+    const editForm = formContaining(clinicDetailPage4.html, "data-e2e-edit-clinic");
+    check("20a. EditClinicForm found in clinic detail page", editForm.length > 0);
+
+    const newName = `E2E Edited Clinic ${ts}`;
+    const updateRes = await superSession.postForm(`/platform/clinics/${testClinic.id}`, editForm, {
+      clinicId: testClinic.id,
+      name: newName,
+      phone: "+994501234567",
+      email: "edited@example.test",
+      address: "Test address 1",
+      timezone: "Asia/Baku",
+      currency: "azn",
+      defaultLocale: "ru",
+      clinicType: "solo_doctor",
+      status: "active",
+      plan: "pro",
+    });
+    check("20. updateClinic action: response OK", updateRes.status < 400);
+
+    const editedClinic = await prisma.clinic.findUniqueOrThrow({ where: { id: testClinic.id } });
+    check("21a. name updated", editedClinic.name === newName, `got ${editedClinic.name}`);
+    check("21b. phone updated", editedClinic.phone === "+994501234567");
+    check("21c. email updated", editedClinic.email === "edited@example.test");
+    check("21d. address updated", editedClinic.address === "Test address 1");
+    check("21e. timezone updated", editedClinic.timezone === "Asia/Baku");
+    check("21f. currency normalized to uppercase", editedClinic.currency === "AZN", `got ${editedClinic.currency}`);
+    check("21g. defaultLocale updated", editedClinic.defaultLocale === "ru");
+    check("21h. clinicType updated", editedClinic.clinicType === "solo_doctor");
+    check("21i. plan updated", editedClinic.plan === "pro");
+    check("22. slug unchanged (read-only)", editedClinic.slug === testClinic.slug, `got ${editedClinic.slug}`);
+
+    // forged update from clinic admin (not super_admin) — must be rejected
+    const forgedRes = await clinicAdminSession.postForm(`/platform/clinics/${testClinic.id}`, editForm, {
+      clinicId: testClinic.id,
+      name: "HACKED",
+      phone: "",
+      email: "",
+      address: "",
+      timezone: "Asia/Baku",
+      currency: "AZN",
+      defaultLocale: "az",
+      clinicType: "clinic",
+      status: "active",
+      plan: "",
+    });
+    const afterForged = await prisma.clinic.findUniqueOrThrow({ where: { id: testClinic.id } });
+    check(
+      "23. clinic admin forged update rejected (name unchanged)",
+      afterForged.name === newName,
+      `got ${afterForged.name}, forged status ${forgedRes.status}`,
+    );
+
+    const auditClinicUpdate = await prisma.auditLog.findFirst({
+      where: { entityType: "clinic", entityId: testClinic.id, action: "update" },
+      orderBy: { createdAt: "desc" },
+    });
+    check(
+      "24. audit log recorded for clinic update",
+      !!auditClinicUpdate && JSON.stringify(auditClinicUpdate.after).includes(newName),
+    );
+
+    // status=suspended via the new edit form blocks login; status=active restores it
+    const editForm2Page = await superSession.get(`/platform/clinics/${testClinic.id}`);
+    const editForm2 = formContaining(editForm2Page.html, "data-e2e-edit-clinic");
+    await superSession.postForm(`/platform/clinics/${testClinic.id}`, editForm2, {
+      clinicId: testClinic.id,
+      name: editedClinic.name,
+      phone: editedClinic.phone ?? "",
+      email: editedClinic.email ?? "",
+      address: editedClinic.address ?? "",
+      timezone: editedClinic.timezone,
+      currency: editedClinic.currency,
+      defaultLocale: editedClinic.defaultLocale,
+      clinicType: editedClinic.clinicType,
+      status: "suspended",
+      plan: editedClinic.plan ?? "",
+    });
+    const suspendLoginSession = new Session();
+    const loginPageS = await suspendLoginSession.get("/login");
+    const loginResS = await suspendLoginSession.postForm("/login", loginPageS.html, {
+      email: testAdminEmail,
+      password: superNewPass,
+    });
+    check(
+      "25. status=suspended via edit form blocks login",
+      loginResS.text.includes("clinicSuspended") || !suspendLoginSession.cookies.has("dp_session"),
+    );
+
+    const editForm3Page = await superSession.get(`/platform/clinics/${testClinic.id}`);
+    const editForm3 = formContaining(editForm3Page.html, "data-e2e-edit-clinic");
+    await superSession.postForm(`/platform/clinics/${testClinic.id}`, editForm3, {
+      clinicId: testClinic.id,
+      name: editedClinic.name,
+      phone: editedClinic.phone ?? "",
+      email: editedClinic.email ?? "",
+      address: editedClinic.address ?? "",
+      timezone: editedClinic.timezone,
+      currency: editedClinic.currency,
+      defaultLocale: editedClinic.defaultLocale,
+      clinicType: editedClinic.clinicType,
+      status: "active",
+      plan: editedClinic.plan ?? "",
+    });
+    const restoredLoginSession = new Session();
+    check("26. status=active via edit form restores login", await restoredLoginSession.login(testAdminEmail, superNewPass));
   } finally {
     // ── Cleanup ────────────────────────────────────────────────────────────────
     const userIds = [testAdmin.id, testStaff.id, clinicBAdmin.id];

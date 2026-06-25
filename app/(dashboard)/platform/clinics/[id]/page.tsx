@@ -6,6 +6,7 @@ import { getDict } from "@/lib/i18n";
 import { getClinicDetail } from "@/lib/platform";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ClinicStatusControl } from "@/components/platform/ClinicStatusControl";
+import { EditClinicForm } from "@/components/platform/EditClinicForm";
 import { ClinicUserList } from "@/components/platform/ClinicUserList";
 import { CreateClinicUserForm } from "@/components/platform/CreateClinicUserForm";
 
@@ -39,6 +40,14 @@ export default async function ClinicDetailPage({ params }: { params: Promise<{ i
           currentStatus={clinic.status}
           labels={tp.clinicDetail}
           errorLabels={tp.errors}
+        />
+
+        <EditClinicForm
+          clinic={clinic}
+          labels={tp.clinicDetail.editClinic}
+          errorLabels={tp.errors}
+          typeLabels={tp.clinics.types}
+          statusLabels={tp.clinics.statuses}
         />
 
         <section>

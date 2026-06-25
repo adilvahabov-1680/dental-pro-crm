@@ -15,6 +15,7 @@ import { ADMIN_ROLES, countActiveAdmins } from "@/lib/admin";
 import {
   createClinicSchema,
   setClinicStatusSchema,
+  updateClinicSchema,
   resetPasswordSchema,
   changeLoginSchema,
   createClinicUserSchema,
@@ -119,6 +120,54 @@ export async function setClinicStatus(
       entityId: clinicId,
       before: { status: clinic.status },
       after: { status },
+    },
+  });
+
+  revalidatePath(`/platform/clinics/${clinicId}`);
+  revalidatePath("/platform/clinics");
+  return { saved: true };
+}
+
+/**
+ * Редактирование метаданных клиники (сессия 80). slug и logoUrl
+ * не редактируются здесь (slug — read-only идентификатор в URL/индексах;
+ * загрузка лого — отдельная сессия). id/createdAt/deletedAt не принимаются.
+ */
+export async function updateClinic(
+  _prev: PlatformFormState | undefined,
+  formData: FormData,
+): Promise<PlatformFormState> {
+  const actor = await requireRole("super_admin");
+
+  const parsed = updateClinicSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: firstIssue(parsed.error.issues) };
+  const { clinicId, ...data } = parsed.data;
+
+  const clinic = await prisma.clinic.findFirst({ where: { id: clinicId, deletedAt: null } });
+  if (!clinic) return { error: "notFound" };
+
+  await prisma.clinic.update({ where: { id: clinicId }, data });
+
+  await prisma.auditLog.create({
+    data: {
+      clinicId: null,
+      userId: actor.id,
+      action: "update",
+      entityType: "clinic",
+      entityId: clinicId,
+      before: {
+        name: clinic.name,
+        phone: clinic.phone,
+        email: clinic.email,
+        address: clinic.address,
+        timezone: clinic.timezone,
+        currency: clinic.currency,
+        defaultLocale: clinic.defaultLocale,
+        clinicType: clinic.clinicType,
+        status: clinic.status,
+        plan: clinic.plan,
+      },
+      after: data,
     },
   });
 

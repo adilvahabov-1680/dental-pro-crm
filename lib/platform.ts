@@ -36,8 +36,12 @@ export interface ClinicDetail {
   phone: string | null;
   email: string | null;
   address: string | null;
+  timezone: string;
+  currency: string;
+  defaultLocale: "az" | "ru" | "en";
   status: "trial" | "active" | "suspended";
   clinicType: "clinic" | "solo_doctor";
+  plan: string | null;
   createdAt: Date;
   users: ClinicUserRow[];
 }
@@ -81,8 +85,12 @@ export async function getClinicDetail(clinicId: string): Promise<ClinicDetail | 
     phone: clinic.phone,
     email: clinic.email,
     address: clinic.address,
+    timezone: clinic.timezone,
+    currency: clinic.currency,
+    defaultLocale: clinic.defaultLocale as ClinicDetail["defaultLocale"],
     status: clinic.status as ClinicDetail["status"],
     clinicType: clinic.clinicType as ClinicDetail["clinicType"],
+    plan: clinic.plan,
     createdAt: clinic.createdAt,
     users: clinic.users
       .filter((u) => u.role.key !== "super_admin")
