@@ -52,11 +52,22 @@ class Session {
     this.store(res);
     return { status: res.status, html: res.status < 300 ? await res.text() : "" };
   }
-  async postForm(path: string, pageHtml: string, fields: Record<string, string>) {
+  async postForm(path: string, pageHtml: string, fields: Record<string, string>, markerAttr?: string) {
     const un = (s: string) =>
       s.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    // /inventory/[id] теперь содержит 2 формы (stock-correction + archive,
+    // сессия 77) — без markerAttr можно зацепить $ACTION-токены чужой формы
+    let html = pageHtml;
+    if (markerAttr) {
+      const idx = pageHtml.indexOf(`data-e2e-marker="${markerAttr}"`);
+      if (idx !== -1) {
+        const start = pageHtml.lastIndexOf("<form", idx);
+        const end = pageHtml.indexOf("</form>", idx) + 7;
+        html = start !== -1 ? pageHtml.slice(start, end) : pageHtml;
+      }
+    }
     const fd = new FormData();
-    for (const tag of [...pageHtml.matchAll(/<input[^>]+type="hidden"[^>]*>/g)].map((m) => m[0])) {
+    for (const tag of [...html.matchAll(/<input[^>]+type="hidden"[^>]*>/g)].map((m) => m[0])) {
       const name = tag.match(/name="([^"]+)"/)?.[1];
       const value = tag.match(/value="([^"]*)"/)?.[1] ?? "";
       if (name?.startsWith("$ACTION")) fd.set(un(name), un(value));
@@ -226,7 +237,7 @@ async function main() {
     type: "adjustment",
     quantity: "3",
     reason: "E2E-UNITS: test correction on unit-converted item",
-  }, );
+  }, "stock-correction-form");
   const corrItemAfter = await prisma.inventoryItem.findUnique({ where: { id: corrItem.id } });
   check("H: quantity increased by 3 after correction", Number(corrItemAfter?.quantity) === 8, `got ${corrItemAfter?.quantity}`);
   check("H: unit fields preserved after correction", corrItemAfter?.purchaseUnit === "şüşə" && Number(corrItemAfter.purchaseToBaseFactor) === 10);

@@ -42,11 +42,22 @@ class Session {
     this.store(res);
     return { status: res.status, html: res.status < 300 ? await res.text() : "" };
   }
-  async postForm(path: string, pageHtml: string, fields: Record<string, string>) {
+  async postForm(path: string, pageHtml: string, fields: Record<string, string>, markerAttr?: string) {
     const un = (s: string) =>
       s.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    // /inventory/[id] теперь содержит 2 формы (stock-correction + archive,
+    // сессия 77) — без markerAttr можно зацепить $ACTION-токены чужой формы
+    let html = pageHtml;
+    if (markerAttr) {
+      const idx = pageHtml.indexOf(`data-e2e-marker="${markerAttr}"`);
+      if (idx !== -1) {
+        const start = pageHtml.lastIndexOf("<form", idx);
+        const end = pageHtml.indexOf("</form>", idx) + 7;
+        html = start !== -1 ? pageHtml.slice(start, end) : pageHtml;
+      }
+    }
     const fd = new FormData();
-    for (const tag of [...pageHtml.matchAll(/<input[^>]+type="hidden"[^>]*>/g)].map((m) => m[0])) {
+    for (const tag of [...html.matchAll(/<input[^>]+type="hidden"[^>]*>/g)].map((m) => m[0])) {
       const name = tag.match(/name="([^"]+)"/)?.[1];
       const value = tag.match(/value="([^"]*)"/)?.[1] ?? "";
       if (name?.startsWith("$ACTION")) fd.set(un(name), un(value));
@@ -160,7 +171,7 @@ async function main() {
     type: "adjustment",
     quantity: "5",
     reason: "e2e-purchase",
-  });
+  }, "stock-correction-form");
   let q = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: newId! } });
   check("приход +5 → qty 15", Number(q.quantity) === 15, `got ${q.quantity}`);
   await owner.postForm(`/inventory/${newId}`, itemPage.html, {
@@ -168,7 +179,7 @@ async function main() {
     type: "adjustment_out",
     quantity: "11",
     reason: "e2e-usage",
-  });
+  }, "stock-correction-form");
   q = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: newId! } });
   check("расход −11 → qty 4", Number(q.quantity) === 4, `got ${q.quantity}`);
   check("audit: movement create",
@@ -180,7 +191,7 @@ async function main() {
     type: "adjustment_out",
     quantity: "100",
     reason: "e2e-over",
-  });
+  }, "stock-correction-form");
   q = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: newId! } });
   check("сверх-расход заблокирован (qty 4)", Number(q.quantity) === 4);
   check("сверх-расход: движение не создано",
@@ -195,7 +206,7 @@ async function main() {
     type: "adjustment_out",
     quantity: "2",
     reason: "e2e-to-low",
-  });
+  }, "stock-correction-form");
   const notifAfterLow = await prisma.notification.count({
     where: { clinicId: clinic.id, type: "inventory_low_stock" },
   });
@@ -205,7 +216,7 @@ async function main() {
     type: "adjustment_out",
     quantity: "1",
     reason: "e2e-still-low",
-  });
+  }, "stock-correction-form");
   const notifAfterMore = await prisma.notification.count({
     where: { clinicId: clinic.id, type: "inventory_low_stock" },
   });
@@ -308,7 +319,7 @@ async function main() {
     type: "in_stock",
     quantity: "99",
     reason: "e2e-asst",
-  });
+  }, "stock-correction-form");
   check("assistant: движение отклонено",
     (await prisma.inventoryMovement.findFirst({ where: { reason: "e2e-asst" } })) === null);
   const asstMatBefore = await prisma.treatmentItemMaterial.count({

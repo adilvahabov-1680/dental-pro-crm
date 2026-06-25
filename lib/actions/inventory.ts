@@ -270,6 +270,64 @@ export async function updateInventoryItem(
   redirect(`/inventory/${id}`);
 }
 
+/**
+ * Архивация материала (сессия 77) — мягкая, без физического удаления.
+ * isActive=false + deletedAt=now; quantity и история движений/списаний не
+ * трогаются. Шаблоны расхода (ServiceConsumableTemplate) для этой позиции
+ * удаляются — это конфигурация будущего использования, не история;
+ * TreatmentConsumableUsage.templateId на onDelete: SetNull, уже применённые
+ * исторические списания (со своими снимками name/unit/cost) не теряются.
+ */
+export async function archiveInventoryItemAction(
+  _prev: InventoryFormState | undefined,
+  formData: FormData,
+): Promise<InventoryFormState> {
+  const user = await requirePermission("inventory.manage");
+  if (!user.clinicId) redirect("/dashboard");
+  const clinicId = user.clinicId;
+
+  const id = String(formData.get("id") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "itemNotFound" };
+
+  const db = tenantClient(clinicId);
+  const scoped = await db.inventoryItem.findFirst({ where: { id, deletedAt: null } });
+  if (!scoped || !scoped.isActive) return { error: "itemNotFound" };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findFirst({ where: { id, clinicId, deletedAt: null } });
+      if (!item || !item.isActive) throw new InventoryError("itemNotFound");
+
+      await tx.inventoryItem.update({
+        where: { id },
+        data: { isActive: false, deletedAt: new Date() },
+      });
+      await tx.serviceConsumableTemplate.deleteMany({
+        where: { clinicId, inventoryItemId: id },
+      });
+    });
+
+    await db.auditLog.create({
+      data: {
+        userId: user.id,
+        action: "update",
+        entityType: "inventory_item",
+        entityId: id,
+        before: { name: scoped.name, isActive: true },
+        after: { isActive: false, archived: true },
+      },
+    } as never);
+  } catch (e) {
+    if (e instanceof InventoryError) return { error: e.key };
+    console.error("archiveInventoryItemAction failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath("/inventory");
+  revalidatePath(`/inventory/${id}`);
+  redirect("/inventory");
+}
+
 export async function addInventoryMovement(
   _prev: InventoryFormState | undefined,
   formData: FormData,

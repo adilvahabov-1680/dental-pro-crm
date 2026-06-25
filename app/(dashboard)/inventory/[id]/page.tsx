@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { InventoryStatusBadge } from "@/components/inventory/InventoryStatusBadge";
 import { StockCorrectionForm } from "@/components/inventory/StockCorrectionForm";
 import { InventoryMovementsList } from "@/components/inventory/InventoryMovementsList";
+import { ArchiveInventoryItemButton } from "@/components/inventory/ArchiveInventoryItemButton";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -116,6 +117,16 @@ export default async function InventoryItemPage({
                 unit={item.unit}
                 currentQuantity={Number(item.quantity)}
                 labels={{ ...ti.correction }}
+                errors={ti.errors}
+              />
+            </Card>
+          )}
+
+          {canManage && (
+            <Card className="border-danger/20 p-5">
+              <ArchiveInventoryItemButton
+                itemId={item.id}
+                labels={{ ...ti.archive }}
                 errors={ti.errors}
               />
             </Card>

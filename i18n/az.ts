@@ -900,6 +900,13 @@ export const az = {
       doseConversion: "Doza çevrilməsi",
       edit: "Düzəliş et",
     },
+    archive: {
+      title: "Materialı arxivləşdir",
+      warning: "Tarixçə saxlanılacaq. Bu material yeni istifadələrdə görünməyəcək.",
+      button: "Arxivləşdir",
+      archiving: "Arxivləşdirilir…",
+      confirm: "Bu materialı arxivləşdirmək istədiyinizə əminsiniz? Tarixçə saxlanılacaq, material siyahıda və yeni istifadələrdə görünməyəcək.",
+    },
     empty: {
       title: "Material tapılmadı",
       desc: "Anbar boşdur. Yeni material əlavə edin.",
