@@ -41,6 +41,24 @@ function tomorrowAt(hour: number, minute = 0): Date {
   return daysFromNowAt(1, hour, minute);
 }
 
+/**
+ * Сессия 74: безопасный поиск id материала по точному имени в карте
+ * materialIds. Раньше `materialIds.get(name)!` на устаревшее/опечатанное
+ * имя давал `undefined`, а Prisma тихо игнорирует `undefined` в `where` —
+ * запрос матчился на ЛЮБУЮ другую запись и логика молча шла не туда (баг
+ * с "Artikain anesteziya" после переименования в сессии 64/67). Громкая
+ * ошибка при запуске seed — лучше тихого неверного поведения.
+ */
+function requireMaterialId(materialIds: Map<string, string>, name: string): string {
+  const id = materialIds.get(name);
+  if (!id) {
+    throw new Error(
+      `Seed: demo material "${name}" not found in materialIds — name must match DEMO_MATERIALS exactly.`,
+    );
+  }
+  return id;
+}
+
 const SERVICE_CATEGORIES = [
   "Terapiya",
   "Ortopediya",
@@ -833,11 +851,11 @@ async function main() {
   if (item16) {
     const DEMO_USAGE: Array<{ name: string; qty: number }> = [
       { name: "Kompozit A2", qty: 1 },
-      { name: "Artikain anesteziya", qty: 1 },
+      { name: "Artikain 4% + epinefrin anesteziyası", qty: 1 },
       { name: "Bonding agent", qty: 0.2 },
     ];
     for (const u of DEMO_USAGE) {
-      const invId = materialIds.get(u.name)!;
+      const invId = requireMaterialId(materialIds, u.name);
       const exists = await prisma.treatmentItemMaterial.findFirst({
         where: { treatmentItemId: item16.id, inventoryItemId: invId },
       });
