@@ -16,6 +16,31 @@ import { PERMISSIONS, DEFAULT_ROLE_PERMISSIONS } from "../lib/permissions";
 const prisma = new PrismaClient();
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "admin123";
 
+/**
+ * Относительные даты для demo-данных — сессия 73. ВСЕГДА через локальные
+ * setDate/setHours, НИКОГДА через toISOString().split("T")[0] (та даёт UTC-
+ * дату; возле местной полуночи в UTC+4 это "вчера" по UTC, пока отчёты вида
+ * /reports/daily-doctor фильтруют по локальной дате — урок сессии 71).
+ */
+function daysAgoAt(days: number, hour: number, minute = 0): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+function daysFromNowAt(days: number, hour: number, minute = 0): Date {
+  return daysAgoAt(-days, hour, minute);
+}
+function todayAt(hour: number, minute = 0): Date {
+  return daysAgoAt(0, hour, minute);
+}
+function yesterdayAt(hour: number, minute = 0): Date {
+  return daysAgoAt(1, hour, minute);
+}
+function tomorrowAt(hour: number, minute = 0): Date {
+  return daysFromNowAt(1, hour, minute);
+}
+
 const SERVICE_CATEGORIES = [
   "Terapiya",
   "Ortopediya",
@@ -443,12 +468,6 @@ async function main() {
   const demoAppt16 = await prisma.appointment.findFirst({
     where: { clinicId: clinic.id, notes: "demo-seed:Diş ağrısı (16)" },
   });
-  const yesterdayAt = (h: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    d.setHours(h, 0, 0, 0);
-    return d;
-  };
   const DEMO_ITEMS: Array<{
     tooth: number;
     service: string;
@@ -473,7 +492,17 @@ async function main() {
     const exists = await prisma.treatmentItem.findFirst({
       where: { clinicId: clinic.id, patientId: resad.id, notes: marker },
     });
-    if (exists) continue;
+    if (exists) {
+      // demo-даты освежаются при каждом seed (как у appointments) — "вчера"
+      // не должно застывать на дате первого запуска seed
+      if (it.performedAt && exists.performedAt?.getTime() !== it.performedAt.getTime()) {
+        await prisma.treatmentItem.update({
+          where: { id: exists.id },
+          data: { performedAt: it.performedAt },
+        });
+      }
+      continue;
+    }
     const rec = await prisma.toothRecord.findFirst({
       where: { clinicId: clinic.id, patientId: resad.id, toothNumber: it.tooth },
       select: { id: true },
@@ -508,6 +537,7 @@ async function main() {
 
   // 13a. Свободная done-процедура без счёта (для UI «Hesab yarat»)
   const freeMarker = "demo-seed:Profilaktik təmizlik:free";
+  const freePerformedAt = yesterdayAt(18);
   const freeExists = await prisma.treatmentItem.findFirst({
     where: { clinicId: clinic.id, patientId: resad.id, notes: freeMarker },
   });
@@ -520,9 +550,14 @@ async function main() {
         serviceId: serviceIds["Profilaktik təmizlik"],
         status: "done",
         price: 50_00,
-        performedAt: yesterdayAt(18),
+        performedAt: freePerformedAt,
         notes: freeMarker,
       },
+    });
+  } else if (freeExists.performedAt?.getTime() !== freePerformedAt.getTime()) {
+    await prisma.treatmentItem.update({
+      where: { id: freeExists.id },
+      data: { performedAt: freePerformedAt },
     });
   }
 
@@ -597,6 +632,15 @@ async function main() {
         },
       });
       console.log("  demo finance: invoice 170 AZN, paid 100, debt 70");
+    }
+  } else {
+    // освежаем дату оплаты, иначе "вчерашний" платёж застынет на дате первого seed
+    const paymentTargetAt = yesterdayAt(18);
+    const payment = await prisma.payment.findFirst({
+      where: { clinicId: clinic.id, invoiceId: invoice.id, notes: "demo-seed-payment" },
+    });
+    if (payment && payment.paidAt.getTime() !== paymentTargetAt.getTime()) {
+      await prisma.payment.update({ where: { id: payment.id }, data: { paidAt: paymentTargetAt } });
     }
   }
 
@@ -827,6 +871,151 @@ async function main() {
     }
     console.log("  demo materials usage: tooth 16 (Kompozit 1, Artikain 1, Bonding 0.2)");
   }
+
+  // 16a. Demo-müalicə BUGÜN (Leyla, Profilaktik təmizlik) — сессия 73: чтобы
+  // /reports/daily-doctor на «сегодня» никогда не выглядел пустым на свежем
+  // seed. Маркер "demo-seed-fresh:" (НЕ "demo-seed:") — намеренно другой
+  // префикс: scripts/e2e-treatments-check.ts считает ровно 4 записи с
+  // notes startsWith "demo-seed:", это не должно сломаться добавлением сюда.
+  // Дата освежается при каждом запуске (как appointments/yesterdayAt выше).
+  const freshMarker = "demo-seed-fresh:Profilaktik təmizlik:leyla-today";
+  const freshPerformedAt = todayAt(11);
+  let freshItem = await prisma.treatmentItem.findFirst({
+    where: { clinicId: clinic.id, patientId: leyla.id, notes: freshMarker },
+  });
+  if (freshItem) {
+    if (freshItem.performedAt?.getTime() !== freshPerformedAt.getTime()) {
+      freshItem = await prisma.treatmentItem.update({
+        where: { id: freshItem.id },
+        data: { performedAt: freshPerformedAt },
+      });
+    }
+  } else {
+    freshItem = await prisma.treatmentItem.create({
+      data: {
+        clinicId: clinic.id,
+        patientId: leyla.id,
+        doctorId: doctor.id,
+        serviceId: serviceIds["Profilaktik təmizlik"],
+        status: "done",
+        price: 50_00,
+        performedAt: freshPerformedAt,
+        notes: freshMarker,
+      },
+    });
+  }
+
+  let freshInvoice = await prisma.invoice.findFirst({
+    where: { clinicId: clinic.id, notes: "demo-seed-fresh-invoice" },
+  });
+  if (!freshInvoice) {
+    const maxFreshNum = await prisma.invoice.aggregate({
+      where: { clinicId: clinic.id },
+      _max: { number: true },
+    });
+    freshInvoice = await prisma.invoice.create({
+      data: {
+        clinicId: clinic.id,
+        patientId: leyla.id,
+        doctorId: doctor.id,
+        number: (maxFreshNum._max.number ?? 0) + 1,
+        status: "paid",
+        subtotal: 50_00,
+        total: 50_00,
+        paidAmount: 50_00,
+        notes: "demo-seed-fresh-invoice",
+      },
+    });
+    await prisma.invoiceItem.create({
+      data: {
+        clinicId: clinic.id,
+        invoiceId: freshInvoice.id,
+        treatmentItemId: freshItem.id,
+        description: "Profilaktik təmizlik",
+        qty: 1,
+        unitPrice: 50_00,
+        total: 50_00,
+      },
+    });
+    await prisma.treatmentItem.update({ where: { id: freshItem.id }, data: { invoiceId: freshInvoice.id } });
+  }
+
+  const freshPayment = await prisma.payment.findFirst({
+    where: { clinicId: clinic.id, notes: "demo-seed-fresh-payment" },
+  });
+  if (!freshPayment) {
+    await prisma.payment.create({
+      data: {
+        clinicId: clinic.id,
+        patientId: leyla.id,
+        invoiceId: freshInvoice.id,
+        amount: 50_00,
+        method: "card",
+        paidAt: freshPerformedAt,
+        receivedById: adminUser.id,
+        notes: "demo-seed-fresh-payment",
+      },
+    });
+  } else if (freshPayment.paidAt.getTime() !== freshPerformedAt.getTime()) {
+    await prisma.payment.update({ where: { id: freshPayment.id }, data: { paidAt: freshPerformedAt } });
+  }
+
+  // расход: перчатки 1 cüt + маска 1 ədəd (= шаблон Profilaktik təmizlik);
+  // createdAt тоже освежается, иначе агрегат /reports/consumables (и материалы
+  // в daily-doctor) перестанут видеть это списание под «сегодня» через день
+  const FRESH_USAGE: Array<{ name: string; qty: number; unit: string }> = [
+    { name: "Lateks əlcək M", qty: 1, unit: "cüt" },
+    { name: "Steril maska", qty: 1, unit: "ədəd" },
+  ];
+  for (const u of FRESH_USAGE) {
+    const invId = materialIds.get(u.name);
+    if (!invId) continue;
+    const usage = await prisma.treatmentConsumableUsage.findFirst({
+      where: { treatmentItemId: freshItem.id, inventoryItemId: invId },
+    });
+    if (usage) {
+      if (usage.createdAt.getTime() !== freshPerformedAt.getTime()) {
+        await prisma.treatmentConsumableUsage.update({
+          where: { id: usage.id },
+          data: { createdAt: freshPerformedAt },
+        });
+      }
+      continue;
+    }
+    const inv = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: invId } });
+    const movement = await prisma.inventoryMovement.create({
+      data: {
+        clinicId: clinic.id,
+        inventoryItemId: invId,
+        type: "treatment_usage",
+        quantity: u.qty,
+        unitCost: inv.unitCost,
+        reason: "demo-seed-fresh: müalicədə istifadə",
+        treatmentItemId: freshItem.id,
+        performedById: docUser.id,
+      },
+    });
+    await prisma.treatmentConsumableUsage.create({
+      data: {
+        clinicId: clinic.id,
+        treatmentItemId: freshItem.id,
+        serviceId: serviceIds["Profilaktik təmizlik"],
+        inventoryItemId: invId,
+        quantity: u.qty,
+        unit: u.unit,
+        baseQuantity: u.qty,
+        baseUnit: u.unit,
+        inventoryMovementId: movement.id,
+        createdById: docUser.id,
+        createdAt: freshPerformedAt,
+      },
+    });
+    await prisma.inventoryItem.update({
+      where: { id: invId },
+      data: { quantity: Math.round((Number(inv.quantity) - u.qty) * 1000) / 1000 },
+    });
+  }
+  console.log("  demo treatment (fresh, today): Leyla — Profilaktik təmizlik 50 AZN paid + 2 consumables");
 
   // ─── 21. Demo treatment protocols (idempotent) ───────────────
   // 3 протокола: Sadə dolğu (1 шаг), Kanal müalicəsi (3 шага), İmplant (4 шага).

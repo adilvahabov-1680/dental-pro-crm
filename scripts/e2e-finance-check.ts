@@ -153,6 +153,12 @@ async function main() {
       notes: "demo-seed:Profilaktik təmizlik:free",
     },
   });
+  // максимум ДО создания — сид может содержать больше одного invoice
+  // (сессия 73: добавлен "demo-seed-fresh-invoice" для Doctor Daily Report),
+  // поэтому "следующий номер" считаем от факта, а не от конкретного seedInvoice
+  const maxNumBefore = (
+    await prisma.invoice.aggregate({ where: { clinicId: clinic.id }, _max: { number: true } })
+  )._max.number ?? 0;
   const newInvPage = await owner.get(`/finance/invoices/new?patientId=${resad.id}`);
   check("форма создания: billable-процедура видна", newInvPage.html.includes("Profilaktik"));
   const created = await owner.postForm(
@@ -165,8 +171,8 @@ async function main() {
   const newInv = await prisma.invoice.findUniqueOrThrow({ where: { id: newInvId! } });
   check("invoice: total 50, issued", newInv.total === 50_00 && newInv.status === "issued");
   // 24. нумерация per clinic: следующий номер
-  check("нумерация: number = seed+1", newInv.number === seedInvoice.number + 1,
-    `seed ${seedInvoice.number}, new ${newInv.number}`);
+  check("нумерация: number = max+1", newInv.number === maxNumBefore + 1,
+    `maxBefore ${maxNumBefore}, new ${newInv.number}`);
   const linkedItem = await prisma.treatmentItem.findUniqueOrThrow({ where: { id: freeItem.id } });
   check("treatmentItem.invoiceId связан", linkedItem.invoiceId === newInv.id);
   // 19. debt создан

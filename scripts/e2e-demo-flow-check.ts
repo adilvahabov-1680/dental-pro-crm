@@ -158,6 +158,26 @@ async function main() {
     `hasDemoHint=${hasDemoHint}`,
   );
 
+  // 20-21. Doctor Daily Report bugün boş görünməməlidir (сессия 73: seed
+  // "fresh" demo-müalicəsini hər seed-də bugünə köçürür, ona görə свежий
+  // seed-də /reports/daily-doctor "сегодня" həmişə real məzmun göstərməlidir).
+  // Empty-state mətni dict-bloku kimi həmişə bir dəfə HTML-də olur (RSC),
+  // ona görə "yoxdur" deyil, real sətir markerinin OLMASI yoxlanılır.
+  const ownerDaily = await owner.get("/reports/daily-doctor");
+  check(
+    "20. owner: bugünkü Gündəlik hesabat boş deyil",
+    ownerDaily.status === 200 &&
+      ownerDaily.html.includes("Profilaktik təmizlik") &&
+      /daily-report-row-[a-f0-9-]+/.test(ownerDaily.html),
+  );
+  const doctorDaily = await doctor.get("/reports/daily-doctor");
+  check(
+    "21. doctor: öz bugünkü hesabatında da məzmun var",
+    doctorDaily.status === 200 &&
+      doctorDaily.html.includes("Profilaktik təmizlik") &&
+      /daily-report-row-[a-f0-9-]+/.test(doctorDaily.html),
+  );
+
   console.log(`\nNəticə: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }
