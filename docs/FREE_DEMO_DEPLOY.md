@@ -94,6 +94,8 @@ npm run demo:deploy:init
 | `SEED_DEMO_PASSWORD` | `admin123` | Пароль demo-аккаунтов |
 | `NEXT_PUBLIC_DEMO_MODE` | `true` | Показывает подсказку "admin / admin123" на странице входа |
 | `NEXT_PUBLIC_APP_URL` | `https://<ваш-проект>.vercel.app` | **Обязательно для Vercel** (см. ниже) — известный URL Vercel-деплоя |
+| `STORAGE_DRIVER` | `s3` | **Рекомендуется для Vercel** (см. §9) — без этого uploads/PDF не сохраняются между запросами |
+| `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | см. §9 | Учётные данные Cloudflare R2 (или другого S3-совместимого хранилища) |
 
 > **Безопасность**: `SESSION_SECRET` должен быть настоящим случайным значением,
 > даже для demo. Если его угадают — смогут подделать cookie сессии.
@@ -164,21 +166,57 @@ curl https://your-app.vercel.app/api/health
 
 ---
 
-## 9. ⚠️ Ограничение: uploads / локальное хранилище файлов
+## 9. Uploads на Vercel — STORAGE_DRIVER=s3 (сессия 91)
 
-**На Vercel/serverless файловая система эфемерна.**
+**На Vercel/serverless файловая система эфемерна и в текущей конфигурации
+недоступна на запись** — без настройки ниже загрузка лого клиники/аватара/
+подписи врача/документов пациента и генерация PDF завершаются ошибкой
+(`{"error":"generic"}`), без потери данных (запись в БД просто не происходит,
+см. §11 «Устранение проблем»). Это подтверждено эмпирически в сессии 89.
 
-- Загрузка файлов пациентов (`Fayl yüklə`) и генерация PDF технически
-  работают в рамках одного запроса, но **файлы не сохраняются между запросами
-  и исчезают после следующего деплоя**.
-- Функция загрузки документов в demo-режиме демонстрирует интерфейс,
-  но не является надёжным хранилищем.
-- Для реальной клиники нужно:
-  - VPS с постоянным диском (см. DEPLOYMENT.md), или
-  - S3/R2/MinIO (будущая задача — Session 22+).
+`lib/storage.ts` поддерживает два драйвера через `STORAGE_DRIVER`:
+- `local` (дефолт) — локальный диск; на Vercel НЕ подходит (см. выше).
+- `s3` — S3-совместимое object storage. **Рекомендуется для Vercel-демо.**
 
-**Для demo**: показывайте загрузку файлов как UI-фичу, заранее предупредив,
-что файлы на Vercel-деплое не сохраняются постоянно.
+### Настройка Cloudflare R2 (рекомендуемый провайдер для демо)
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **R2** → создать бакет
+   (например `dental-pro-crm-demo`). Free tier — достаточно для демо.
+2. **Manage R2 API Tokens** → создать токен с правами **Object Read & Write**
+   на этот бакет → сохранить Access Key ID / Secret Access Key (показываются
+   один раз).
+3. На странице бакета → **Settings** → скопировать **S3 API endpoint**
+   (вида `https://<account-id>.r2.cloudflarestorage.com`).
+4. В Vercel → Environment Variables добавить (имена — см. таблицу §5,
+   `.env.example` для пояснений к каждой переменной):
+   - `STORAGE_DRIVER=s3`
+   - `S3_BUCKET=<имя бакета>`
+   - `S3_REGION=auto`
+   - `S3_ENDPOINT=<S3 API endpoint из шага 3>`
+   - `S3_ACCESS_KEY_ID=<из шага 2>`
+   - `S3_SECRET_ACCESS_KEY=<из шага 2>`
+   - `S3_FORCE_PATH_STYLE` — НЕ задавать для R2.
+5. Redeploy (Vercel → Deployments → Redeploy, либо `git push` с любым
+   изменением) — `STORAGE_DRIVER` встраивается в серверный runtime сразу
+   при следующем старте функции, пересборка кода не обязательна, но
+   **redeploy/restart нужен** (переменные окружения подхватываются только
+   при (пере)старте serverless-функции, не на лету).
+
+**Бакет должен быть приватным** (дефолт у R2) — приложение само читает
+объекты этими же ключами на сервере и отдаёт байты через уже существующие
+авторизованные API-routes (`/api/clinic-logo/...`, `/api/user-avatar/...`,
+`/api/doctor-signature/...`, `/api/documents/.../download`); публичный/
+presigned URL клиенту никогда не передаётся — менять Public Access настройки
+бакета не нужно и не следует.
+
+**Без этой настройки** (`STORAGE_DRIVER` не задан или `local`) — uploads на
+Vercel продолжат не работать; это деградирует gracefully (ошибка в форме,
+без 500 и без порчи данных), не блокирует остальной функционал демо.
+
+Альтернативы R2 — AWS S3 (region — реальный, например `eu-central-1`;
+`S3_ENDPOINT` можно не задавать) или self-hosted MinIO
+(`S3_FORCE_PATH_STYLE=true`) — тот же `STORAGE_DRIVER=s3`, меняются только
+значения переменных.
 
 ---
 
@@ -206,5 +244,5 @@ Seed повторно запускать не нужно (данные уже в
 | Ошибка при входе ("E-poçt və ya şifrə yanlışdır") | Проверить: `AUTH_MOCK=false`, база инициализирована (`demo:deploy:init`), `SEED_DEMO_PASSWORD=admin123` |
 | Build failed: "PrismaClientInitializationError" | `DATABASE_URL` не задан или неверный |
 | Build failed: "Can't find module @prisma/client" | `postinstall` должен был запустить `prisma generate` — проверить логи Vercel |
-| Файл загружен, но пропал | Ожидаемое поведение на Vercel (см. §9) |
+| Загрузка лого/аватара/подписи/документа или генерация PDF падает с ошибкой формы (без 500) | `STORAGE_DRIVER` не задан/`local` на Vercel — настроить `s3` + R2 (см. §9) |
 | `/api/health` возвращает redirect на /login | Middleware должен пропускать `/api/health` — проверить middleware.ts |

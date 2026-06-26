@@ -34,6 +34,7 @@
     "e2e-user-avatar-check": "tsx scripts/e2e-user-avatar-check.ts",
     "e2e-doctor-signature-check": "tsx scripts/e2e-doctor-signature-check.ts",
     "e2e-doctor-signature-pdf-check": "tsx scripts/e2e-doctor-signature-pdf-check.ts",
+    "e2e-storage-driver-check": "tsx scripts/e2e-storage-driver-check.ts",
     "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts",
     "e2e-consumables-audit-visibility-check": "tsx scripts/e2e-consumables-audit-visibility-check.ts",
     "e2e-low-stock-alerts-check": "tsx scripts/e2e-low-stock-alerts-check.ts",
@@ -59,6 +60,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^2.4.3",
     "dejavu-fonts-ttf": "^2.37.3",

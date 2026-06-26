@@ -17,17 +17,27 @@
 
 Почему не serverless (Vercel/Netlify/аналоги) — без доработок:
 
-- Загруженные файлы пациентов и сгенерированные PDF хранятся на локальном
-  диске в `uploads/` (`lib/storage.ts`, см. [DOCUMENTS.md](DOCUMENTS.md)).
-  На serverless файловая система эфемерна — файлы пропадут между запросами/
-  деплоями.
-- Перед таким переходом `lib/storage.ts` нужно заменить на S3-совместимый
-  слой (MinIO/S3/R2) — это **отдельная задача**, в v1 не сделана.
-- На VPS требование простое: каталог `uploads/` должен жить на постоянном
-  диске (не tmpfs/ephemeral volume) и попадать в backup (см. §5).
+- Загруженные файлы пациентов и сгенерированные PDF хранятся через
+  storage-абстракцию (`lib/storage.ts`, см. [DOCUMENTS.md](DOCUMENTS.md)).
+  Драйвер по умолчанию — `local` (диск в `uploads/`); на serverless
+  файловая система эфемерна/недоступна на запись — local-драйвер там
+  не работает (подтверждено эмпирически в сессии 89).
+- **Сессия 91**: добавлен `s3`-драйвер (`STORAGE_DRIVER=s3`,
+  `@aws-sdk/client-s3`) — S3-совместимое хранилище (Cloudflare R2 / AWS S3 /
+  MinIO). С ним serverless-деплой (Vercel) технически поддерживается —
+  см. [FREE_DEMO_DEPLOY.md](FREE_DEMO_DEPLOY.md) §9 для настройки R2.
+  Без этой настройки (`STORAGE_DRIVER` не задан) — uploads/PDF на
+  serverless не сохраняются (graceful-ошибка в форме, без потери уже
+  существующих данных).
+- На VPS требование простое (и достаточное — s3-драйвер опционален):
+  каталог `uploads/` должен жить на постоянном диске (не tmpfs/ephemeral
+  volume) и попадать в backup (см. §5). `STORAGE_DRIVER=local` (дефолт)
+  продолжает работать без изменений.
 
-Если в будущем нужен serverless — сначала миграция storage на S3, потом
-деплой; иначе загруженные документы и сгенерированные PDF будут теряться.
+Если планируется serverless — настроить `STORAGE_DRIVER=s3` ДО деплоя
+(см. FREE_DEMO_DEPLOY.md §9); миграция БД для этого не требуется (поля
+`Clinic.logoUrl`/`User.avatarUrl`/`Doctor.signatureUrl`/`Document.fileUrl`/
+`PdfRecord.fileUrl` — уже opaque-ключи, одинаковые для обоих драйверов).
 
 ## 2. Требования к серверу
 
@@ -138,8 +148,9 @@ npm run prod:update        # migrate + generate + build (полный перес
 
 ## 6. Известные ограничения (на момент сессии 20)
 
-- **Storage** — локальный диск, без S3 (см. §1). Перенос storage —
-  отдельная задача.
+- **Storage** — дефолт `local` (диск), без S3-провайдера «из коробки».
+  С сессии 91 доступен `STORAGE_DRIVER=s3` (см. §1, FREE_DEMO_DEPLOY.md §9) —
+  нужно явно настроить (бакет + ключи), сам по себе не включается.
 - **WhatsApp/SMS** — только manual click-to-chat (готовый текст + `wa.me`-
   ссылка), без реальной отправки/API. См. COMMUNICATIONS.md.
 - **Уведомления** — tenant-level «прочитано» (без per-user read-state).
@@ -194,7 +205,8 @@ curl http://localhost:3000/api/health/db  # → {"ok":true,"db":"connected"}
 - DATABASE_URL — Neon Postgres (direct connection string, не pooled).
 - Миграции и seed запускаются **локально** один раз: `npm run demo:deploy:init`.
 - `NEXT_PUBLIC_DEMO_MODE=true` включает подсказку "admin / admin123" на логин-странице.
-- Файлы в `uploads/` **не сохраняются** между деплоями (Vercel ephemeral FS).
+- `STORAGE_DRIVER=s3` (+ R2/S3 переменные) — рекомендуется, иначе uploads/PDF
+  не работают на Vercel (ephemeral FS); см. FREE_DEMO_DEPLOY.md §9.
 
 ## 8. Health checks
 
