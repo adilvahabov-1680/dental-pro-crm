@@ -14,10 +14,14 @@ export function PlatformClinicLogoForm({
   clinic,
   labels,
   errorLabels,
+  logoSrc,
 }: {
-  clinic: { id: string; name: string; logoUrl: string | null; updatedAt: Date };
+  /** id нужен только для скрытого поля clinicId; raw logoUrl не передаём. */
+  clinic: { id: string; name: string };
   labels: Labels;
   errorLabels: ErrorLabels;
+  /** Готовый URL /api/clinic-logo/{id}?v=... либо null — вычисляется на сервере. */
+  logoSrc: string | null;
 }) {
   const [state, action, pending] = useActionState<PlatformFormState | undefined, FormData>(
     platformUploadClinicLogo,
@@ -37,18 +41,14 @@ export function PlatformClinicLogoForm({
     }
   }, [state, toast, errorLabels, labels.saved]);
 
-  const src = clinic.logoUrl
-    ? `/api/clinic-logo/${clinic.id}?v=${clinic.updatedAt.getTime()}`
-    : null;
-
   return (
     <div className="rounded-[14px] border border-border-subtle bg-bg-surface p-4">
       <h2 className="mb-3 text-sm font-semibold text-text-primary">{labels.title}</h2>
       <div className="flex items-center gap-4">
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-border-subtle bg-bg-elevated">
-          {src ? (
+          {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={clinic.name} className="size-full object-cover" />
+            <img src={logoSrc} alt={clinic.name} className="size-full object-cover" />
           ) : (
             <span className="text-xl font-semibold text-text-secondary">
               {clinic.name.charAt(0).toUpperCase()}

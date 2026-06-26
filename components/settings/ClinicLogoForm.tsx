@@ -11,10 +11,14 @@ export function ClinicLogoForm({
   dict,
   clinic,
   canManage,
+  logoSrc,
 }: {
   dict: Dict["settings"];
-  clinic: { id: string; name: string; logoUrl: string | null; updatedAt: Date };
+  /** Только name — raw logoUrl (relative storage path) клиенту не передаём. */
+  clinic: { name: string };
   canManage: boolean;
+  /** Готовый URL /api/clinic-logo/{id}?v=... либо null — вычисляется на сервере. */
+  logoSrc: string | null;
 }) {
   const [state, formAction, pending] = useActionState<ClinicLogoFormState | undefined, FormData>(
     uploadClinicLogo,
@@ -33,18 +37,15 @@ export function ClinicLogoForm({
   }, [state, dict.logo.saved, toast]);
 
   const f = dict.logo;
-  const src = clinic.logoUrl
-    ? `/api/clinic-logo/${clinic.id}?v=${clinic.updatedAt.getTime()}`
-    : null;
 
   return (
     <div className="mt-4 border-t border-border-subtle pt-4">
       <p className="mb-2 text-sm font-medium text-text-primary">{f.title}</p>
       <div className="flex items-center gap-4">
         <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-border-subtle bg-bg-elevated">
-          {src ? (
+          {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={clinic.name} className="size-full object-cover" />
+            <img src={logoSrc} alt={clinic.name} className="size-full object-cover" />
           ) : (
             <span className="text-xl font-semibold text-text-secondary">
               {clinic.name.charAt(0).toUpperCase()}

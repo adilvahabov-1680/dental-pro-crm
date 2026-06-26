@@ -50,6 +50,9 @@ export default async function SettingsPage() {
   if (!clinic) {
     return <PageHeader title={t.modules.settings.title} description={t.common.noAccess} />;
   }
+  // Сессия 84: raw logoUrl (relative storage path) клиентским компонентам
+  // не передаём — только готовый URL, вычисленный здесь, на сервере.
+  const clinicLogoSrc = clinic.logoUrl ? `/api/clinic-logo/${clinic.id}?v=${clinic.updatedAt.getTime()}` : null;
 
   return (
     <>
@@ -76,8 +79,12 @@ export default async function SettingsPage() {
         <div className="space-y-4">
           <Card className="p-5">
             <SectionTitle icon={Building2} title={ts.profile.title} desc={ts.profile.desc} />
-            <ClinicProfileForm dict={ts} clinic={clinic} canManage={canManage} />
-            <ClinicLogoForm dict={ts} clinic={clinic} canManage={canManage} />
+            <ClinicProfileForm
+              dict={ts}
+              clinic={{ name: clinic.name, phone: clinic.phone, email: clinic.email, address: clinic.address }}
+              canManage={canManage}
+            />
+            <ClinicLogoForm dict={ts} clinic={{ name: clinic.name }} canManage={canManage} logoSrc={clinicLogoSrc} />
           </Card>
 
           <Card className="p-5">

@@ -1,5 +1,5 @@
 /**
- * E2E-проверка лого клиники (сессия 81):
+ * E2E-проверка лого клиники (сессия 81, hardening — сессия 84):
  *   npx tsx scripts/e2e-clinic-logo-check.ts
  * Требует dev-сервер + seed. Использует ТОЛЬКО эфемерные тестовые клиники
  * (E2E Logo Clinic A/B) — demo-klinika не мутируется (logoUrl демо-клиники
@@ -11,6 +11,15 @@
  * включая tenant-изоляцию НА ЧТЕНИЕ (own-clinic only; super_admin — любая)
  * и то, что анонимный запрос получает 403 от самого маршрута, а не редирект
  * от middleware (см. middleware.ts).
+ * Сессия 84: ClinicLogoForm/PlatformClinicLogoForm получают только готовый
+ * /api/clinic-logo/{id}?v=... URL (logoSrc), вычисленный на сервере —
+ * raw clinic.logoUrl (relative storage path) больше не передаётся в "use
+ * client" компоненты. Реальная граница — заголовки API-ответа (проверяемо
+ * под dev-сервером); полный page-source под `next dev` дополнительно несёт
+ * RSC owner-stack debug payload (dev-only инструментарий React DevTools для
+ * ЛЮБОГО Server Component), который ложно совпадает с raw-путём независимо
+ * от этой фичи — эмпирически подтверждено отсутствие в `next build && next
+ * start` (см. CLINIC_LOGO.md / тот же вывод, что и в Session 83 для аватара).
  */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -175,6 +184,7 @@ async function main() {
         where: { clinicId: clinicA.id, entityType: "clinic", entityId: clinicA.id, action: "update" },
       })),
     );
+    const firstUploadedLogoUrl = clinicAFresh.logoUrl!;
 
     // ── 3. preview на /settings + Topbar показывает лого ──
     const settingsPage2 = await ownerASession.get("/settings");
@@ -350,6 +360,11 @@ async function main() {
     );
     const superReadsBWithLogo = await superSession.getRaw(`/api/clinic-logo/${clinicB.id}`);
     check("13e. super_admin: clinic B теперь отдаёт лого → 200", superReadsBWithLogo.status === 200);
+    const clinicBDetailPage2 = await superSession.get(`/platform/clinics/${clinicB.id}`);
+    check(
+      "13g. /platform/clinics/[id]: preview содержит /api/clinic-logo/{id} (после загрузки)",
+      clinicBDetailPage2.html.includes(`/api/clinic-logo/${clinicB.id}`),
+    );
     const ownA_stillCannotReadB = await ownerASession.getRaw(`/api/clinic-logo/${clinicB.id}`);
     check(
       "13f. owner A: clinic B с лого всё равно недоступна (cross-tenant) → 404",
@@ -368,6 +383,31 @@ async function main() {
     );
     const clinicBUnaffected = await prisma.clinic.findUniqueOrThrow({ where: { id: clinicB.id } });
     check("14b. clinic B логотип не изменился попыткой owner A", clinicBUnaffected.logoUrl === platformLogoBefore);
+
+    // ── 15. raw-путь (relative storage path) не раскрывается (сессия 84) ──
+    // Реальная граница — заголовки API-ответа (проверяемо детерминированно
+    // под dev-сервером). Полный page-source под `next dev` НЕ используем для
+    // этой проверки: подтверждено (см. doc-комментарий выше), что React/
+    // Next.js dev-only "owner stack" debug-инструментация может сериализовать
+    // awaited-данные Server Component (напр. Topbar) независимо от того,
+    // передаются ли они клиентскому компоненту — это эмпирически не
+    // воспроизводится в `next build && next start`. Поэтому здесь проверяем
+    // позитивный контракт: рендер использует ИМЕННО /api/clinic-logo/{id}
+    // URL (не raw путь) — то, что реально видит браузер в <img src>.
+    const dl1Headers = JSON.stringify([...dl1.headers.entries()]);
+    check(
+      "15. заголовки /api/clinic-logo не содержат relative storage path",
+      !dl1Headers.includes(firstUploadedLogoUrl),
+    );
+    check(
+      "15b. /settings и /dashboard используют /api/clinic-logo/{id} URL",
+      settingsPage2.html.includes(`/api/clinic-logo/${clinicA.id}`) &&
+        dashPage.html.includes(`/api/clinic-logo/${clinicA.id}`),
+    );
+    check(
+      "15c. /platform/clinics/[id] использует /api/clinic-logo/{id} URL",
+      clinicBDetailPage2.html.includes(`/api/clinic-logo/${clinicB.id}`),
+    );
   } finally {
     await prisma.auditLog.deleteMany({
       where: { OR: [{ clinicId: { in: clinicIds } }, { entityId: { in: clinicIds } }] },

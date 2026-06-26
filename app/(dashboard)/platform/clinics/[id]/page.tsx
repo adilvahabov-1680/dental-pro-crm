@@ -19,6 +19,9 @@ export default async function ClinicDetailPage({ params }: { params: Promise<{ i
 
   const clinic = await getClinicDetail(id);
   if (!clinic) notFound();
+  // Сессия 84: raw logoUrl (relative storage path) клиентским компонентам
+  // не передаём — только готовый URL, вычисленный здесь, на сервере.
+  const clinicLogoSrc = clinic.logoUrl ? `/api/clinic-logo/${clinic.id}?v=${clinic.updatedAt.getTime()}` : null;
 
   return (
     <>
@@ -44,14 +47,32 @@ export default async function ClinicDetailPage({ params }: { params: Promise<{ i
         />
 
         <EditClinicForm
-          clinic={clinic}
+          clinic={{
+            id: clinic.id,
+            slug: clinic.slug,
+            name: clinic.name,
+            phone: clinic.phone,
+            email: clinic.email,
+            address: clinic.address,
+            timezone: clinic.timezone,
+            currency: clinic.currency,
+            defaultLocale: clinic.defaultLocale,
+            clinicType: clinic.clinicType,
+            status: clinic.status,
+            plan: clinic.plan,
+          }}
           labels={tp.clinicDetail.editClinic}
           errorLabels={tp.errors}
           typeLabels={tp.clinics.types}
           statusLabels={tp.clinics.statuses}
         />
 
-        <PlatformClinicLogoForm clinic={clinic} labels={tp.clinicDetail.logo} errorLabels={tp.errors} />
+        <PlatformClinicLogoForm
+          clinic={{ id: clinic.id, name: clinic.name }}
+          labels={tp.clinicDetail.logo}
+          errorLabels={tp.errors}
+          logoSrc={clinicLogoSrc}
+        />
 
         <section>
           <div className="mb-4 flex items-center justify-between">
