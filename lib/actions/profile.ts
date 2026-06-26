@@ -21,6 +21,11 @@ import {
   USER_AVATAR_MIME_EXT,
   type UserAvatarFormState,
 } from "@/lib/validation/userAvatar";
+import {
+  DOCTOR_SIGNATURE_MAX_BYTES,
+  DOCTOR_SIGNATURE_MIME_EXT,
+  type DoctorSignatureFormState,
+} from "@/lib/validation/doctorSignature";
 
 export async function uploadOwnAvatar(
   _prev: UserAvatarFormState | undefined,
@@ -62,6 +67,62 @@ export async function uploadOwnAvatar(
     });
   } catch (e) {
     console.error("uploadOwnAvatar failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath("/settings");
+  return { saved: true };
+}
+
+/**
+ * Загрузка подписи врачом для собственного Doctor-профиля (сессия 86).
+ * doctorId — ТОЛЬКО из сессии (user.doctorId, заполняется при логине из
+ * doctorProfile.id) — клиентскому doctorId не доверяем. Пользователь без
+ * Doctor-профиля (owner/admin/reception/assistant/accountant без привязки)
+ * получает ошибку — форма на /settings им вообще не показывается.
+ */
+export async function uploadOwnDoctorSignature(
+  _prev: DoctorSignatureFormState | undefined,
+  formData: FormData,
+): Promise<DoctorSignatureFormState> {
+  const user = await requireAuth();
+  if (!user.doctorId) return { error: "notDoctor" };
+
+  const file = formData.get("signature");
+  if (!(file instanceof File) || file.size === 0) return { error: "fileRequired" };
+  if (file.size > DOCTOR_SIGNATURE_MAX_BYTES) return { error: "fileTooLarge" };
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > DOCTOR_SIGNATURE_MAX_BYTES) return { error: "fileTooLarge" };
+
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !DOCTOR_SIGNATURE_MIME_EXT[mime]) return { error: "unsupportedType" };
+
+    const existing = await prisma.doctor.findUnique({
+      where: { id: user.doctorId },
+      select: { clinicId: true, signatureUrl: true },
+    });
+    if (!existing) return { error: "notDoctor" };
+
+    const fileName = `signature-${Date.now()}-${randomBytes(4).toString("hex")}.${DOCTOR_SIGNATURE_MIME_EXT[mime]}`;
+    const fileUrl = `doctor-signatures/${existing.clinicId}/${user.doctorId}/${fileName}`;
+    await saveUploadFile(fileUrl, bytes);
+
+    await prisma.doctor.update({ where: { id: user.doctorId }, data: { signatureUrl: fileUrl } });
+    await prisma.auditLog.create({
+      data: {
+        clinicId: user.clinicId,
+        userId: user.id,
+        action: "update",
+        entityType: "doctor",
+        entityId: user.doctorId,
+        before: { signatureUrl: existing.signatureUrl },
+        after: { signatureUrl: fileUrl },
+      },
+    });
+  } catch (e) {
+    console.error("uploadOwnDoctorSignature failed:", e);
     return { error: "generic" };
   }
 

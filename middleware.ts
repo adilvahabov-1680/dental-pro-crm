@@ -15,12 +15,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Лого клиники (сессия 81) / аватар пользователя (сессия 83) — эти
-  // API-маршруты сами решают авторизацию и возвращают JSON 403/404 (см.
-  // app/api/clinic-logo/[clinicId]/route.ts, app/api/user-avatar/[userId]/route.ts).
+  // Лого клиники (сессия 81) / аватар пользователя (сессия 83) / подпись
+  // врача (сессия 86) — эти API-маршруты сами решают авторизацию и
+  // возвращают JSON 403/404 (см. app/api/clinic-logo/[clinicId]/route.ts,
+  // app/api/user-avatar/[userId]/route.ts, app/api/doctor-signature/[doctorId]/route.ts).
   // Редирект на /login здесь недопустим: маршруты читаются через <img src>
   // и анонимные/curl-запросы должны получать корректный статус, а не html.
-  if (pathname.startsWith("/api/clinic-logo/") || pathname.startsWith("/api/user-avatar/")) {
+  if (
+    pathname.startsWith("/api/clinic-logo/") ||
+    pathname.startsWith("/api/user-avatar/") ||
+    pathname.startsWith("/api/doctor-signature/")
+  ) {
     return NextResponse.next();
   }
 

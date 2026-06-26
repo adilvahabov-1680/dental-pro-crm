@@ -1331,6 +1331,15 @@ export const az = {
       saved: "Profil şəkli yeniləndi",
       hint: "PNG, JPG və ya WebP · maks. 2 MB",
     },
+    signature: {
+      title: "Həkim imzası",
+      desc: "Sənədlərdə istifadə üçün fundament — inteqrasiya növbəti mərhələdə",
+      upload: "İmza yüklə",
+      uploading: "Yüklənir…",
+      saved: "İmza yeniləndi",
+      hint: "PNG, JPG və ya WebP · maks. 2 MB · şəffaf fon tövsiyə olunur",
+      empty: "İmza yüklənməyib",
+    },
     params: {
       title: "Qəbul parametrləri",
       desc: "Qəbulların standart müddəti və xatırlatma vaxtı",
@@ -1492,6 +1501,7 @@ export const az = {
       fileRequired: "Fayl seçin",
       fileTooLarge: "Fayl çox böyükdür (maks. 2 MB)",
       unsupportedType: "Bu fayl növü dəstəklənmir (PNG, JPG, WebP)",
+      notDoctor: "Sizin həkim profiliniz yoxdur",
     },
   },
   common: {
@@ -1566,6 +1576,11 @@ export const az = {
     },
     avatarChange: {
       title: "Avatar dəyiş",
+      uploadBtn: "Yüklə",
+      uploading: "Yüklənir…",
+    },
+    signatureChange: {
+      title: "İmza dəyiş",
       uploadBtn: "Yüklə",
       uploading: "Yüklənir…",
     },

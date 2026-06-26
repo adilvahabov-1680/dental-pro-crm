@@ -416,6 +416,7 @@ model Doctor {
   commissionPercent Decimal? @map("commission_percent") @db.Decimal(5, 2)
   workingHours      Json?    @map("working_hours")
   isActive          Boolean  @default(true) @map("is_active")
+  signatureUrl      String?  @map("signature_url") // сессия 86 — фундамент, без интеграции в PDF/документы
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz()

@@ -55,6 +55,11 @@ export default async function AdminPage() {
     roleKey: s.roleKey,
     isActive: s.isActive,
     avatarSrc: s.avatarUrl ? `/api/user-avatar/${s.id}?v=${s.updatedAt.getTime()}` : null,
+    doctorId: s.doctorId,
+    signatureSrc:
+      s.doctorId && s.signatureUrl
+        ? `/api/doctor-signature/${s.doctorId}?v=${s.doctorUpdatedAt!.getTime()}`
+        : null,
     createdAt: s.createdAt.toISOString(),
     lastLoginAt: s.lastLoginAt ? s.lastLoginAt.toISOString() : null,
   }));

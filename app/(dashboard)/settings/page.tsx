@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, Building2, CalendarClock, Clock3, UserCircle } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, Clock3, PenTool, UserCircle } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getClinicParams, getClinicProfile, getWorkingHours } from "@/lib/settings";
-import { getOwnAvatar } from "@/lib/profile";
+import { getOwnAvatar, getOwnDoctorSignature } from "@/lib/profile";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { ClinicProfileForm } from "@/components/settings/ClinicProfileForm";
 import { ClinicLogoForm } from "@/components/settings/ClinicLogoForm";
 import { UserAvatarForm } from "@/components/settings/UserAvatarForm";
+import { DoctorSignatureForm } from "@/components/settings/DoctorSignatureForm";
 import { ClinicParamsForm } from "@/components/settings/ClinicParamsForm";
 import { WorkingHoursForm } from "@/components/settings/WorkingHoursForm";
 
@@ -41,18 +42,24 @@ export default async function SettingsPage() {
   const ts = t.settings;
   const canManage = hasPermission(user, "settings.manage");
 
-  const [clinic, params, hours, avatar] = await Promise.all([
+  const [clinic, params, hours, avatar, doctorSignature] = await Promise.all([
     getClinicProfile(user),
     getClinicParams(user),
     getWorkingHours(user),
     getOwnAvatar(user),
+    user.doctorId ? getOwnDoctorSignature(user.doctorId) : Promise.resolve(null),
   ]);
   if (!clinic) {
     return <PageHeader title={t.modules.settings.title} description={t.common.noAccess} />;
   }
-  // Сессия 84: raw logoUrl (relative storage path) клиентским компонентам
-  // не передаём — только готовый URL, вычисленный здесь, на сервере.
+  // Сессия 84: raw logoUrl/avatarUrl/signatureUrl (relative storage path)
+  // клиентским компонентам не передаём — только готовый URL, вычисленный
+  // здесь, на сервере (см. также сессии 81/83 для лого/аватара).
   const clinicLogoSrc = clinic.logoUrl ? `/api/clinic-logo/${clinic.id}?v=${clinic.updatedAt.getTime()}` : null;
+  const doctorSignatureSrc =
+    user.doctorId && doctorSignature?.signatureUrl
+      ? `/api/doctor-signature/${user.doctorId}?v=${doctorSignature.updatedAt.getTime()}`
+      : null;
 
   return (
     <>
@@ -68,6 +75,15 @@ export default async function SettingsPage() {
           avatarSrc={avatar?.avatarUrl ? `/api/user-avatar/${user.id}?v=${avatar.updatedAt.getTime()}` : null}
         />
       </Card>
+
+      {/* Подпись врача — только если у текущего пользователя есть Doctor-профиль
+          (user.doctorId из сессии), независимо от его основной роли. */}
+      {user.doctorId && (
+        <Card className="mb-4 p-5">
+          <SectionTitle icon={PenTool} title={ts.signature.title} desc={ts.signature.desc} />
+          <DoctorSignatureForm dict={ts} signatureSrc={doctorSignatureSrc} />
+        </Card>
+      )}
 
       {!canManage && (
         <p className="mb-4 rounded-[10px] border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">

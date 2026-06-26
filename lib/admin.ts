@@ -17,6 +17,10 @@ export interface StaffRow {
   updatedAt: Date;
   createdAt: Date;
   lastLoginAt: Date | null;
+  /** Doctor-профиль, если есть (сессия 86) — для подписи врача. */
+  doctorId: string | null;
+  signatureUrl: string | null;
+  doctorUpdatedAt: Date | null;
 }
 
 /** Роли, назначаемые через Admin v1 (без super_admin — платформенная роль). */
@@ -35,7 +39,10 @@ export const ADMIN_ROLES: RoleKey[] = ["owner", "admin"];
 export async function listStaff(clinicId: string): Promise<StaffRow[]> {
   const users = await prisma.user.findMany({
     where: { clinicId, deletedAt: null },
-    include: { role: true },
+    include: {
+      role: true,
+      doctorProfile: { select: { id: true, signatureUrl: true, updatedAt: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
   return users
@@ -49,6 +56,9 @@ export async function listStaff(clinicId: string): Promise<StaffRow[]> {
       isActive: u.isActive,
       avatarUrl: u.avatarUrl,
       updatedAt: u.updatedAt,
+      doctorId: u.doctorProfile?.id ?? null,
+      signatureUrl: u.doctorProfile?.signatureUrl ?? null,
+      doctorUpdatedAt: u.doctorProfile?.updatedAt ?? null,
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt,
     }));

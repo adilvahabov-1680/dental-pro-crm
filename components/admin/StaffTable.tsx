@@ -7,6 +7,7 @@ import {
   resetStaffPassword,
   changeStaffLogin,
   adminUpdateStaffAvatar,
+  adminUpdateDoctorSignature,
 } from "@/lib/actions/admin";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
@@ -25,6 +26,11 @@ export interface StaffRowDto {
   /** Готовый URL /api/user-avatar/{id}?v=... либо null — raw avatarUrl (relative
    *  storage path) клиенту не передаём (вычисляется на сервере, см. admin/page.tsx). */
   avatarSrc: string | null;
+  /** Doctor-профиль, если есть (сессия 86) — null для не-врачей. */
+  doctorId: string | null;
+  /** Готовый URL /api/doctor-signature/{id}?v=... либо null — raw signatureUrl
+   *  клиенту не передаём (вычисляется на сервере, см. admin/page.tsx). */
+  signatureSrc: string | null;
   createdAt: string;
   lastLoginAt: string | null;
 }
@@ -243,6 +249,64 @@ function AvatarChangeForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"]
   );
 }
 
+function SignatureChangeForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] }) {
+  const [state, formAction, pending] = useActionState<AdminFormState | undefined, FormData>(
+    adminUpdateDoctorSignature,
+    undefined,
+  );
+  const prevState = useRef<typeof state>(undefined);
+  const [show, setShow] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  if (state !== prevState.current) {
+    prevState.current = state;
+    if (state?.saved) {
+      setShow(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  const sc = dict.signatureChange;
+  const error = errMsg(dict, state);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex h-8 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-border-subtle bg-bg-elevated">
+        {row.signatureSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={row.signatureSrc} alt={sc.title} className="size-full object-contain p-0.5" />
+        ) : (
+          <span className="text-[10px] text-text-secondary">—</span>
+        )}
+      </div>
+      <form action={formAction} className="flex flex-wrap items-center gap-2" data-e2e-admin-signature={row.doctorId}>
+        <input type="hidden" name="doctorId" value={row.doctorId ?? ""} />
+        {!show ? (
+          <button type="button" onClick={() => setShow(true)} className="text-xs text-accent hover:underline">
+            {sc.title}
+          </button>
+        ) : (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              name="signature"
+              required
+              accept="image/png,image/jpeg,image/webp"
+              className="w-40 text-xs text-text-secondary file:mr-2 file:h-7 file:cursor-pointer file:rounded-[6px] file:border-0 file:bg-bg-elevated file:px-2 file:text-xs file:text-text-primary"
+            />
+            <button type="submit" disabled={pending} className="rounded-[6px] border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs text-accent disabled:opacity-50">
+              {pending ? sc.uploading : sc.uploadBtn}
+            </button>
+            <button type="button" onClick={() => setShow(false)} className="text-xs text-text-tertiary">✕</button>
+            {error && <span className="text-xs text-danger">{error}</span>}
+          </>
+        )}
+      </form>
+    </div>
+  );
+}
+
 export function StaffTable({
   rows,
   roles,
@@ -314,6 +378,7 @@ export function StaffTable({
                     <ResetPasswordForm row={row} dict={dict} />
                     <ChangeLoginForm row={row} dict={dict} />
                     <AvatarChangeForm row={row} dict={dict} />
+                    {row.doctorId && <SignatureChangeForm row={row} dict={dict} />}
                   </div>
                 </td>
               )}

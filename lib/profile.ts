@@ -12,3 +12,11 @@ export async function getOwnAvatar(user: SessionUser) {
     select: { avatarUrl: true, updatedAt: true },
   });
 }
+
+/** Подпись врача (сессия 86) — только если у пользователя есть Doctor-профиль. */
+export async function getOwnDoctorSignature(doctorId: string) {
+  return prisma.doctor.findUnique({
+    where: { id: doctorId },
+    select: { signatureUrl: true, updatedAt: true },
+  });
+}

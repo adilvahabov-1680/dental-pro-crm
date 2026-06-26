@@ -16,6 +16,7 @@ import { ADMIN_ROLES, countActiveAdmins, listAssignableRoles } from "@/lib/admin
 import { saveUploadFile } from "@/lib/storage";
 import { sniffUploadMime } from "@/lib/validation/documents";
 import { USER_AVATAR_MAX_BYTES, USER_AVATAR_MIME_EXT } from "@/lib/validation/userAvatar";
+import { DOCTOR_SIGNATURE_MAX_BYTES, DOCTOR_SIGNATURE_MIME_EXT } from "@/lib/validation/doctorSignature";
 import {
   createStaffSchema,
   resetPasswordSchema,
@@ -336,6 +337,65 @@ export async function adminUpdateStaffAvatar(
     });
   } catch (e) {
     console.error("adminUpdateStaffAvatar failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+/**
+ * Загрузка подписи врача владельцем/админом клиники (сессия 86).
+ * doctorId — из формы, но цель ВСЕГДА перепроверяется через
+ * clinicId: user.clinicId (tenant-фильтр Doctor, а не User) — клиентскому
+ * doctorId не доверяем напрямую. Та же валидация содержимого, что и у
+ * самостоятельной загрузки врача (lib/actions/profile.ts).
+ */
+export async function adminUpdateDoctorSignature(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const doctorId = String(formData.get("doctorId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(doctorId)) return { error: "notFound" };
+
+  const target = await prisma.doctor.findFirst({
+    where: { id: doctorId, clinicId: user.clinicId, deletedAt: null },
+    select: { id: true, signatureUrl: true },
+  });
+  if (!target) return { error: "notFound" };
+
+  const file = formData.get("signature");
+  if (!(file instanceof File) || file.size === 0) return { error: "fileRequired" };
+  if (file.size > DOCTOR_SIGNATURE_MAX_BYTES) return { error: "fileTooLarge" };
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > DOCTOR_SIGNATURE_MAX_BYTES) return { error: "fileTooLarge" };
+
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !DOCTOR_SIGNATURE_MIME_EXT[mime]) return { error: "unsupportedType" };
+
+    const fileName = `signature-${Date.now()}-${randomBytes(4).toString("hex")}.${DOCTOR_SIGNATURE_MIME_EXT[mime]}`;
+    const fileUrl = `doctor-signatures/${user.clinicId}/${target.id}/${fileName}`;
+    await saveUploadFile(fileUrl, bytes);
+
+    await prisma.doctor.update({ where: { id: target.id }, data: { signatureUrl: fileUrl } });
+    await prisma.auditLog.create({
+      data: {
+        clinicId: user.clinicId,
+        userId: user.id,
+        action: "update",
+        entityType: "doctor",
+        entityId: target.id,
+        before: { signatureUrl: target.signatureUrl },
+        after: { signatureUrl: fileUrl },
+      },
+    });
+  } catch (e) {
+    console.error("adminUpdateDoctorSignature failed:", e);
     return { error: "generic" };
   }
 
