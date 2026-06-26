@@ -47,7 +47,6 @@ export function ClinicProfileForm({
             <Input id="address" name="address" label={f.address} defaultValue={clinic.address ?? ""} />
           </div>
         </div>
-        <p className="text-xs text-text-secondary">{f.logoSoon}</p>
 
         {state?.error && (
           <p className="rounded-[10px] border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">

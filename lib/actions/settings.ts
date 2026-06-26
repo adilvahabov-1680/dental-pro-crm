@@ -7,11 +7,14 @@
  * Прайс append-only: смена цены = закрытие текущего периода (validTo)
  * + новая запись Price; записи Price не редактируются.
  */
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
 import { tenantClient } from "@/lib/tenant";
+import { saveUploadFile } from "@/lib/storage";
+import { sniffUploadMime } from "@/lib/validation/documents";
 import { SETTING_KEYS } from "@/lib/settings";
 import {
   clinicParamsSchema,
@@ -22,6 +25,11 @@ import {
   serviceToggleSchema,
   type SettingsFormState,
 } from "@/lib/validation/settings";
+import {
+  CLINIC_LOGO_MAX_BYTES,
+  CLINIC_LOGO_MIME_EXT,
+  type ClinicLogoFormState,
+} from "@/lib/validation/clinicLogo";
 import { issuesToFieldErrors } from "@/lib/validation/patients";
 
 /** Upsert clinic-scope настройки + audit. Возвращает id записи. */
@@ -98,6 +106,61 @@ export async function updateClinicProfile(
     });
   } catch (e) {
     console.error("updateClinicProfile failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath("/settings");
+  return { saved: true };
+}
+
+/**
+ * Загрузка логотипа клиники (сессия 81). clinicId — только из сессии
+ * (как в updateClinicProfile), клиенту не доверяем. mime — по магическим
+ * байтам (тот же sniffUploadMime, что у документов пациента), PDF/SVG
+ * отклоняются — для лого допустимы только PNG/JPEG/WebP.
+ * Старый файл на диске не удаляется (см. CLINIC_LOGO.md) — тот же v1-паттерн,
+ * что и у soft-delete документов пациента (orphan-файлы допустимы).
+ */
+export async function uploadClinicLogo(
+  _prev: ClinicLogoFormState | undefined,
+  formData: FormData,
+): Promise<ClinicLogoFormState> {
+  const user = await requirePermission("settings.manage");
+  if (!user.clinicId) redirect("/dashboard");
+  const clinicId = user.clinicId;
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { error: "fileRequired" };
+  if (file.size > CLINIC_LOGO_MAX_BYTES) return { error: "fileTooLarge" };
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > CLINIC_LOGO_MAX_BYTES) return { error: "fileTooLarge" };
+
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !CLINIC_LOGO_MIME_EXT[mime]) return { error: "unsupportedType" };
+
+    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId }, select: { logoUrl: true } });
+    if (!clinic) return { error: "generic" };
+
+    const fileName = `logo-${Date.now()}-${randomBytes(4).toString("hex")}.${CLINIC_LOGO_MIME_EXT[mime]}`;
+    const fileUrl = `clinic-logos/${clinicId}/${fileName}`;
+    await saveUploadFile(fileUrl, bytes);
+
+    await prisma.clinic.update({ where: { id: clinicId }, data: { logoUrl: fileUrl } });
+    await prisma.auditLog.create({
+      data: {
+        clinicId,
+        userId: user.id,
+        action: "update",
+        entityType: "clinic",
+        entityId: clinicId,
+        before: { logoUrl: clinic.logoUrl },
+        after: { logoUrl: fileUrl },
+      },
+    });
+  } catch (e) {
+    console.error("uploadClinicLogo failed:", e);
     return { error: "generic" };
   }
 

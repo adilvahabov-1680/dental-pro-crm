@@ -20,7 +20,15 @@ export async function getClinicProfile(user: SessionUser) {
   if (!user.clinicId) return null;
   return prisma.clinic.findUnique({
     where: { id: user.clinicId },
-    select: { id: true, name: true, phone: true, email: true, address: true, logoUrl: true },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      address: true,
+      logoUrl: true,
+      updatedAt: true,
+    },
   });
 }
 

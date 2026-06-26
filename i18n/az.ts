@@ -1315,8 +1315,13 @@ export const az = {
       phone: "Telefon",
       email: "E-poçt",
       address: "Ünvan",
-      logo: "Loqo",
-      logoSoon: "Loqo yükləmə növbəti mərhələdə əlavə olunacaq",
+    },
+    logo: {
+      title: "Klinika loqosu",
+      upload: "Loqo yüklə",
+      uploading: "Yüklənir…",
+      saved: "Loqo yeniləndi",
+      hint: "PNG, JPG və ya WebP · maks. 2 MB",
     },
     params: {
       title: "Qəbul parametrləri",
@@ -1476,6 +1481,9 @@ export const az = {
       overlap: "Bu vaxtda həkimin qəbulu var",
       notFound: "Tapılmadı",
       doctorRequired: "Həkim seçin",
+      fileRequired: "Fayl seçin",
+      fileTooLarge: "Fayl çox böyükdür (maks. 2 MB)",
+      unsupportedType: "Bu fayl növü dəstəklənmir (PNG, JPG, WebP)",
     },
   },
   common: {
@@ -1654,6 +1662,13 @@ export const az = {
         save: "Yadda saxla",
         saving: "Saxlanılır…",
         saved: "Klinika məlumatları yeniləndi",
+      },
+      logo: {
+        title: "Klinika loqosu",
+        upload: "Loqo yüklə",
+        uploading: "Yüklənir…",
+        saved: "Loqo yeniləndi",
+        hint: "PNG, JPG və ya WebP · maks. 2 MB",
       },
     },
     errors: {

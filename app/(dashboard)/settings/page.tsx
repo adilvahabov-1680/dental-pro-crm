@@ -7,6 +7,7 @@ import { getClinicParams, getClinicProfile, getWorkingHours } from "@/lib/settin
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { ClinicProfileForm } from "@/components/settings/ClinicProfileForm";
+import { ClinicLogoForm } from "@/components/settings/ClinicLogoForm";
 import { ClinicParamsForm } from "@/components/settings/ClinicParamsForm";
 import { WorkingHoursForm } from "@/components/settings/WorkingHoursForm";
 
@@ -62,6 +63,7 @@ export default async function SettingsPage() {
           <Card className="p-5">
             <SectionTitle icon={Building2} title={ts.profile.title} desc={ts.profile.desc} />
             <ClinicProfileForm dict={ts} clinic={clinic} canManage={canManage} />
+            <ClinicLogoForm dict={ts} clinic={clinic} canManage={canManage} />
           </Card>
 
           <Card className="p-5">

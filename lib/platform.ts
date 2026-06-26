@@ -42,7 +42,9 @@ export interface ClinicDetail {
   status: "trial" | "active" | "suspended";
   clinicType: "clinic" | "solo_doctor";
   plan: string | null;
+  logoUrl: string | null;
   createdAt: Date;
+  updatedAt: Date;
   users: ClinicUserRow[];
 }
 
@@ -91,7 +93,9 @@ export async function getClinicDetail(clinicId: string): Promise<ClinicDetail | 
     status: clinic.status as ClinicDetail["status"],
     clinicType: clinic.clinicType as ClinicDetail["clinicType"],
     plan: clinic.plan,
+    logoUrl: clinic.logoUrl,
     createdAt: clinic.createdAt,
+    updatedAt: clinic.updatedAt,
     users: clinic.users
       .filter((u) => u.role.key !== "super_admin")
       .map((u) => ({

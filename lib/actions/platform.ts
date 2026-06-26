@@ -12,6 +12,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
 import { listAssignableRoles } from "@/lib/admin";
 import { ADMIN_ROLES, countActiveAdmins } from "@/lib/admin";
+import { saveUploadFile } from "@/lib/storage";
+import { sniffUploadMime } from "@/lib/validation/documents";
+import { CLINIC_LOGO_MAX_BYTES, CLINIC_LOGO_MIME_EXT } from "@/lib/validation/clinicLogo";
 import {
   createClinicSchema,
   setClinicStatusSchema,
@@ -173,6 +176,64 @@ export async function updateClinic(
 
   revalidatePath(`/platform/clinics/${clinicId}`);
   revalidatePath("/platform/clinics");
+  return { saved: true };
+}
+
+/**
+ * Загрузка логотипа клиники платформенным владельцем (сессия 81, опционально).
+ * clinicId — из формы (как и в остальных platform-действиях super_admin),
+ * но всегда проверяется на существование/не-удалённость перед записью —
+ * это исключает случайную запись в "не ту" клинику при пустом/некорректном id.
+ * Та же валидация контента, что и у клиничного flow (uploadClinicLogo).
+ */
+export async function platformUploadClinicLogo(
+  _prev: PlatformFormState | undefined,
+  formData: FormData,
+): Promise<PlatformFormState> {
+  const actor = await requireRole("super_admin");
+
+  const clinicId = String(formData.get("clinicId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(clinicId)) return { error: "notFound" };
+
+  const clinic = await prisma.clinic.findFirst({
+    where: { id: clinicId, deletedAt: null },
+    select: { logoUrl: true },
+  });
+  if (!clinic) return { error: "notFound" };
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) return { error: "generic" };
+  if (file.size > CLINIC_LOGO_MAX_BYTES) return { error: "generic" };
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > CLINIC_LOGO_MAX_BYTES) return { error: "generic" };
+
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !CLINIC_LOGO_MIME_EXT[mime]) return { error: "generic" };
+
+    const fileName = `logo-${Date.now()}-${randomBytes(4).toString("hex")}.${CLINIC_LOGO_MIME_EXT[mime]}`;
+    const fileUrl = `clinic-logos/${clinicId}/${fileName}`;
+    await saveUploadFile(fileUrl, bytes);
+
+    await prisma.clinic.update({ where: { id: clinicId }, data: { logoUrl: fileUrl } });
+    await prisma.auditLog.create({
+      data: {
+        clinicId: null,
+        userId: actor.id,
+        action: "update",
+        entityType: "clinic",
+        entityId: clinicId,
+        before: { logoUrl: clinic.logoUrl },
+        after: { logoUrl: fileUrl },
+      },
+    });
+  } catch (e) {
+    console.error("platformUploadClinicLogo failed:", e);
+    return { error: "generic" };
+  }
+
+  revalidatePath(`/platform/clinics/${clinicId}`);
   return { saved: true };
 }
 

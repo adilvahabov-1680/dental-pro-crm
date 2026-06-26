@@ -7,6 +7,7 @@ import { getClinicDetail } from "@/lib/platform";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ClinicStatusControl } from "@/components/platform/ClinicStatusControl";
 import { EditClinicForm } from "@/components/platform/EditClinicForm";
+import { PlatformClinicLogoForm } from "@/components/platform/PlatformClinicLogoForm";
 import { ClinicUserList } from "@/components/platform/ClinicUserList";
 import { CreateClinicUserForm } from "@/components/platform/CreateClinicUserForm";
 
@@ -49,6 +50,8 @@ export default async function ClinicDetailPage({ params }: { params: Promise<{ i
           typeLabels={tp.clinics.types}
           statusLabels={tp.clinics.statuses}
         />
+
+        <PlatformClinicLogoForm clinic={clinic} labels={tp.clinicDetail.logo} errorLabels={tp.errors} />
 
         <section>
           <div className="mb-4 flex items-center justify-between">

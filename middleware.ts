@@ -15,6 +15,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Лого клиники (сессия 81) — API-маршрут сам решает авторизацию и
+  // возвращает JSON 403/404 (см. app/api/clinic-logo/[clinicId]/route.ts).
+  // Редирект на /login здесь недопустим: маршрут читается через <img src>
+  // и анонимные/curl-запросы должны получать корректный статус, а не html.
+  if (pathname.startsWith("/api/clinic-logo/")) {
+    return NextResponse.next();
+  }
+
   // Patient response links (сессия 41) — публичный, без логина, доступ только
   // по уникальному token. Намеренно не через PUBLIC_PATHS: та логика также
   // редиректит залогиненных пользователей на /dashboard, что здесь не нужно
