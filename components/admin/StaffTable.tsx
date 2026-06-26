@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { changeStaffRole, toggleStaffStatus, resetStaffPassword, changeStaffLogin } from "@/lib/actions/admin";
+import {
+  changeStaffRole,
+  toggleStaffStatus,
+  resetStaffPassword,
+  changeStaffLogin,
+  adminUpdateStaffAvatar,
+} from "@/lib/actions/admin";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/utils";
 import type { AdminFormState } from "@/lib/validation/admin";
@@ -16,8 +22,26 @@ export interface StaffRowDto {
   phone: string | null;
   roleKey: RoleKey;
   isActive: boolean;
+  /** Готовый URL /api/user-avatar/{id}?v=... либо null — raw avatarUrl (relative
+   *  storage path) клиенту не передаём (вычисляется на сервере, см. admin/page.tsx). */
+  avatarSrc: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+function StaffAvatar({ row }: { row: StaffRowDto }) {
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border-subtle bg-bg-elevated">
+      {row.avatarSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={row.avatarSrc} alt={row.fullName} className="size-full object-cover" />
+      ) : (
+        <span className="text-sm font-semibold text-text-secondary">
+          {row.fullName.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </div>
+  );
 }
 
 const selectCls =
@@ -171,6 +195,54 @@ function ChangeLoginForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] 
   );
 }
 
+function AvatarChangeForm({ row, dict }: { row: StaffRowDto; dict: Dict["admin"] }) {
+  const [state, formAction, pending] = useActionState<AdminFormState | undefined, FormData>(
+    adminUpdateStaffAvatar,
+    undefined,
+  );
+  const prevState = useRef<typeof state>(undefined);
+  const [show, setShow] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  if (state !== prevState.current) {
+    prevState.current = state;
+    if (state?.saved) {
+      setShow(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  const ac = dict.avatarChange;
+  const error = errMsg(dict, state);
+
+  return (
+    <form action={formAction} className="flex flex-wrap items-center gap-2" data-e2e-admin-avatar={row.id}>
+      <input type="hidden" name="userId" value={row.id} />
+      {!show ? (
+        <button type="button" onClick={() => setShow(true)} className="text-xs text-accent hover:underline">
+          {ac.title}
+        </button>
+      ) : (
+        <>
+          <input
+            ref={fileRef}
+            type="file"
+            name="avatar"
+            required
+            accept="image/png,image/jpeg,image/webp"
+            className="w-40 text-xs text-text-secondary file:mr-2 file:h-7 file:cursor-pointer file:rounded-[6px] file:border-0 file:bg-bg-elevated file:px-2 file:text-xs file:text-text-primary"
+          />
+          <button type="submit" disabled={pending} className="rounded-[6px] border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs text-accent disabled:opacity-50">
+            {pending ? ac.uploading : ac.uploadBtn}
+          </button>
+          <button type="button" onClick={() => setShow(false)} className="text-xs text-text-tertiary">✕</button>
+          {error && <span className="text-xs text-danger">{error}</span>}
+        </>
+      )}
+    </form>
+  );
+}
+
 export function StaffTable({
   rows,
   roles,
@@ -206,10 +278,15 @@ export function StaffTable({
           {rows.map((row) => (
             <tr key={row.id} className={row.isActive ? "" : "opacity-55"}>
               <td className="py-3 pr-3">
-                <p className="font-medium text-text-primary">
-                  {row.fullName} {row.id === currentUserId && <span className="text-text-secondary">{tt.you}</span>}
-                </p>
-                {row.phone && <p className="text-xs text-text-secondary">{row.phone}</p>}
+                <div className="flex items-center gap-2">
+                  <StaffAvatar row={row} />
+                  <div>
+                    <p className="font-medium text-text-primary">
+                      {row.fullName} {row.id === currentUserId && <span className="text-text-secondary">{tt.you}</span>}
+                    </p>
+                    {row.phone && <p className="text-xs text-text-secondary">{row.phone}</p>}
+                  </div>
+                </div>
               </td>
               <td className="py-3 pr-3 text-text-secondary">{row.email}</td>
               <td className="py-3 pr-3">
@@ -236,6 +313,7 @@ export function StaffTable({
                   <div className="flex flex-col gap-2">
                     <ResetPasswordForm row={row} dict={dict} />
                     <ChangeLoginForm row={row} dict={dict} />
+                    <AvatarChangeForm row={row} dict={dict} />
                   </div>
                 </td>
               )}

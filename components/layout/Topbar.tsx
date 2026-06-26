@@ -5,16 +5,21 @@ import { getDict } from "@/lib/i18n";
 import { hasPermission } from "@/lib/permissions";
 import { unreadNotificationsCount } from "@/lib/notifications";
 import { getClinicProfile } from "@/lib/settings";
+import { getOwnAvatar } from "@/lib/profile";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import type { SessionUser } from "@/types/auth";
 
 export async function Topbar({ user }: { user: SessionUser }) {
   const t = getDict(user.locale);
   const showBell = !!user.clinicId && hasPermission(user, "notifications.view");
-  const [unread, clinic] = await Promise.all([
+  const [unread, clinic, avatar] = await Promise.all([
     showBell ? unreadNotificationsCount(user) : Promise.resolve(0),
     getClinicProfile(user),
+    getOwnAvatar(user),
   ]);
+  const avatarSrc = avatar?.avatarUrl
+    ? `/api/user-avatar/${user.id}?v=${avatar.updatedAt.getTime()}`
+    : null;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border-subtle bg-bg-base/80 px-4 backdrop-blur-md sm:px-6">
@@ -69,9 +74,18 @@ export async function Topbar({ user }: { user: SessionUser }) {
           <p className="text-sm font-medium leading-tight text-text-primary">{user.fullName}</p>
           <p className="text-[11px] leading-tight text-accent">{t.roles[user.role]}</p>
         </div>
-        <div className="flex size-9 items-center justify-center rounded-full bg-linear-to-br from-accent/30 to-accent-deep/30 text-sm font-semibold text-accent">
-          {user.fullName.charAt(0)}
-        </div>
+        {avatarSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarSrc}
+            alt={user.fullName}
+            className="size-9 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-accent/30 to-accent-deep/30 text-sm font-semibold text-accent">
+            {user.fullName.charAt(0)}
+          </div>
+        )}
         <form action={logout}>
           <button
             type="submit"

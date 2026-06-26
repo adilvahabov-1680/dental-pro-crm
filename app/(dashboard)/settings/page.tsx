@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { ArrowRight, Building2, CalendarClock, Clock3 } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, Clock3, UserCircle } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { getDict } from "@/lib/i18n";
 import { getClinicParams, getClinicProfile, getWorkingHours } from "@/lib/settings";
+import { getOwnAvatar } from "@/lib/profile";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { ClinicProfileForm } from "@/components/settings/ClinicProfileForm";
 import { ClinicLogoForm } from "@/components/settings/ClinicLogoForm";
+import { UserAvatarForm } from "@/components/settings/UserAvatarForm";
 import { ClinicParamsForm } from "@/components/settings/ClinicParamsForm";
 import { WorkingHoursForm } from "@/components/settings/WorkingHoursForm";
 
@@ -39,10 +41,11 @@ export default async function SettingsPage() {
   const ts = t.settings;
   const canManage = hasPermission(user, "settings.manage");
 
-  const [clinic, params, hours] = await Promise.all([
+  const [clinic, params, hours, avatar] = await Promise.all([
     getClinicProfile(user),
     getClinicParams(user),
     getWorkingHours(user),
+    getOwnAvatar(user),
   ]);
   if (!clinic) {
     return <PageHeader title={t.modules.settings.title} description={t.common.noAccess} />;
@@ -51,6 +54,17 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title={t.modules.settings.title} description={t.modules.settings.desc} />
+
+      {/* Личный аватар — доступен любому пользователю, попавшему на /settings,
+          независимо от canManage (это не настройка клиники, а личная). */}
+      <Card className="mb-4 p-5">
+        <SectionTitle icon={UserCircle} title={ts.avatar.title} desc={ts.avatar.desc} />
+        <UserAvatarForm
+          dict={ts}
+          user={{ id: user.id, fullName: user.fullName }}
+          avatarSrc={avatar?.avatarUrl ? `/api/user-avatar/${user.id}?v=${avatar.updatedAt.getTime()}` : null}
+        />
+      </Card>
 
       {!canManage && (
         <p className="mb-4 rounded-[10px] border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">

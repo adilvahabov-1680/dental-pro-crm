@@ -13,6 +13,8 @@ export interface StaffRow {
   phone: string | null;
   roleKey: RoleKey;
   isActive: boolean;
+  avatarUrl: string | null;
+  updatedAt: Date;
   createdAt: Date;
   lastLoginAt: Date | null;
 }
@@ -45,6 +47,8 @@ export async function listStaff(clinicId: string): Promise<StaffRow[]> {
       phone: u.phone,
       roleKey: u.role.key as RoleKey,
       isActive: u.isActive,
+      avatarUrl: u.avatarUrl,
+      updatedAt: u.updatedAt,
       createdAt: u.createdAt,
       lastLoginAt: u.lastLoginAt,
     }));

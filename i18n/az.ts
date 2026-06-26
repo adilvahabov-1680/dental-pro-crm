@@ -1323,6 +1323,14 @@ export const az = {
       saved: "Loqo yeniləndi",
       hint: "PNG, JPG və ya WebP · maks. 2 MB",
     },
+    avatar: {
+      title: "Profil şəkli",
+      desc: "Yalnız siz görürsünüz, klinika əməkdaşları siyahısında da göstərilir",
+      upload: "Şəkil yüklə",
+      uploading: "Yüklənir…",
+      saved: "Profil şəkli yeniləndi",
+      hint: "PNG, JPG və ya WebP · maks. 2 MB",
+    },
     params: {
       title: "Qəbul parametrləri",
       desc: "Qəbulların standart müddəti və xatırlatma vaxtı",
@@ -1556,6 +1564,11 @@ export const az = {
       changeBtn: "Dəyiş",
       changing: "Dəyişdirilir…",
     },
+    avatarChange: {
+      title: "Avatar dəyiş",
+      uploadBtn: "Yüklə",
+      uploading: "Yüklənir…",
+    },
     transfer: {
       title: "Həkim transferi",
       desc: "Həkimin pasiyentlərini/qəbullarını başqa həkimə ötür",
@@ -1588,6 +1601,9 @@ export const az = {
       patientNotFound: "Pasiyent tapılmadı",
       sameDoctor: "Mənbə və hədəf eyni həkim ola bilməz",
       nothingSelected: "Heç bir seçim işarələnmədi",
+      fileRequired: "Fayl seçin",
+      fileTooLarge: "Fayl çox böyükdür (maks. 2 MB)",
+      unsupportedType: "Bu fayl növü dəstəklənmir (PNG, JPG, WebP)",
       generic: "Xəta baş verdi. Yenidən cəhd edin.",
     },
   },

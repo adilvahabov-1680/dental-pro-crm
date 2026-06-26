@@ -54,6 +54,7 @@ export default async function AdminPage() {
     phone: s.phone,
     roleKey: s.roleKey,
     isActive: s.isActive,
+    avatarSrc: s.avatarUrl ? `/api/user-avatar/${s.id}?v=${s.updatedAt.getTime()}` : null,
     createdAt: s.createdAt.toISOString(),
     lastLoginAt: s.lastLoginAt ? s.lastLoginAt.toISOString() : null,
   }));

@@ -13,6 +13,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/auth";
 import { ADMIN_ROLES, countActiveAdmins, listAssignableRoles } from "@/lib/admin";
+import { saveUploadFile } from "@/lib/storage";
+import { sniffUploadMime } from "@/lib/validation/documents";
+import { USER_AVATAR_MAX_BYTES, USER_AVATAR_MIME_EXT } from "@/lib/validation/userAvatar";
 import {
   createStaffSchema,
   resetPasswordSchema,
@@ -279,6 +282,62 @@ export async function changeStaffLogin(
       after: { email: newEmail },
     },
   });
+
+  revalidatePath("/admin");
+  return { saved: true };
+}
+
+/**
+ * Загрузка аватара сотрудника владельцем/админом клиники (сессия 83,
+ * опциональная admin-функция). userId — из формы, но цель ВСЕГДА
+ * перепроверяется через loadTargetUser (tenant + существование + не
+ * super_admin) — клиентскому userId не доверяем напрямую. Та же валидация
+ * содержимого, что и у самостоятельной загрузки (lib/actions/profile.ts).
+ */
+export async function adminUpdateStaffAvatar(
+  _prev: AdminFormState | undefined,
+  formData: FormData,
+): Promise<AdminFormState> {
+  const user = await requirePermission("admin.manage");
+  if (!user.clinicId) return { error: "generic" };
+
+  const userId = String(formData.get("userId") ?? "");
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return { error: "notFound" };
+
+  const target = await loadTargetUser(user.clinicId, userId);
+  if (!target) return { error: "notFound" };
+
+  const file = formData.get("avatar");
+  if (!(file instanceof File) || file.size === 0) return { error: "fileRequired" };
+  if (file.size > USER_AVATAR_MAX_BYTES) return { error: "fileTooLarge" };
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length > USER_AVATAR_MAX_BYTES) return { error: "fileTooLarge" };
+
+    const mime = sniffUploadMime(bytes);
+    if (!mime || !USER_AVATAR_MIME_EXT[mime]) return { error: "unsupportedType" };
+
+    const fileName = `avatar-${Date.now()}-${randomBytes(4).toString("hex")}.${USER_AVATAR_MIME_EXT[mime]}`;
+    const fileUrl = `user-avatars/${user.clinicId}/${target.id}/${fileName}`;
+    await saveUploadFile(fileUrl, bytes);
+
+    await prisma.user.update({ where: { id: target.id }, data: { avatarUrl: fileUrl } });
+    await prisma.auditLog.create({
+      data: {
+        clinicId: user.clinicId,
+        userId: user.id,
+        action: "update",
+        entityType: "user",
+        entityId: target.id,
+        before: { avatarUrl: target.avatarUrl },
+        after: { avatarUrl: fileUrl },
+      },
+    });
+  } catch (e) {
+    console.error("adminUpdateStaffAvatar failed:", e);
+    return { error: "generic" };
+  }
 
   revalidatePath("/admin");
   return { saved: true };
