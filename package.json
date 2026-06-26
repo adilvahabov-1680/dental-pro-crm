@@ -33,6 +33,7 @@
     "e2e-clinic-logo-check": "tsx scripts/e2e-clinic-logo-check.ts",
     "e2e-user-avatar-check": "tsx scripts/e2e-user-avatar-check.ts",
     "e2e-doctor-signature-check": "tsx scripts/e2e-doctor-signature-check.ts",
+    "e2e-doctor-signature-pdf-check": "tsx scripts/e2e-doctor-signature-pdf-check.ts",
     "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts",
     "e2e-consumables-audit-visibility-check": "tsx scripts/e2e-consumables-audit-visibility-check.ts",
     "e2e-low-stock-alerts-check": "tsx scripts/e2e-low-stock-alerts-check.ts",

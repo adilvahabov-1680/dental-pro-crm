@@ -18,6 +18,8 @@ const LINE = "#D1D5DB";
 const MARGIN = 50;
 const PAGE_WIDTH = 595.28; // A4 pt
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const SIGNATURE_MAX_W = 150; // pt, см. lib/pdfSignature.ts (сессия 87)
+const SIGNATURE_MAX_H = 60;
 
 export function formatPdfMoney(qepik: number): string {
   return `${(qepik / 100).toLocaleString("az-AZ", {
@@ -192,6 +194,13 @@ export interface TreatmentSummaryData {
   }>;
   teeth: Array<{ number: number; statusLabel: string; lastTreatedAt?: Date | null }>;
   recommendations: string;
+  /**
+   * Подпись пациентского primaryDoctor (сессия 87) — резолвится и
+   * валидируется заранее (lib/pdfSignature.ts); только PNG/JPEG, т.к.
+   * pdfkit не поддерживает WebP. null/undefined — секция не рисуется,
+   * документ выглядит как раньше.
+   */
+  signature?: { buffer: Buffer; mime: "image/png" | "image/jpeg" } | null;
 }
 
 export async function renderTreatmentSummaryPdf(data: TreatmentSummaryData): Promise<Buffer> {
@@ -274,6 +283,24 @@ export async function renderTreatmentSummaryPdf(data: TreatmentSummaryData): Pro
   doc.font("base").fontSize(9.5).fillColor(TEXT).text(data.recommendations, MARGIN, doc.y, {
     width: CONTENT_WIDTH,
   });
+
+  if (data.signature) {
+    // doc.image() парсит реальные байты изображения (не только сигнатуру) —
+    // повреждённый, но mime-валидный файл может бросить исключение внутри
+    // pdfkit-декодера; секция подписи не должна валить генерацию документа.
+    try {
+      sectionTitle(doc, "Həkimin imzası");
+      ensureSpace(doc, 80);
+      const sigY = doc.y;
+      doc.image(data.signature.buffer, MARGIN, sigY, { fit: [SIGNATURE_MAX_W, SIGNATURE_MAX_H] });
+      doc.y = sigY + SIGNATURE_MAX_H + 6;
+      if (data.patient.doctorName) {
+        doc.font("base").fontSize(9).fillColor(MUTED).text(data.patient.doctorName, MARGIN, doc.y);
+      }
+    } catch (e) {
+      console.error("PDF: doctor signature embed failed, skipping section:", e);
+    }
+  }
 
   drawFooter(doc, data.clinic.phone);
   doc.end();

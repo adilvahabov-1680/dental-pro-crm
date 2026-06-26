@@ -17,6 +17,7 @@ import { tenantClient } from "@/lib/tenant";
 import { getPatientForUser, patientScopeWhere } from "@/lib/patients";
 import { getInvoiceForUser, paymentReceiverNames } from "@/lib/finance";
 import { renderTreatmentSummaryPdf, renderInvoicePdf } from "@/lib/pdf";
+import { resolveDoctorSignatureForPdf } from "@/lib/pdfSignature";
 import { saveUploadFile } from "@/lib/storage";
 import {
   TOOTH_STATUS_META,
@@ -75,7 +76,7 @@ export async function generateTreatmentSummary(
   let recordId: string;
   try {
     const db = tenantClient(clinicId);
-    const [clinic, items, teeth, count] = await Promise.all([
+    const [clinic, items, teeth, count, signature] = await Promise.all([
       clinicInfo(clinicId),
       db.treatmentItem.findMany({
         where: { patientId: patient.id, deletedAt: null, status: { not: "cancelled" } },
@@ -92,6 +93,9 @@ export async function generateTreatmentSummary(
         orderBy: { toothNumber: "asc" },
       }),
       db.pdfRecord.count(),
+      // сессия 87: подпись пациентского primaryDoctor — резолвится с tenant-проверкой,
+      // null безопасен (нет врача/подписи/файла/неподдерживаемый формат — секция не рисуется)
+      resolveDoctorSignatureForPdf(patient.primaryDoctor?.id, clinicId),
     ]);
 
     const notesText = [patient.anamnesis, patient.notes].filter(Boolean).join("\n");
@@ -129,6 +133,7 @@ export async function generateTreatmentSummary(
         lastTreatedAt: t.lastTreatedAt,
       })),
       recommendations: notesText || DEFAULT_RECOMMENDATIONS,
+      signature,
     });
 
     const fileUrl = `documents/${clinicId}/${patient.id}/${newFileName("mualice-cixarisi")}`;
