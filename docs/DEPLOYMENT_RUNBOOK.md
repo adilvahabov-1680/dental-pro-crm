@@ -75,6 +75,10 @@ npm run db:seed
   удалены или пароли сменены»).
 - Для Vercel+Neon demo-деплоя — `npm run demo:deploy:init` (migrate + generate
   + seed одной командой), см. FREE_DEMO_DEPLOY.md.
+- Чтобы просто освежить date-sensitive demo-данные (`/reports/daily-doctor`)
+  на уже работающем публичном demo без повторной миграции — см.
+  FREE_DEMO_DEPLOY.md §11 (**обязательно `TZ=UTC`** при запуске seed против
+  Vercel-деплоя с локальной машины — сессия 99/100).
 
 ## 4. Build verification
 
