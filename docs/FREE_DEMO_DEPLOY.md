@@ -245,4 +245,5 @@ Seed повторно запускать не нужно (данные уже в
 | Build failed: "PrismaClientInitializationError" | `DATABASE_URL` не задан или неверный |
 | Build failed: "Can't find module @prisma/client" | `postinstall` должен был запустить `prisma generate` — проверить логи Vercel |
 | Загрузка лого/аватара/подписи/документа или генерация PDF падает с ошибкой формы (без 500) | `STORAGE_DRIVER` не задан/`local` на Vercel — настроить `s3` + R2 (см. §9) |
+| Генерация PDF падает с ошибкой формы, при этом загрузка лого/аватара/подписи работает (storage настроен) | Сессия 97 — было: `ENOENT .../node_modules/dejavu-fonts-ttf/ttf/DejaVuSans.ttf` в логах Vercel Functions. Исправлено: шрифты теперь закоммичены в `assets/fonts/` + `outputFileTracingIncludes` в next.config.ts. Если повторилось на новом коммите — проверить, что `assets/fonts/*.ttf` не выпали из git (не в .gitignore) и что `next.config.ts` всё ещё содержит `outputFileTracingIncludes`. |
 | `/api/health` возвращает redirect на /login | Middleware должен пропускать `/api/health` — проверить middleware.ts |

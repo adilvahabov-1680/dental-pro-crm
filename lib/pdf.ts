@@ -3,12 +3,20 @@
  * Два шаблона v1: «Müalicə çıxarışı» (по пациенту) и «Hesab sənədi» (по счёту).
  * Деньги в PDF — «AZN» (знак ₼ есть не во всех шрифтах/принтерах).
  * Только рендер в Buffer — storage и БД-записи в lib/actions/documents.ts.
+ *
+ * Шрифты читаются из закоммиченных assets/fonts/ (сессия 97), не из
+ * node_modules/dejavu-fonts-ttf — на Vercel automatic file-tracing не
+ * подхватывал бинарный .ttf, на который код ссылается динамической строкой
+ * пути (fs-чтение внутри pdfkit, не статический require/import), из-за чего
+ * файл не попадал в бандл serverless-функции (ENOENT в проде, см.
+ * docs/DOCUMENTS.md). См. также assets/fonts/README.md (источник/лицензия)
+ * и next.config.ts (outputFileTracingIncludes — явное объявление папки).
  */
 import path from "node:path";
 import PDFDocument from "pdfkit";
 
-const FONT = path.join(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf/DejaVuSans.ttf");
-const FONT_BOLD = path.join(process.cwd(), "node_modules/dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf");
+const FONT = path.join(process.cwd(), "assets/fonts/DejaVuSans.ttf");
+const FONT_BOLD = path.join(process.cwd(), "assets/fonts/DejaVuSans-Bold.ttf");
 
 const ACCENT = "#0E7490"; // печатный аналог accent (cyan-700)
 const TEXT = "#1F2937";

@@ -132,8 +132,10 @@ scripts/critical docs на месте, repo hygiene, demo-login + ключевы
 
 ## 5. PDF / storage (сессии 12, 14)
 
-- pdfkit + DejaVu Sans (`dejavu-fonts-ttf`) — стандартные шрифты не знают ə/ş/ğ;
-  `serverExternalPackages: ["pdfkit"]` в next.config.ts обязателен.
+- pdfkit + DejaVu Sans (закоммиченные `assets/fonts/`, сессия 97 — не
+  npm `dejavu-fonts-ttf`/node_modules; подробности — DOCUMENTS.md) —
+  стандартные шрифты не знают ə/ş/ğ; `serverExternalPackages: ["pdfkit"]`
+  в next.config.ts обязателен.
 - Деньги в PDF — «AZN» (не ₼). Текст PDF в e2e проверяется через `pdf-parse` v2.
 - Файлы: `uploads/documents/{clinicId}/{patientId}/…` (в .gitignore); в БД —
   relative path; `resolveUploadPath` режет traversal/absolute.
