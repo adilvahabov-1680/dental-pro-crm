@@ -126,17 +126,23 @@
 
 ## E. Demo checklist
 
-Полный сценарий — [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) (сессия 52).
-Кратко:
+Полный сценарий — [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md) (сессия 52,
+обновлено в сессии 101 после production-верификации storage/PDF — сессии
+92-100). Кратко:
 
 - **Demo-логины**: `admin@demo.dentalpro.az` / `admin123` (публичный
   Vercel-demo) — алиас `admin`; локальный dev — `Demo1234!` (см. SETUP.md,
   это намеренно два разных пароля для двух сред, не баг).
 - **Demo-flow**: Login → Dashboard → Pasiyent kartı → Qəbul → Müalicə/Diş
-  xəritəsi → Maliyyə/долг → Əlaqə tarixçəsi → Recall/Feedback → Anbar →
-  Admin/Ayarlar (10 шагов, подробности и реплики по ролям — DEMO_PRESENTATION.md §3-4).
+  xəritəsi → Sərfiyyatlar → PDF (Müalicə çıxarışı/Hesab sənədi) → Gündəlik
+  hesabat → Admin (лого) → Ayarlar (аватар/imza) — подробности и реплики
+  по ролям — DEMO_PRESENTATION.md §4.
+- **Перед демо** — обязательный чек-лист подготовки (health/db, demo-логины,
+  свежесть Gündəlik hesabat) — DEMO_PRESENTATION.md §3.
 - **Что НЕ обещать**: WhatsApp Business API, payment gateway, full patient
-  portal, PDF user manual со скриншотами (финальная фаза) — см. §F ниже.
+  portal, PDF user manual со скриншотами (финальная фаза) — см. §F ниже и
+  DEMO_PRESENTATION.md §7 (включая инфраструктурные оговорки про free-tier
+  demo vs. реальную клинику).
 
 ## F. Known limitations
 
