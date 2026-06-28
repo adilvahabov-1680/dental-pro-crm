@@ -1333,7 +1333,7 @@ export const az = {
     },
     signature: {
       title: "Həkim imzası",
-      desc: "Sənədlərdə istifadə üçün fundament — inteqrasiya növbəti mərhələdə",
+      desc: "Müalicə çıxarışı kimi sənədlərdə (PDF) avtomatik istifadə olunur",
       upload: "İmza yüklə",
       uploading: "Yüklənir…",
       saved: "İmza yeniləndi",
