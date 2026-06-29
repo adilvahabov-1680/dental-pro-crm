@@ -32,6 +32,7 @@ export const az = {
     submitting: "Yoxlanılır…",
     invalidCredentials: "E-poçt və ya şifrə yanlışdır",
     clinicSuspended: "Klinika müvəqqəti dayandırılıb. Əlaqə saxlayın.",
+    rateLimited: "Çox sayda uğursuz giriş cəhdi oldu. Bir neçə dəqiqədən sonra yenidən cəhd edin.",
     logout: "Çıxış",
     demoTitle: "Demo girişlər (müvəqqəti)",
   },

@@ -37,6 +37,7 @@ export default function LoginPage() {
               submitting: t.auth.submitting,
               error: t.auth.invalidCredentials,
               clinicSuspended: t.auth.clinicSuspended,
+              rateLimited: t.auth.rateLimited,
             }}
           />
         </Card>

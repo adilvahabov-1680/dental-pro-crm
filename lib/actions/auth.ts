@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { SESSION_COOKIE, createSessionToken } from "@/lib/session";
 import { resolveEffectivePermissions, DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions";
 import { DEMO_USERS, DEMO_PASSWORD, buildDemoSessionUser } from "@/lib/constants";
+import { isLoginLocked, registerFailedLogin, resetLoginAttempts } from "@/lib/login-rate-limit";
 import type { LoginState, RoleKey, SessionUser } from "@/types/auth";
 
 async function setSessionCookie(user: SessionUser) {
@@ -43,6 +44,10 @@ export async function login(_prev: LoginState | undefined, formData: FormData): 
   const email = resolveLoginEmail(raw);
   const password = String(formData.get("password") ?? "");
   if (!email || !password) return { error: "invalid" };
+
+  // Сессия 104: brute-force throttling — см. lib/login-rate-limit.ts для
+  // полного объяснения дизайна/tradeoff'ов (in-memory, по email, не IP).
+  if (isLoginLocked(email)) return { error: "rateLimited" };
 
   let sessionUser: SessionUser | null = null;
 
@@ -100,8 +105,12 @@ export async function login(_prev: LoginState | undefined, formData: FormData): 
     }
   }
 
-  if (!sessionUser) return { error: "invalid" };
+  if (!sessionUser) {
+    registerFailedLogin(email);
+    return { error: "invalid" };
+  }
 
+  resetLoginAttempts(email);
   await setSessionCookie(sessionUser);
   redirect("/dashboard");
 }

@@ -36,6 +36,7 @@
     "e2e-doctor-signature-pdf-check": "tsx scripts/e2e-doctor-signature-pdf-check.ts",
     "e2e-storage-driver-check": "tsx scripts/e2e-storage-driver-check.ts",
     "e2e-pdf-font-bundling-check": "tsx scripts/e2e-pdf-font-bundling-check.ts",
+    "e2e-login-rate-limit-check": "tsx scripts/e2e-login-rate-limit-check.ts",
     "e2e-demo-flow-check": "tsx scripts/e2e-demo-flow-check.ts",
     "e2e-consumables-audit-visibility-check": "tsx scripts/e2e-consumables-audit-visibility-check.ts",
     "e2e-low-stock-alerts-check": "tsx scripts/e2e-low-stock-alerts-check.ts",
